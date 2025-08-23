@@ -1,22 +1,14 @@
 import dash
 import pandas as pd
 import dash_bootstrap_components as dbc
-from dash import html, dcc, Input, Output, State, dash_table
-
-
-
+from dash import html, dcc, State,Input, Output, dash_table
 
 # Helper functions
 EXCEL_FILE = "business_data.xlsx"
 
 def load_employees():
-    df = pd.read_excel(EXCEL_FILE, sheet_name = "Employees")
+    df = pd.read_excel(EXCEL_FILE, sheet_name="Employees")
     return df
-
-
-
-
-
 
 # START OF FUNCTIONS FOR EMPLOYEES TAB
 
@@ -29,8 +21,6 @@ for col in df.columns:
     else:
         state_list.append(State(f"input-{col}", "value"))
 
-
-# For rendering and editing employees tab
 def render_employees_tab():
     df = load_employees()
 
@@ -44,7 +34,8 @@ def render_employees_tab():
                         id=f"input-{col}",
                         display_format="YYYY-MM-DD",
                         placeholder="joining date",
-                        date=None
+                        date=None,
+                        className="w-100"
                     ),
                     md=3
                 )
@@ -52,212 +43,190 @@ def render_employees_tab():
         else:
             form_fields.append(
                 dbc.Col(
-                    dbc.Input(id=f"input-{col}", type="text", placeholder=col),
+                    dbc.Input(id=f"input-{col}", type="text", placeholder=col, className="w-100"),
                     md=3
                 )
             )
 
     return dbc.Container([
-        html.H4("Add Employee"),
-        dbc.Form([
-            dbc.Row(form_fields, className="mb-2"),
-            dbc.Button("Add Employee", id="add-employee-btn", color="success", className="mt-2"),
-            html.Div(id="add-employee-msg", className="mt-2")
-        ]),
-        html.Hr(),
-        html.H4("Employee Details"),
-        dash_table.DataTable(
-            id="employee-table",
-            data=df.to_dict("records"),
-            columns=[{"name": i, "id": i} for i in df.columns],
-            page_size=10,
-            row_selectable="multi",
-            sort_action= "native",
-            style_table={"overflowX": "auto"},
-            style_cell={"textAlign": "center"},
-            style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"}
-        ),
-        dbc.Button("Delete Selected", id="Delete-employee-btn", color="danger", className="mt-2"),
-        html.Div(id="Delete-employee-msg", className="mt-2")
+        dbc.Card([
+            dbc.CardHeader(html.H4("Add Employee", className="mb-0")),
+            dbc.CardBody([
+                dbc.Form([
+                    dbc.Row(form_fields, className="mb-2"),
+                    dbc.Button("Add Employee", id="add-employee-btn", color="success", className="mt-2"),
+                    html.Div(id="add-employee-msg", className="mt-2")
+                ])
+            ])
+        ], className="mb-4 shadow-sm"),
+
+        dbc.Card([
+            dbc.CardHeader(html.H4("Employee Details", className="mb-0")),
+            dbc.CardBody([
+                dash_table.DataTable(
+                    id="employee-table",
+                    data=df.to_dict("records"),
+                    columns=[{"name": i, "id": i} for i in df.columns],
+                    page_size=10,
+                    row_selectable="multi",
+                    sort_action="native",
+                    style_table={"overflowX": "auto"},
+                    style_cell={"textAlign": "center"},
+                    style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"}
+                ),
+                dbc.Button("Delete Selected", id="Delete-employee-btn", color="danger", className="mt-3"),
+                html.Div(id="Delete-employee-msg", className="mt-2")
+            ])
+        ], className="shadow-sm")
     ])
 
 # END OF FUNCTIONS FOR EMPLOYEES TAB
 
 
-
 # START OF FUNCTIONS FOR ATTENDANCE TAB
 
 def render_attendance_tab():
-    # Load employees for dropdowns
     employees_df = load_employees()
+    employee_name_options = [{"label": row["Name"], "value": row["Name"]} for _, row in employees_df.iterrows()]
 
-    # Dropdown options for employee names
-    employee_name_options = [
-        {"label": row["Name"], "value": row["Name"]} for _, row in employees_df.iterrows()
-    ]
-
-    # Load attendance sheet (create if missing)
     try:
         df = pd.read_excel(EXCEL_FILE, sheet_name="Attendance")
     except Exception:
         df = pd.DataFrame(columns=["Date", "Employee id", "Name", "Status", "Overtime Hours"])
 
     return dbc.Container([
-        html.H4("Add Attendance"),
-        dbc.Form([
-            dbc.Row([
-                # Employee Name
-                dbc.Col(
-                    dcc.Dropdown(
-                        id="attendance-name",
-                        options=employee_name_options,
-                        placeholder="Select Employee Name"
-                    ),
-                    md=3
+        dbc.Card([
+            dbc.CardHeader(html.H4("Add Attendance", className="mb-0")),
+            dbc.CardBody([
+                dbc.Form([
+                    dbc.Row([
+                        dbc.Col(dcc.Dropdown(id="attendance-name", options=employee_name_options,
+                                             placeholder="Select Employee Name"), md=3),
+                        dbc.Col(dcc.Dropdown(id="attendance-id", placeholder="Select Employee ID"), md=3),
+                        dbc.Col(dcc.DatePickerSingle(id="attendance-date", display_format="YYYY-MM-DD",
+                                                     placeholder="Select Date"), md=3),
+                        dbc.Col(dcc.Dropdown(
+                            id="attendance-status",
+                            options=[
+                                {"label": "Present", "value": "Present"},
+                                {"label": "Absent", "value": "Absent"},
+                                {"label": "Leave", "value": "Leave"},
+                                {"label": "Half Day", "value": "Half Day"},
+                                {"label": "Overtime", "value": "Overtime"},
+                            ],
+                            placeholder="Select Status"
+                        ), md=3),
+                        dbc.Col(dbc.Input(id="attendance-overtime", type="number",
+                                          placeholder="Overtime Hours", disabled=True), md=3),
+                    ], className="mb-2"),
+                    dbc.Button("Add Attendance", id="add-attendance-btn", color="success", className="mt-2"),
+                    html.Div(id="add-attendance-msg", className="mt-2")
+                ])
+            ])
+        ], className="mb-4 shadow-sm"),
+
+        dbc.Card([
+            dbc.CardHeader(html.H4("Attendance Records", className="mb-0")),
+            dbc.CardBody([
+                dash_table.DataTable(
+                    id="attendance-table",
+                    data=df.to_dict("records"),
+                    columns=[{"name": i, "id": i} for i in df.columns],
+                    page_size=10,
+                    row_selectable="multi",
+                    sort_action="native",
+                    editable=True,
+                    style_table={"overflowX": "auto"},
+                    style_cell={"textAlign": "center"},
+                    style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"}
                 ),
-                # Employee ID (auto-populated based on Name)
-                dbc.Col(
-                    dcc.Dropdown(
-                        id="attendance-id",
-                        placeholder="Select Employee ID"
-                    ),
-                    md=3
-                ),
-                # Date
-                dbc.Col(
-                    dcc.DatePickerSingle(
-                        id="attendance-date",
-                        display_format="YYYY-MM-DD",
-                        placeholder="Select Date"
-                    ),
-                    md=3
-                ),
-                # Status
-                dbc.Col(
-                    dcc.Dropdown(
-                        id="attendance-status",
-                        options=[
-                            {"label": "Present", "value": "Present"},
-                            {"label": "Absent", "value": "Absent"},
-                            {"label": "Leave", "value": "Leave"},
-                            {"label": "Half Day", "value": "Half Day"},
-                            {"label": "Overtime", "value": "Overtime"},
-                        ],
-                        placeholder="Select Status"
-                    ),
-                    md=3
-                ),
-                # Overtime Hours (only enabled if status=Overtime)
-                dbc.Col(
-                    dbc.Input(
-                        id="attendance-overtime",
-                        type="number",
-                        placeholder="Overtime Hours",
-                        disabled=True
-                    ),
-                    md=3
-                ),
-            ], className="mb-2"),
-            dbc.Button("Add Attendance", id="add-attendance-btn", color="success", className="mt-2"),
-            html.Div(id="add-attendance-msg", className="mt-2")
-        ]),
-        html.Hr(),
-        html.H4("Attendance Records"),
-        dash_table.DataTable(
-            id="attendance-table",
-            data=df.to_dict("records"),
-            columns=[{"name": i, "id": i} for i in df.columns],
-            page_size=10,
-            row_selectable="multi",
-            sort_action="native",
-            editable= True,
-            style_table={"overflowX": "auto"},
-            style_cell={"textAlign": "center"},
-            style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"}
-        ),
-        dbc.Button("Delete Selected", id="delete-attendance-btn", color="danger", className="mt-2"),
-        html.Div(id="delete-attendance-msg", className="mt-2")
+                dbc.Button("Delete Selected", id="delete-attendance-btn", color="danger", className="mt-3"),
+                html.Div(id="delete-attendance-msg", className="mt-2")
+            ])
+        ], className="shadow-sm")
     ])
 
 # END OF FUNCTIONS FOR ATTENDANCE TAB
 
 
-# START OF FUNCTIONS FOR Stock TAB
+# START OF FUNCTIONS FOR STOCK TAB
 
 def render_stock_tab():
-    # Load stock sheet (create if missing)
     try:
         df = pd.read_excel(EXCEL_FILE, sheet_name="Stock")
     except Exception:
         df = pd.DataFrame(columns=["Category", "Item Name", "Current Quantity", "Unit Cost on Average"])
 
     return dbc.Container([
-        html.H4("Stock Management"),
-        dash_table.DataTable(
-            id="stock-table",
-            data=df.to_dict("records"),
-            columns=[{"name": i, "id": i} for i in df.columns],
-            page_size=10,
-            sort_action="native",
-            row_selectable="multi",
-            editable=True,  # Allow manual edits if required
-            style_table={"overflowX": "auto"},
-            style_cell={"textAlign": "center"},
-            style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"}
-        ),
-
-        dbc.Button("Delete Selected", id="delete-stock-btn", color="danger", className="mt-2"),
-        html.Div(id="delete-stock-msg", className="mt-2")
+        dbc.Card([
+            dbc.CardHeader(html.H4("Stock Management", className="mb-0")),
+            dbc.CardBody([
+                dash_table.DataTable(
+                    id="stock-table",
+                    data=df.to_dict("records"),
+                    columns=[{"name": i, "id": i} for i in df.columns],
+                    page_size=10,
+                    sort_action="native",
+                    row_selectable="multi",
+                    editable=True,
+                    style_table={"overflowX": "auto"},
+                    style_cell={"textAlign": "center"},
+                    style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"}
+                ),
+                dbc.Button("Delete Selected", id="delete-stock-btn", color="danger", className="mt-3"),
+                html.Div(id="delete-stock-msg", className="mt-2")
+            ])
+        ], className="shadow-sm")
     ])
 
-    
-
-# END OF FUNCTIONS FOR Stock TAB
+# END OF FUNCTIONS FOR STOCK TAB
 
 
 # START OF FUNCTIONS FOR PURCHASES TAB
 
 def render_purchases_tab():
-    # Load purchases data
     try:
         df = pd.read_excel(EXCEL_FILE, sheet_name="Purchases")
     except Exception:
         df = pd.DataFrame(columns=["Date", "Item Name", "Category", "Quantity", "Unit Price", "Total Price"])
 
     return dbc.Container([
-        html.H4("Add Purchase"),
-        dbc.Form([
-            dbc.Row([
-                dbc.Col(dcc.DatePickerSingle(id="purchase-date", display_format="YYYY-MM-DD"), md=2),
-                dbc.Col(dbc.Input(id="purchase-item", type="text", placeholder="Item Name"), md=2),
-                dbc.Col(dbc.Input(id="purchase-category", type="text", placeholder="Category"), md=2),
-                dbc.Col(dbc.Input(id="purchase-quantity", type="number", placeholder="Quantity"), md=2),
-                dbc.Col(dbc.Input(id="purchase-unitprice", type="number", placeholder="Unit Price"), md=2),
-            ], className="mb-2"),
-            dbc.Button("Add Purchase", id="add-purchase-btn", color="success", className="mt-2"),
-            html.Div(id="add-purchase-msg", className="mt-2")
-        ]),
+        dbc.Card([
+            dbc.CardHeader(html.H4("Add Purchase", className="mb-0")),
+            dbc.CardBody([
+                dbc.Form([
+                    dbc.Row([
+                        dbc.Col(dcc.DatePickerSingle(id="purchase-date", display_format="YYYY-MM-DD"), md=2),
+                        dbc.Col(dbc.Input(id="purchase-item", type="text", placeholder="Item Name"), md=2),
+                        dbc.Col(dbc.Input(id="purchase-category", type="text", placeholder="Category"), md=2),
+                        dbc.Col(dbc.Input(id="purchase-quantity", type="number", placeholder="Quantity"), md=2),
+                        dbc.Col(dbc.Input(id="purchase-unitprice", type="number", placeholder="Unit Price"), md=2),
+                    ], className="mb-2"),
+                    dbc.Button("Add Purchase", id="add-purchase-btn", color="success", className="mt-2"),
+                    html.Div(id="add-purchase-msg", className="mt-2")
+                ])
+            ])
+        ], className="mb-4 shadow-sm"),
 
-        html.Hr(),
-        html.H4("Purchase Records"),
-        dash_table.DataTable(
-            id="purchase-table",
-            data=df.to_dict("records"),
-            columns=[{"name": i, "id": i} for i in df.columns],
-            page_size=10,
-            row_selectable = "multi",
-            sort_action="native",
-            style_table={"overflowX": "auto"},
-            style_cell={"textAlign": "center"},
-            style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"}
-        ),
-
-        dbc.Button("Delete Selected", id="delete-purchase-btn", color="danger", className="mt-2"),
-        html.Div(id="delete-purchase-msg", className="mt-2")
-        
+        dbc.Card([
+            dbc.CardHeader(html.H4("Purchase Records", className="mb-0")),
+            dbc.CardBody([
+                dash_table.DataTable(
+                    id="purchase-table",
+                    data=df.to_dict("records"),
+                    columns=[{"name": i, "id": i} for i in df.columns],
+                    page_size=10,
+                    row_selectable="multi",
+                    sort_action="native",
+                    style_table={"overflowX": "auto"},
+                    style_cell={"textAlign": "center"},
+                    style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"}
+                ),
+                dbc.Button("Delete Selected", id="delete-purchase-btn", color="danger", className="mt-3"),
+                html.Div(id="delete-purchase-msg", className="mt-2")
+            ])
+        ], className="shadow-sm")
     ])
-
-
 
 # END OF FUNCTIONS FOR PURCHASES TAB
 
@@ -265,86 +234,80 @@ def render_purchases_tab():
 # START OF FUNCTIONS FOR SALES TAB
 
 def load_sales():
-    return pd.read_excel(EXCEL_FILE, sheet_name= "Sales")
+    return pd.read_excel(EXCEL_FILE, sheet_name="Sales")
 
 def load_stock():
-    return pd.read_excel(EXCEL_FILE, sheet_name= "Stock")
+    return pd.read_excel(EXCEL_FILE, sheet_name="Stock")
 
 def render_sales_tab():
     df_sales = load_sales()
-    df_stock = load_stock()  # to allow dropdown of items
+    df_stock = load_stock()
 
     form_fields = [
-        dbc.Col(dcc.DatePickerSingle(
-            id="input-sales-Date",
-            display_format="YYYY-MM-DD",
-            placeholder="Select Date"
-        ), md=3),
-
+        dbc.Col(dcc.DatePickerSingle(id="input-sales-Date", display_format="YYYY-MM-DD",
+                                     placeholder="Select Date"), md=3),
         dbc.Col(dbc.Input(id="input-sales-Customer Name", type="text", placeholder="Customer Name"), md=3),
         dbc.Col(dbc.Input(id="input-sales-Customer Phone", type="text", placeholder="Customer Phone"), md=3),
-
         dbc.Col(dcc.Dropdown(
             id="input-sales-Item Name",
             options=[{"label": f"{row['Item Name']} ({row['Category']})", "value": row['Item Name']}
                      for _, row in df_stock.iterrows()],
             placeholder="Select Item"
         ), md=3),
-
         dbc.Col(dbc.Input(id="input-sales-Category", type="text", placeholder="Category", readonly=True), md=3),
-
         dbc.Col(dbc.Input(id="input-sales-Quantity", type="number", placeholder="Quantity"), md=2),
         dbc.Col(dbc.Input(id="input-sales-Unit Price", type="number", placeholder="Unit Price"), md=2),
     ]
 
     return dbc.Container([
-        html.H4("Add Sale"),
-        dbc.Form([
-            dbc.Row(form_fields, className="mb-2"),
-            dbc.Button("Add Sale", id="add-sale-btn", color="success", className="mt-2"),
-            html.Div(id="add-sale-msg", className="mt-2")
-        ]),
-        html.Hr(),
-        html.H4("Sales Records"),
-        dash_table.DataTable(
-            id="sales-table",
-            data=df_sales.to_dict("records"),
-            columns=[{"name": i, "id": i} for i in df_sales.columns],
-            page_size=10,
-            row_selectable= "multi",
-            sort_action= "native",
-            style_table={"overflowX": "auto"},
-            style_cell={"textAlign": "center"},
-            style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"}
-        ),
+        dbc.Card([
+            dbc.CardHeader(html.H4("Add Sale", className="mb-0")),
+            dbc.CardBody([
+                dbc.Form([
+                    dbc.Row(form_fields, className="mb-2"),
+                    dbc.Button("Add Sale", id="add-sale-btn", color="success", className="mt-2"),
+                    html.Div(id="add-sale-msg", className="mt-2")
+                ])
+            ])
+        ], className="mb-4 shadow-sm"),
 
-        dbc.Button("Delete Selected", id="delete-sales-btn", color="danger", className="mt-2"),
-        html.Div(id="delete-sales-msg", className="mt-2")
+        dbc.Card([
+            dbc.CardHeader(html.H4("Sales Records", className="mb-0")),
+            dbc.CardBody([
+                dash_table.DataTable(
+                    id="sales-table",
+                    data=df_sales.to_dict("records"),
+                    columns=[{"name": i, "id": i} for i in df_sales.columns],
+                    page_size=10,
+                    row_selectable="multi",
+                    sort_action="native",
+                    style_table={"overflowX": "auto"},
+                    style_cell={"textAlign": "center"},
+                    style_header={"fontWeight": "bold", "backgroundColor": "#f8f9fa"}
+                ),
+                dbc.Button("Delete Selected", id="delete-sales-btn", color="danger", className="mt-3"),
+                html.Div(id="delete-sales-msg", className="mt-2")
+            ])
+        ], className="shadow-sm")
     ])
-
-
 
 # END OF FUNCTIONS FOR SALES TAB
 
 
-
-
-# Start layout from here
-
+# Start layout
 layout = dbc.Container([
-    html.H2("Data Management"),
+    html.H2("Data Management", className="mb-4"),
 
     dbc.Tabs([
-        dbc.Tab(label = "Employees", tab_id= "tab-employees"),
-        dbc.Tab(label= "Attendance", tab_id= "tab-attendance"),
-        dbc.Tab(label= "Purchases", tab_id = "tab-purchases"),
-        dbc.Tab(label= "Stock", tab_id= "tab-stock"),
-        dbc.Tab(label= "Sales", tab_id= "tab-sales"),
-    ], id= "data-tabs", active_tab= "tab-employees"),
+        dbc.Tab(label="Employees", tab_id="tab-employees"),
+        dbc.Tab(label="Attendance", tab_id="tab-attendance"),
+        dbc.Tab(label="Purchases", tab_id="tab-purchases"),
+        dbc.Tab(label="Stock", tab_id="tab-stock"),
+        dbc.Tab(label="Sales", tab_id="tab-sales"),
+    ], id="data-tabs", active_tab="tab-employees"),
 
-    html.Div(id = "tab-content", className= "mt-4")
-], fluid= True)
-
+    html.Div(id="tab-content", className="mt-4")
+], fluid=True)
 
 
 
