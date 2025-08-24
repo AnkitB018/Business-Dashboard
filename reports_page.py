@@ -20,6 +20,9 @@ def load_attendance():
     df = pd.read_excel(EXCEL_FILE, sheet_name="Attendance")
     return df
 
+def load_purchase():
+    df = pd.read_excel(EXCEL_FILE, sheet_name= "Purchases")
+    return df
 
 def render_finance_tab():
     return dbc.Card(
@@ -45,13 +48,74 @@ def render_sales_tab():
         ])
     )
 
-def render_purchases_tab():
-    return dbc.Card(
-        dbc.CardBody([
-            html.H4("Purchases Reports", className="card-title"),
-            html.P("Supplier-wise and category-wise purchases will appear here."),
-        ])
-    )
+
+# Start of render function for purchase tab
+
+
+def render_purchase_tab():
+    return dbc.Container([
+        # 🔹 Filters row
+        dbc.Row([
+            dbc.Col([
+                html.Label("Select Product:"),
+                dcc.Dropdown(id="purchase-product", placeholder="Select product")
+            ], md=4),
+            dbc.Col([
+                html.Label("Select Date Range:"),
+                dcc.DatePickerRange(
+                    id="purchase-date-range",
+                    display_format="YYYY-MM-DD",
+                    start_date=date.today().replace(day=1),
+                    end_date=date.today()
+                )
+            ], md=8),
+        ], className="mb-4"),
+
+        # 🔹 Graphs
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H5("Purchases Over Time", className="card-title"),
+                        dcc.Graph(id="purchase-trend-graph")
+                    ])
+                ])
+            ], md=6),
+
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H5("Product Comparison", className="card-title"),
+                        dcc.Graph(id="purchase-comparison-graph")
+                    ])
+                ])
+            ], md=6),
+        ], className="mb-4"),
+
+        # 🔹 Optional insights
+        dbc.Row([
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H5("Top 5 Purchased Products", className="card-title"),
+                        dcc.Graph(id="purchase-top-products")
+                    ])
+                ])
+            ], md=6),
+
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H5("Monthly Purchase Trend", className="card-title"),
+                        dcc.Graph(id="purchase-monthly-trend")
+                    ])
+                ])
+            ], md=6),
+        ], className="mb-4"),
+    ], fluid=True)
+
+
+# End of render function for purchsae tab
 
 
 # Start of render function for attendance tab 
@@ -190,7 +254,7 @@ def register_callbacks(app):
         elif tab == "sales":
             return render_sales_tab()
         elif tab == "purchases":
-            return render_purchases_tab()
+            return render_purchase_tab()
         elif tab == "attendance":
             return render_attendance_tab()
         return html.P("Select a report tab.")
@@ -357,3 +421,103 @@ def register_callbacks(app):
             f"Half Days: {half_days}",
             f"Overtime Hours: {overtime_hours}",
         )
+
+    # Callbacks for purchase tab
+    
+    @app.callback(
+        Output("purchase-product", "options"),
+        Input("purchase-product", "id")   # dummy input to refresh once
+    )
+    def update_product_dropdown(_):
+        purchases_df = load_purchase()
+        products = sorted(purchases_df["Item Name"].dropna().unique())
+        return [{"label": p, "value": p} for p in products]
+
+    # Purchases over time (bar chart for selected product)
+    @app.callback(
+        Output("purchase-trend-graph", "figure"),
+        Input("purchase-product", "value"),
+        Input("purchase-date-range", "start_date"),
+        Input("purchase-date-range", "end_date"),
+    )
+    def update_trend_graph(product, start_date, end_date):
+        purchases_df = load_purchase()
+        if purchases_df.empty or not product:
+            return px.bar(title="No data")
+
+        df = purchases_df.copy()
+        df["Date"] = pd.to_datetime(df["Date"])
+        mask = (df["Date"] >= start_date) & (df["Date"] <= end_date) & (df["Item Name"] == product)
+        df = df.loc[mask]
+
+        if df.empty:
+            return px.bar(title="No purchases found for this product")
+
+        trend = df.groupby("Date").size().reset_index(name="Count")
+        fig = px.bar(trend, x="Date", y="Count", title=f"Purchases of {product} Over Time")
+        return fig
+
+    # Product comparison (bar chart across products)
+    @app.callback(
+        Output("purchase-comparison-graph", "figure"),
+        Input("purchase-date-range", "start_date"),
+        Input("purchase-date-range", "end_date"),
+    )
+    def update_comparison_graph(start_date, end_date):
+        purchases_df = load_purchase()
+        if purchases_df.empty:
+            return px.bar(title="No data")
+
+        df = purchases_df.copy()
+        df["Date"] = pd.to_datetime(df["Date"])
+        mask = (df["Date"] >= start_date) & (df["Date"] <= end_date)
+        df = df.loc[mask]
+
+        if df.empty:
+            return px.bar(title="No data in selected range")
+
+        comparison = df.groupby("Item Name").size().reset_index(name="Quantity")
+        fig = px.bar(comparison, x="Item Name", y="Quantity", title="Product Comparison")
+        fig.update_xaxes(tickangle=45)
+        return fig
+
+    # Top 5 products
+    @app.callback(
+        Output("purchase-top-products", "figure"),
+        Input("purchase-date-range", "start_date"),
+        Input("purchase-date-range", "end_date"),
+    )
+    def update_top_products(start_date, end_date):
+        purchases_df = load_purchase()
+        if purchases_df.empty:
+            return px.bar(title="No data")
+
+        df = purchases_df.copy()
+        df["Date"] = pd.to_datetime(df["Date"])
+        mask = (df["Date"] >= start_date) & (df["Date"] <= end_date)
+        df = df.loc[mask]
+
+        top = df.groupby("Item Name").size().reset_index(name="Count").nlargest(5, "Count")
+        fig = px.bar(top, x="Item Name", y="Count", title="Top 5 Purchased Products", text="Count")
+        fig.update_traces(textposition="outside")
+        return fig
+
+    # Monthly trend (line chart)
+    @app.callback(
+        Output("purchase-monthly-trend", "figure"),
+        Input("purchase-date-range", "start_date"),
+        Input("purchase-date-range", "end_date"),
+    )
+    def update_monthly_trend(start_date, end_date):
+        purchases_df = load_purchase()
+        if purchases_df.empty:
+            return px.line(title="No data")
+
+        df = purchases_df.copy()
+        df["Date"] = pd.to_datetime(df["Date"])
+        mask = (df["Date"] >= start_date) & (df["Date"] <= end_date)
+        df = df.loc[mask]
+
+        monthly = df.resample("M", on="Date").size().reset_index(name="Count")
+        fig = px.line(monthly, x="Date", y="Count", title="Monthly Purchase Trend", markers=True)
+        return fig
