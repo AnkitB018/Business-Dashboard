@@ -1,0 +1,23 @@
+# Core dependencies
+dash==2.17.1
+dash-bootstrap-components==1.5.0
+plotly==5.17.0
+pandas==2.1.4
+
+# MongoDB dependencies
+pymongo==4.6.0
+motor==3.3.2  # For async operations if needed
+
+# GUI dependencies
+customtkinter==5.2.0  # Modern tkinter alternative
+tkinter  # Built-in with Python
+
+# Excel support (for migration)
+openpyxl==3.1.2
+
+# For executable creation
+pyinstaller==6.3.0
+auto-py-to-exe==2.40.0
+
+# Utility dependencies
+python-dotenv==1.0.0
