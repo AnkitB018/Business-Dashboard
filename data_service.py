@@ -227,8 +227,8 @@ class HRDataService:
     Service layer for HR data operations
     """
     
-    def __init__(self):
-        self.db_manager = get_db_manager()
+    def __init__(self, db_manager=None):
+        self.db_manager = db_manager if db_manager else get_db_manager()
     
     # Employee operations
     def get_employees(self, filter_dict: Dict = None) -> pd.DataFrame:
@@ -308,6 +308,10 @@ class HRDataService:
         
         return purchase_id
     
+    def delete_purchase(self, filter_dict: Dict) -> int:
+        """Delete purchase records"""
+        return self.db_manager.delete_documents("purchases", filter_dict)
+    
     def _update_stock_after_purchase(self, purchase_data: Dict):
         """Update stock quantities after purchase"""
         item_name = purchase_data["item_name"]
@@ -321,65 +325,74 @@ class HRDataService:
             # Update existing stock
             current_stock = existing_stock[0]
             old_qty = current_stock["current_quantity"]
-            old_cost = current_stock["unit_cost_average"]
+            old_cost = current_stock.get("unit_cost_average", unit_price)
             
             new_qty = old_qty + quantity
             new_cost = ((old_qty * old_cost) + (quantity * unit_price)) / new_qty
             
-            self.db_manager.update_document(
-                "stock",
-                {"item_name": item_name},
-                {
-                    "current_quantity": new_qty,
-                    "unit_cost_average": round(new_cost, 2)
-                }
-            )
+            update_data = {
+                "current_quantity": new_qty,
+                "unit_cost_average": new_cost,
+                "total_value": new_qty * new_cost,
+                "last_updated": datetime.now()
+            }
+            
+            self.db_manager.update_document("stock", {"item_name": item_name}, update_data)
         else:
-            # Add new stock item
-            new_stock = {
+            # Create new stock entry
+            stock_data = {
                 "item_name": item_name,
-                "category": purchase_data.get("category", ""),
+                "category": purchase_data.get("category", "General"),
                 "current_quantity": quantity,
                 "unit_cost_average": unit_price,
-                "minimum_stock": 10
+                "supplier": purchase_data.get("supplier", "Unknown"),
+                "total_value": quantity * unit_price,
+                "last_updated": datetime.now()
             }
-            self.db_manager.insert_document("stock", new_stock)
+            
+            self.db_manager.insert_document("stock", stock_data)
     
     # Sales operations
     def get_sales(self, filter_dict: Dict = None) -> pd.DataFrame:
         """Get sales as DataFrame"""
         return self.db_manager.get_collection_as_dataframe("sales", filter_dict)
     
-    def add_sale(self, sales_data: Dict) -> str:
+    def add_sale(self, sale_data: Dict) -> str:
         """Add sale and update stock"""
-        # Check stock availability
-        item_name = sales_data["item_name"]
-        quantity = sales_data["quantity"]
-        
-        stock_items = self.db_manager.find_documents("stock", {"item_name": item_name})
-        if not stock_items:
-            raise ValueError(f"Item '{item_name}' not found in stock")
-        
-        current_stock = stock_items[0]["current_quantity"]
-        if quantity > current_stock:
-            raise ValueError(f"Insufficient stock. Available: {current_stock}")
-        
-        # Add sales record
-        sales_id = self.db_manager.insert_document("sales", sales_data)
+        # Add sale record
+        sale_id = self.db_manager.insert_document("sales", sale_data)
         
         # Update stock
-        new_quantity = current_stock - quantity
-        self.db_manager.update_document(
-            "stock",
-            {"item_name": item_name},
-            {"current_quantity": new_quantity}
-        )
+        self._update_stock_after_sale(sale_data)
         
-        return sales_id
+        return sale_id
     
     def delete_sale(self, filter_dict: Dict) -> int:
-        """Delete sales record"""
+        """Delete sale records"""
         return self.db_manager.delete_documents("sales", filter_dict)
+    
+    def _update_stock_after_sale(self, sale_data: Dict):
+        """Update stock quantities after sale"""
+        item_name = sale_data["item_name"]
+        quantity = sale_data["quantity"]
+        
+        # Check if item exists in stock
+        existing_stock = self.db_manager.find_documents("stock", {"item_name": item_name})
+        
+        if existing_stock:
+            current_stock = existing_stock[0]
+            old_qty = current_stock["current_quantity"]
+            new_qty = max(0, old_qty - quantity)  # Prevent negative stock
+            
+            unit_cost = current_stock.get("unit_cost_average", 0)
+            
+            update_data = {
+                "current_quantity": new_qty,
+                "total_value": new_qty * unit_cost,
+                "last_updated": datetime.now()
+            }
+            
+            self.db_manager.update_document("stock", {"item_name": item_name}, update_data)
 
 
 # Singleton instance

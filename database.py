@@ -93,7 +93,7 @@ class MongoDBManager:
                     "employee_id": {"bsonType": "string"},
                     "employee_name": {"bsonType": "string"},
                     "date": {"bsonType": "date"},
-                    "status": {"enum": ["Present", "Absent", "Leave", "Half Day", "Overtime"]},
+                    "status": {"enum": ["Present", "Absent", "Leave", "Half Day", "Overtime", "Late", "Remote Work"]},
                     "overtime_hours": {"bsonType": "number"},
                     "notes": {"bsonType": "string"},
                     "created_at": {"bsonType": "date"}
@@ -221,6 +221,10 @@ class MongoDBManager:
             str: Inserted document ID
         """
         try:
+            if self.db is None:
+                logger.error("Database connection not established")
+                return None
+                
             document['created_at'] = datetime.now()
             if 'updated_at' not in document:
                 document['updated_at'] = datetime.now()
@@ -245,6 +249,10 @@ class MongoDBManager:
             List[Dict]: List of documents
         """
         try:
+            if self.db is None:
+                logger.error("Database connection not established")
+                return []
+                
             filter_dict = filter_dict or {}
             cursor = self.db[collection_name].find(filter_dict)
             if limit:
@@ -273,6 +281,10 @@ class MongoDBManager:
             int: Number of modified documents
         """
         try:
+            if self.db is None:
+                logger.error("Database connection not established")
+                return 0
+                
             update_dict['updated_at'] = datetime.now()
             result = self.db[collection_name].update_many(
                 filter_dict, 
@@ -296,6 +308,10 @@ class MongoDBManager:
             int: Number of deleted documents
         """
         try:
+            if self.db is None:
+                logger.error("Database connection not established")
+                return 0
+                
             result = self.db[collection_name].delete_many(filter_dict)
             logger.info(f"Deleted {result.deleted_count} documents from {collection_name}")
             return result.deleted_count
