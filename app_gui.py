@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class HRManagementApp:
     def __init__(self):
         # Set modern appearance with improved theme
-        ctk.set_appearance_mode("dark")  # Modern dark mode
+        ctk.set_appearance_mode("light")  # Modern light mode
         ctk.set_default_color_theme("blue")
         
         # Create main window with modern styling
@@ -34,17 +34,17 @@ class HRManagementApp:
         self.root.geometry("1600x1000")
         self.root.minsize(1400, 900)
         
-        # Modern color scheme
+        # Modern color scheme for light theme
         self.colors = {
-            'primary': '#1F2937',      # Dark gray
-            'secondary': '#374151',    # Medium gray
-            'accent': '#3B82F6',       # Blue
-            'success': '#10B981',      # Green
-            'warning': '#F59E0B',      # Orange
-            'danger': '#EF4444',       # Red
-            'surface': '#111827',      # Very dark gray
-            'text_primary': '#F9FAFB', # Light gray
-            'text_secondary': '#9CA3AF' # Medium light gray
+            'primary': '#F8FAFC',      # Light gray background
+            'secondary': '#E5E7EB',    # Light medium gray
+            'accent': '#3B82F6',       # Blue (same)
+            'success': '#10B981',      # Green (same)
+            'warning': '#F59E0B',      # Orange (same)
+            'danger': '#EF4444',       # Red (same)
+            'surface': '#FFFFFF',      # White surface
+            'text_primary': '#111827', # Dark gray text
+            'text_secondary': '#6B7280' # Medium gray text
         }
         
         # Configure window icon and styling

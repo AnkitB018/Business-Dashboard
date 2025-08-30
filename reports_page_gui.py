@@ -59,6 +59,23 @@ class ModernReportsPageGUI:
         
         self.create_page()
         
+    def configure_scroll_speed(self, scrollable_frame):
+        """Configure improved scroll speed for CTkScrollableFrame"""
+        try:
+            # Improve mouse wheel scroll speed (divide delta by 60 instead of 120 for faster scrolling)
+            def on_mousewheel(event):
+                scrollable_frame._parent_canvas.yview_scroll(int(-1 * (event.delta / 60)), "units")
+            
+            # Bind improved scroll to canvas
+            scrollable_frame._parent_canvas.bind("<MouseWheel>", on_mousewheel)
+            
+            # Also bind for when frame gets focus
+            scrollable_frame.bind("<MouseWheel>", on_mousewheel)
+            
+        except Exception as e:
+            # Fallback - just continue without enhanced scrolling
+            pass
+        
     def create_page(self):
         """Create the enhanced reports page"""
         # Main frame with modern styling
@@ -144,6 +161,9 @@ class ModernReportsPageGUI:
         # Create main container with scrollable frame
         main_container = ctk.CTkScrollableFrame(tab_frame, corner_radius=8)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(main_container)
         
         # Employee selection section
         selection_frame = ctk.CTkFrame(main_container, height=100, corner_radius=8)
@@ -253,6 +273,9 @@ class ModernReportsPageGUI:
         container = ctk.CTkScrollableFrame(tab_frame, corner_radius=8)
         container.pack(fill="both", expand=True, padx=10, pady=10)
         
+        # Configure improved scroll speed
+        self.configure_scroll_speed(container)
+        
         # Generate button
         generate_btn = ctk.CTkButton(
             container,
@@ -275,6 +298,9 @@ class ModernReportsPageGUI:
         container = ctk.CTkScrollableFrame(tab_frame, corner_radius=8)
         container.pack(fill="both", expand=True, padx=10, pady=10)
         
+        # Configure improved scroll speed
+        self.configure_scroll_speed(container)
+        
         # Generate button
         generate_btn = ctk.CTkButton(
             container,
@@ -296,6 +322,9 @@ class ModernReportsPageGUI:
         # Create scrollable container
         container = ctk.CTkScrollableFrame(tab_frame, corner_radius=8)
         container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(container)
         
         # Generate button
         generate_btn = ctk.CTkButton(

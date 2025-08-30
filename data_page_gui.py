@@ -18,6 +18,12 @@ class ModernDataPageGUI:
         self.data_service = data_service
         self.frame = None
         
+        # Navigation system
+        self.navigation_stack = []
+        self.current_view = 'main'
+        self.main_frame = None
+        self.content_frames = {}  # Store different content frames
+        
         # Enhanced modern color scheme
         self.colors = {
             'primary': '#2563EB',      # Modern blue
@@ -56,19 +62,71 @@ class ModernDataPageGUI:
         return f"#{darkened[0]:02x}{darkened[1]:02x}{darkened[2]:02x}"
         
     def create_page(self):
-        """Create the enhanced data management page"""
+        """Create the enhanced data management page with navigation support"""
         # Main frame with modern styling
         self.frame = ctk.CTkFrame(self.parent, corner_radius=0, fg_color="transparent")
         
-        # Create header section
+        # Create navigation header (will show breadcrumbs and back button when in sub-views)
+        self.create_navigation_header()
+        
+        # Create header section (always visible)
         self.create_header()
         
-        # Create main content area with cards
-        self.create_main_content()
+        # Create main content container that will hold different views
+        self.main_container = ctk.CTkFrame(self.frame, corner_radius=0, fg_color="transparent")
+        self.main_container.pack(fill="both", expand=True, padx=0, pady=0)
+        
+        # Create main dashboard view
+        self.create_main_dashboard()
         
         # Create status bar at bottom
         self.create_status_bar()
         
+    def create_navigation_header(self):
+        """Create navigation header with breadcrumbs and back button"""
+        self.nav_frame = ctk.CTkFrame(
+            self.frame, 
+            height=60, 
+            corner_radius=0,
+            fg_color="transparent"
+        )
+        self.nav_frame.pack(fill="x", padx=0, pady=0)
+        self.nav_frame.pack_propagate(False)
+        
+        # Initially hidden, will be shown when navigating to sub-views
+        self.nav_frame.pack_forget()
+        
+        # Back button
+        self.back_button = ctk.CTkButton(
+            self.nav_frame,
+            text="← Back",
+            command=self.navigate_back,
+            width=100,
+            height=35,
+            fg_color=self.colors['button_uniform'],
+            hover_color=self.colors['button_hover'],
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        self.back_button.pack(side="left", padx=20, pady=15)
+        
+        # Breadcrumb
+        self.breadcrumb_label = ctk.CTkLabel(
+            self.nav_frame,
+            text="Data Management",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=self.colors['text_primary']
+        )
+        self.breadcrumb_label.pack(side="left", padx=(10, 0), pady=15)
+        
+    def create_main_dashboard(self):
+        """Create the main dashboard view (grid of modules)"""
+        # Create main dashboard frame
+        self.main_frame = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
+        self.main_frame.pack(fill="both", expand=True)
+        
+        # Create main content area with cards (no header here since it's already created)
+        self.create_main_content()
+
     def create_status_bar(self):
         """Create enhanced status bar for showing messages"""
         self.status_frame = ctk.CTkFrame(self.frame, height=50, corner_radius=10)
@@ -131,6 +189,83 @@ class ModernDataPageGUI:
         self.status_icon.configure(text="ℹ️")
         self.status_label.configure(text="Ready - Select a module to start managing your data")
         self.status_time.configure(text="")
+        
+    def configure_scroll_speed(self, scrollable_frame):
+        """Configure improved scroll speed for CTkScrollableFrame"""
+        try:
+            # Improve mouse wheel scroll speed (divide delta by 60 instead of 120 for faster scrolling)
+            def on_mousewheel(event):
+                scrollable_frame._parent_canvas.yview_scroll(int(-1 * (event.delta / 60)), "units")
+            
+            # Bind improved scroll to canvas
+            scrollable_frame._parent_canvas.bind("<MouseWheel>", on_mousewheel)
+            
+            # Also bind for when frame gets focus
+            scrollable_frame.bind("<MouseWheel>", on_mousewheel)
+            
+        except Exception as e:
+            # Fallback - just continue without enhanced scrolling
+            pass
+        
+    def navigate_to(self, view_name, title):
+        """Navigate to a specific view"""
+        # Add current view to navigation stack
+        self.navigation_stack.append(self.current_view)
+        self.current_view = view_name
+        
+        # Hide main frame
+        self.main_frame.pack_forget()
+        
+        # Show navigation header
+        self.nav_frame.pack(fill="x", padx=0, pady=0, before=self.main_container)
+        
+        # Update breadcrumb
+        self.breadcrumb_label.configure(text=f"Data Management > {title}")
+        
+        # Show the specific module frame
+        if view_name not in self.content_frames:
+            self.create_module_frame(view_name, title)
+        
+        self.content_frames[view_name].pack(fill="both", expand=True)
+        
+    def navigate_back(self):
+        """Navigate back to previous view"""
+        if not self.navigation_stack:
+            return
+            
+        # Hide current frame
+        if self.current_view in self.content_frames:
+            self.content_frames[self.current_view].pack_forget()
+        
+        # Get previous view
+        previous_view = self.navigation_stack.pop()
+        self.current_view = previous_view
+        
+        if previous_view == 'main':
+            # Return to main dashboard
+            self.nav_frame.pack_forget()
+            self.main_frame.pack(fill="both", expand=True)
+        else:
+            # Navigate to previous sub-view (if any)
+            self.content_frames[previous_view].pack(fill="both", expand=True)
+        
+    def create_module_frame(self, module_type, title):
+        """Create a frame for a specific module"""
+        module_frame = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color="transparent")
+        
+        # Create the module content based on type
+        if module_type == "employees":
+            self.create_employee_management_content(module_frame)
+        elif module_type == "attendance":
+            self.create_attendance_management_content(module_frame)
+        elif module_type == "sales":
+            self.create_sales_management_content(module_frame)
+        elif module_type == "purchases":
+            self.create_purchase_management_content(module_frame)
+        elif module_type == "stock":
+            self.create_stock_management_content(module_frame)
+            
+        self.content_frames[module_type] = module_frame
         
     def create_header(self):
         """Create modern header section with enhanced styling"""
@@ -245,7 +380,7 @@ class ModernDataPageGUI:
         """Create main content area with modern grid layout"""
         # Main container for grid layout
         main_container = ctk.CTkFrame(
-            self.frame,
+            self.main_frame,
             corner_radius=15,
             fg_color=("gray95", "gray10"),
             border_width=1,
@@ -406,62 +541,65 @@ class ModernDataPageGUI:
         darkened = tuple(int(c * 0.8) for c in rgb)
         return f"#{darkened[0]:02x}{darkened[1]:02x}{darkened[2]:02x}"
     
-    # Module window creators
+    # Module navigation methods
     def open_employee_module(self):
-        """Open employee management module"""
-        self.create_data_module_window("Employee Management", "employees")
+        """Navigate to employee management module"""
+        self.navigate_to("employees", "Employee Management")
         
     def open_attendance_module(self):
-        """Open attendance tracking module"""
-        self.create_data_module_window("Attendance Tracking", "attendance")
+        """Navigate to attendance tracking module"""
+        self.navigate_to("attendance", "Attendance Tracking")
         
     def open_stock_module(self):
-        """Open stock management module"""
-        self.create_data_module_window("Stock Management", "stock")
+        """Navigate to stock management module"""
+        self.navigate_to("stock", "Stock Management")
         
     def open_sales_module(self):
-        """Open sales management module"""
-        self.create_data_module_window("Sales Management", "sales")
+        """Navigate to sales management module"""
+        self.navigate_to("sales", "Sales Management")
         
     def open_purchases_module(self):
-        """Open purchases management module"""
-        self.create_data_module_window("Purchase Management", "purchases")
-    
-    def create_data_module_window(self, title, module_type):
-        """Create a modern data management window"""
-        # Create new window
-        module_window = ctk.CTkToplevel(self.frame)
-        module_window.title(f"HR System - {title}")
-        module_window.geometry("1200x700")
-        module_window.grab_set()  # Make it modal
+        """Navigate to purchase management module"""
+        self.navigate_to("purchases", "Purchase Management")
+    # Module content creation methods
+    def create_employee_management_content(self, parent):
+        """Create employee management content in the frame"""
+        self.create_module_content(parent, "Employee Management", "employees")
         
-        # Window header
-        header_frame = ctk.CTkFrame(module_window, height=80, corner_radius=0)
-        header_frame.pack(fill="x", padx=0, pady=0)
+    def create_attendance_management_content(self, parent):
+        """Create attendance management content in the frame"""
+        self.create_module_content(parent, "Attendance Tracking", "attendance")
+        
+    def create_sales_management_content(self, parent):
+        """Create sales management content in the frame"""
+        self.create_module_content(parent, "Sales Management", "sales")
+        
+    def create_purchase_management_content(self, parent):
+        """Create purchase management content in the frame"""
+        self.create_module_content(parent, "Purchase Management", "purchases")
+        
+    def create_stock_management_content(self, parent):
+        """Create stock management content in the frame"""
+        self.create_module_content(parent, "Stock Management", "stock")
+        
+    def create_module_content(self, parent, title, module_type):
+        """Create module content within a frame (adapted from window version)"""
+        # Module header
+        header_frame = ctk.CTkFrame(parent, height=80, corner_radius=15)
+        header_frame.pack(fill="x", padx=20, pady=(20, 10))
         header_frame.pack_propagate(False)
         
         # Title
         title_label = ctk.CTkLabel(
             header_frame,
             text=f"📋 {title}",
-            font=ctk.CTkFont(size=24, weight="bold")
+            font=ctk.CTkFont(size=24, weight="bold"),
+            text_color=self.colors['primary']
         )
         title_label.pack(side="left", padx=20, pady=20)
         
-        # Close button
-        close_btn = ctk.CTkButton(
-            header_frame,
-            text="✕ Close",
-            command=module_window.destroy,
-            width=80,
-            height=35,
-            fg_color="red",
-            hover_color="dark red"
-        )
-        close_btn.pack(side="right", padx=20, pady=20)
-        
         # Main content area
-        content_frame = ctk.CTkFrame(module_window, corner_radius=0, fg_color="transparent")
+        content_frame = ctk.CTkFrame(parent, corner_radius=0, fg_color="transparent")
         content_frame.pack(fill="both", expand=True, padx=0, pady=0)
         
         # Create two-panel layout (form + data table)
@@ -708,9 +846,12 @@ class ModernDataPageGUI:
             font=ctk.CTkFont(size=18, weight="bold")
         ).pack(pady=15)
         
-        # Scrollable form area
+        # Scrollable form area with improved scroll speed
         form_scroll = ctk.CTkScrollableFrame(form_panel)
         form_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(form_scroll)
         
         # Form fields with enhanced controls
         self.emp_vars = {}
@@ -771,6 +912,9 @@ class ModernDataPageGUI:
         # Scrollable form area with better spacing
         form_scroll = ctk.CTkScrollableFrame(form_panel)
         form_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(form_scroll)
         
         # Form fields with simplified layout
         self.att_vars = {}
@@ -1096,6 +1240,9 @@ class ModernDataPageGUI:
         form_scroll = ctk.CTkScrollableFrame(form_panel)
         form_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         
+        # Configure improved scroll speed
+        self.configure_scroll_speed(form_scroll)
+        
         # Form fields
         self.stock_vars = {}
         fields = [
@@ -1131,6 +1278,9 @@ class ModernDataPageGUI:
         # Scrollable form area
         form_scroll = ctk.CTkScrollableFrame(form_panel)
         form_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(form_scroll)
         
         # Form fields
         self.sales_vars = {}
@@ -1170,6 +1320,9 @@ class ModernDataPageGUI:
         # Scrollable form area
         form_scroll = ctk.CTkScrollableFrame(form_panel)
         form_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(form_scroll)
         
         # Form fields
         self.purchase_vars = {}
@@ -1407,13 +1560,14 @@ class ModernDataPageGUI:
                 self.show_status_message("Database not connected", "error")
                 return
             
-            if module_type == "employee":
+            if module_type == "employees":
                 data = {key: var.get().strip() for key, var in self.emp_vars.items()}
                 if data.get("salary"):
                     data["salary"] = float(data["salary"])
                 # Add joining date as datetime
-                if data.get("joining_date"):
-                    data["joining_date"] = datetime.strptime(data["joining_date"], "%Y-%m-%d")
+                if data.get("join_date"):
+                    data["hire_date"] = datetime.strptime(data["join_date"], "%Y-%m-%d")
+                    del data["join_date"]  # Remove old key
                 result = self.data_service.add_employee(data)
                 
             elif module_type == "attendance":
@@ -1451,12 +1605,12 @@ class ModernDataPageGUI:
                 
             elif module_type == "stock":
                 data = {key: var.get().strip() for key, var in self.stock_vars.items()}
-                if data.get("current_quantity"):
-                    data["current_quantity"] = int(data["current_quantity"])
-                if data.get("unit_cost_average"):
-                    data["unit_cost_average"] = float(data["unit_cost_average"])
-                if data.get("minimum_stock"):
-                    data["minimum_stock"] = int(data["minimum_stock"])
+                if data.get("quantity"):
+                    data["current_quantity"] = int(data["quantity"])
+                    del data["quantity"]  # Remove old key
+                if data.get("price_per_unit"):
+                    data["unit_price"] = float(data["price_per_unit"])
+                    del data["price_per_unit"]  # Remove old key
                 result = self.data_service.add_stock_item(data)
                 
             elif module_type == "sales":

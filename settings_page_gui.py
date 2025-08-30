@@ -45,6 +45,23 @@ class SettingsPageGUI:
         self.create_data_management_tab()
         self.create_system_settings_tab()
         
+    def configure_scroll_speed(self, scrollable_frame):
+        """Configure improved scroll speed for CTkScrollableFrame"""
+        try:
+            # Improve mouse wheel scroll speed (divide delta by 60 instead of 120 for faster scrolling)
+            def on_mousewheel(event):
+                scrollable_frame._parent_canvas.yview_scroll(int(-1 * (event.delta / 60)), "units")
+            
+            # Bind improved scroll to canvas
+            scrollable_frame._parent_canvas.bind("<MouseWheel>", on_mousewheel)
+            
+            # Also bind for when frame gets focus
+            scrollable_frame.bind("<MouseWheel>", on_mousewheel)
+            
+        except Exception as e:
+            # Fallback - just continue without enhanced scrolling
+            pass
+        
     def create_database_settings_tab(self):
         """Create database settings tab"""
         db_frame = ctk.CTkFrame(self.notebook)
@@ -53,6 +70,9 @@ class SettingsPageGUI:
         # Main container with scrollable frame
         main_container = ctk.CTkScrollableFrame(db_frame)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(main_container)
         
         # Title
         ctk.CTkLabel(main_container, text="MongoDB Atlas Configuration", 
@@ -236,6 +256,9 @@ class SettingsPageGUI:
         main_container = ctk.CTkScrollableFrame(data_frame)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
+        # Configure improved scroll speed
+        self.configure_scroll_speed(main_container)
+        
         # Title
         ctk.CTkLabel(main_container, text="Data Management & Backup", 
                     font=ctk.CTkFont(size=24, weight="bold")).pack(pady=20)
@@ -346,6 +369,9 @@ class SettingsPageGUI:
         # Main container
         main_container = ctk.CTkScrollableFrame(system_frame)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(main_container)
         
         # Title
         ctk.CTkLabel(main_container, text="System Settings", 
