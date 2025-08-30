@@ -1,29 +1,17 @@
-# Core dependencies for GUI application
+# Core dependencies for Business Dashboard
 customtkinter==5.2.0
 matplotlib==3.8.3
 pandas==2.1.4
+seaborn
 
 # MongoDB dependencies
 pymongo==4.6.0
 python-dotenv==1.0.1
 
-# Excel and image support
+# Excel and data support
 openpyxl==3.1.2
 Pillow==10.2.0
 
-# Logging and utilities
-logging
-
-# GUI dependencies
-customtkinter==5.2.0  # Modern tkinter alternative
-tkinter  # Built-in with Python
-
-# Excel support (for migration)
-openpyxl==3.1.2
-
-# For executable creation
+# For executable creation (optional)
 pyinstaller==6.3.0
 auto-py-to-exe==2.40.0
-
-# Utility dependencies
-python-dotenv==1.0.0
