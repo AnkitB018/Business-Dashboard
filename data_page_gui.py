@@ -36,7 +36,10 @@ class ModernDataPageGUI:
             'card': '#FFFFFF',         # Card background
             'border': '#E5E7EB',       # Border
             'text_primary': '#111827', # Primary text
-            'text_secondary': '#6B7280' # Secondary text
+            'text_secondary': '#6B7280', # Secondary text
+            'button_uniform': '#2563EB', # Uniform button color (modern blue)
+            'button_hover': '#1D4ED8',   # Uniform button hover color (darker blue)
+            'title_green': '#059669'     # Green color for module titles
         }
         
         self.create_page()
@@ -239,20 +242,40 @@ class ModernDataPageGUI:
             logger.error(f"Error creating quick stats: {e}")
     
     def create_main_content(self):
-        """Create main content area with modern card layout"""
-        # Main container with scrollable frame
-        main_container = ctk.CTkScrollableFrame(
+        """Create main content area with modern grid layout"""
+        # Main container for grid layout
+        main_container = ctk.CTkFrame(
             self.frame,
-            corner_radius=10,
-            fg_color=("gray95", "gray10")
+            corner_radius=15,
+            fg_color=("gray95", "gray10"),
+            border_width=1,
+            border_color=self.colors['border']
         )
         main_container.pack(fill="both", expand=True, padx=20, pady=10)
         
-        # Create module cards
+        # Title for modules section
+        modules_title = ctk.CTkLabel(
+            main_container,
+            text="📋 Data Management Modules",
+            font=ctk.CTkFont(size=22, weight="bold"),
+            text_color=self.colors['primary']
+        )
+        modules_title.pack(pady=(20, 10))
+        
+        # Subtitle
+        modules_subtitle = ctk.CTkLabel(
+            main_container,
+            text="Select a module to start managing your business data",
+            font=ctk.CTkFont(size=14),
+            text_color=self.colors['text_secondary']
+        )
+        modules_subtitle.pack(pady=(0, 20))
+        
+        # Create module cards in grid
         self.create_module_cards(main_container)
         
     def create_module_cards(self, parent):
-        """Create modern cards for each module"""
+        """Create modern cards for each module in a grid layout"""
         modules = [
             {
                 "title": "👥 Employee Management",
@@ -286,71 +309,93 @@ class ModernDataPageGUI:
             }
         ]
         
-        # Create cards in a grid layout
+        # Create grid layout container
+        grid_container = ctk.CTkFrame(parent, fg_color="transparent")
+        grid_container.pack(fill="both", expand=True, padx=10, pady=20)
+        
+        # Create cards in a proper 2-column grid layout
+        # 5 cards total: 3 rows with 2 columns
         for i, module in enumerate(modules):
-            self.create_module_card(parent, module, i)
+            row = i // 2  # 0, 0, 1, 1, 2
+            col = i % 2   # 0, 1, 0, 1, 0
+            self.create_grid_module_card(grid_container, module, row, col)
     
-    def create_module_card(self, parent, module, index):
-        """Create individual module card"""
-        # Card frame
+    def create_grid_module_card(self, parent, module, row, col):
+        """Create individual module card in grid layout"""
+        # Calculate position and configure grid with consistent sizing
+        parent.grid_rowconfigure(row, weight=1, minsize=180)
+        parent.grid_columnconfigure(col, weight=1, minsize=400)
+        
+        # Card frame with consistent design for all cards
         card_frame = ctk.CTkFrame(
             parent,
             corner_radius=15,
-            height=200,
-            fg_color=("white", "gray20")
+            height=160,
+            fg_color=("white", "gray20"),
+            border_width=1,
+            border_color=self.colors['border']
         )
-        card_frame.pack(fill="x", pady=15, padx=10)
-        card_frame.pack_propagate(False)
+        card_frame.grid(row=row, column=col, padx=15, pady=10, sticky="ew")
+        card_frame.grid_propagate(False)
         
-        # Card header
-        header_frame = ctk.CTkFrame(card_frame, fg_color="transparent", height=60)
-        header_frame.pack(fill="x", padx=20, pady=(20, 10))
+        # Main content container
+        content_frame = ctk.CTkFrame(card_frame, fg_color="transparent")
+        content_frame.pack(fill="both", expand=True, padx=20, pady=15)
+        
+        # Header section (icon and title)
+        header_frame = ctk.CTkFrame(content_frame, fg_color="transparent", height=50)
+        header_frame.pack(fill="x", pady=(0, 10))
         header_frame.pack_propagate(False)
+        
+        # Extract icon and title parts
+        title_parts = module["title"].split(" ", 1)
+        icon = title_parts[0] if len(title_parts) > 0 else "📊"
+        title_text = title_parts[1] if len(title_parts) > 1 else module["title"]
+        
+        # Icon
+        icon_label = ctk.CTkLabel(
+            header_frame,
+            text=icon,
+            font=ctk.CTkFont(size=24),
+            width=40
+        )
+        icon_label.pack(side="left", padx=(0, 10))
         
         # Title
         title_label = ctk.CTkLabel(
             header_frame,
-            text=module["title"],
-            font=ctk.CTkFont(size=20, weight="bold"),
-            anchor="w"
+            text=title_text,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            anchor="w",
+            text_color=self.colors['title_green']  # Green color for all titles
         )
         title_label.pack(side="left", fill="x", expand=True)
         
-        # Status indicator
-        status_frame = ctk.CTkFrame(header_frame, width=80, height=30, corner_radius=15)
-        status_frame.pack(side="right")
-        status_frame.pack_propagate(False)
+        # Description (compact)
+        desc_label = ctk.CTkLabel(
+            content_frame,
+            text=module["description"],
+            font=ctk.CTkFont(size=12),
+            anchor="w",
+            justify="left",
+            wraplength=300,
+            text_color=self.colors['text_secondary']
+        )
+        desc_label.pack(fill="x", pady=(0, 15))
         
-        status_label = ctk.CTkLabel(
-            status_frame,
-            text="Active",
-            font=ctk.CTkFont(size=10, weight="bold"),
+        # Action button (compact) - uniform professional color
+        action_btn = ctk.CTkButton(
+            content_frame,
+            text=f"Open {title_text}",
+            command=module["action"],
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=self.colors['button_uniform'],
+            hover_color=self.colors['button_hover'],
             text_color="white"
         )
-        status_label.pack(expand=True)
-        
-        # Description
-        desc_label = ctk.CTkLabel(
-            card_frame,
-            text=module["description"],
-            font=ctk.CTkFont(size=14),
-            anchor="w",
-            justify="left"
-        )
-        desc_label.pack(fill="x", padx=20, pady=(0, 15))
-        
-        # Action button
-        action_btn = ctk.CTkButton(
-            card_frame,
-            text=f"Open {module['title'].split(' ')[1]} Module",
-            command=module["action"],
-            height=40,
-            corner_radius=10,
-            font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color=module["color"],
-            hover_color=self.darken_color(module["color"])
-        )
-        action_btn.pack(side="bottom", fill="x", padx=20, pady=(0, 20))
+        action_btn.pack(fill="x", side="bottom")
         
     def darken_color(self, color):
         """Darken a hex color for hover effect"""
