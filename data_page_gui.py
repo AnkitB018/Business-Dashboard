@@ -18,16 +18,25 @@ class ModernDataPageGUI:
         self.data_service = data_service
         self.frame = None
         
-        # Color scheme (modern web-like colors)
+        # Enhanced modern color scheme
         self.colors = {
-            'primary': '#3B82F6',      # Blue
-            'success': '#10B981',      # Green  
-            'warning': '#F59E0B',      # Orange
-            'danger': '#EF4444',       # Red
-            'light': '#F8FAFC',        # Light gray
-            'dark': '#1E293B',         # Dark gray
-            'card_bg': '#FFFFFF',      # Card background
-            'border': '#E2E8F0'        # Border color
+            'primary': '#2563EB',      # Modern blue
+            'primary_light': '#3B82F6', # Light blue
+            'success': '#059669',      # Modern green  
+            'success_light': '#10B981', # Light green
+            'warning': '#D97706',      # Modern orange
+            'warning_light': '#F59E0B', # Light orange
+            'danger': '#DC2626',       # Modern red
+            'danger_light': '#EF4444', # Light red
+            'purple': '#7C3AED',       # Modern purple
+            'purple_light': '#8B5CF6', # Light purple
+            'gray': '#6B7280',         # Modern gray
+            'gray_light': '#9CA3AF',   # Light gray
+            'surface': '#F8FAFC',      # Surface
+            'card': '#FFFFFF',         # Card background
+            'border': '#E5E7EB',       # Border
+            'text_primary': '#111827', # Primary text
+            'text_secondary': '#6B7280' # Secondary text
         }
         
         self.create_page()
@@ -121,37 +130,48 @@ class ModernDataPageGUI:
         self.status_time.configure(text="")
         
     def create_header(self):
-        """Create modern header section"""
-        header_frame = ctk.CTkFrame(self.frame, height=80, corner_radius=10)
-        header_frame.pack(fill="x", padx=20, pady=(20, 10))
+        """Create modern header section with enhanced styling"""
+        header_frame = ctk.CTkFrame(
+            self.frame, 
+            height=100, 
+            corner_radius=20,
+            fg_color=("white", "gray20"),
+            border_width=1,
+            border_color=self.colors['border']
+        )
+        header_frame.pack(fill="x", padx=25, pady=(25, 15))
         header_frame.pack_propagate(False)
         
-        # Title and subtitle
-        title_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
-        title_frame.pack(side="left", fill="y", padx=20, pady=15)
+        # Left side - Title and subtitle with modern typography
+        title_container = ctk.CTkFrame(header_frame, fg_color="transparent")
+        title_container.pack(side="left", fill="y", padx=30, pady=20)
         
+        # Main title with gradient-like effect
         title_label = ctk.CTkLabel(
-            title_frame,
-            text="📊 Data Management",
-            font=ctk.CTkFont(size=28, weight="bold")
+            title_container,
+            text="📊 Data Management Center",
+            font=ctk.CTkFont(size=32, weight="bold"),
+            text_color=self.colors['primary']
         )
         title_label.pack(anchor="w")
         
+        # Subtitle with modern styling
         subtitle_label = ctk.CTkLabel(
-            title_frame,
-            text="Manage employees, attendance, inventory, and transactions",
-            font=ctk.CTkFont(size=14)
+            title_container,
+            text="Comprehensive business data management and analytics platform",
+            font=ctk.CTkFont(size=14),
+            text_color=self.colors['text_secondary']
         )
-        subtitle_label.pack(anchor="w")
+        subtitle_label.pack(anchor="w", pady=(5, 0))
         
-        # Quick stats cards
-        stats_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
-        stats_frame.pack(side="right", fill="y", padx=20, pady=10)
+        # Right side - Modern quick stats with better layout
+        stats_container = ctk.CTkFrame(header_frame, fg_color="transparent")
+        stats_container.pack(side="right", fill="y", padx=30, pady=15)
         
-        self.create_quick_stats(stats_frame)
+        self.create_quick_stats(stats_container)
         
     def create_quick_stats(self, parent):
-        """Create quick statistics cards"""
+        """Create modern statistics cards with enhanced design"""
         try:
             if not self.data_service:
                 return
@@ -163,31 +183,57 @@ class ModernDataPageGUI:
             employees_count = len(employees_df) if not employees_df.empty else 0
             stock_count = len(stock_df) if not stock_df.empty else 0
             
+            # Modern stat cards with improved design
             stats = [
-                ("👥", str(employees_count), "Employees"),
-                ("📦", str(stock_count), "Items in Stock")
+                ("👥", str(employees_count), "Employees", self.colors['primary']),
+                ("📦", str(stock_count), "Stock Items", self.colors['success'])
             ]
             
-            for icon, count, label in stats:
-                stat_card = ctk.CTkFrame(parent, width=120, height=50, corner_radius=8)
-                stat_card.pack(side="left", padx=5)
+            for i, (icon, count, label, color) in enumerate(stats):
+                # Modern stat card with shadow effect
+                stat_card = ctk.CTkFrame(
+                    parent, 
+                    width=140, 
+                    height=65, 
+                    corner_radius=15,
+                    fg_color=("white", "gray25"),
+                    border_width=1,
+                    border_color=self.colors['border']
+                )
+                stat_card.pack(side="left", padx=8)
                 stat_card.pack_propagate(False)
                 
-                # Icon and count
-                count_label = ctk.CTkLabel(
-                    stat_card, 
-                    text=f"{icon} {count}",
-                    font=ctk.CTkFont(size=16, weight="bold")
-                )
-                count_label.pack(pady=(8, 2))
+                # Content container
+                content_frame = ctk.CTkFrame(stat_card, fg_color="transparent")
+                content_frame.pack(expand=True, fill="both", padx=15, pady=12)
                 
-                # Label
-                label_widget = ctk.CTkLabel(
-                    stat_card,
-                    text=label,
-                    font=ctk.CTkFont(size=10)
+                # Icon and count on top
+                top_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+                top_frame.pack(fill="x")
+                
+                icon_label = ctk.CTkLabel(
+                    top_frame,
+                    text=icon,
+                    font=ctk.CTkFont(size=16)
                 )
-                label_widget.pack()
+                icon_label.pack(side="left")
+                
+                count_label = ctk.CTkLabel(
+                    top_frame, 
+                    text=count,
+                    font=ctk.CTkFont(size=18, weight="bold"),
+                    text_color=color
+                )
+                count_label.pack(side="right")
+                
+                # Label at bottom
+                label_widget = ctk.CTkLabel(
+                    content_frame,
+                    text=label,
+                    font=ctk.CTkFont(size=11),
+                    text_color=self.colors['text_secondary']
+                )
+                label_widget.pack(anchor="w", pady=(3, 0))
                 
         except Exception as e:
             logger.error(f"Error creating quick stats: {e}")
@@ -399,6 +445,211 @@ class ModernDataPageGUI:
         elif module_type == "purchases":
             self.create_purchases_form(left_panel, right_panel)
     
+    def create_form_section(self, parent, title):
+        """Create a form section header"""
+        section_frame = ctk.CTkFrame(parent, fg_color="transparent", height=40)
+        section_frame.pack(fill="x", pady=(20, 10))
+        section_frame.pack_propagate(False)
+        
+        ctk.CTkLabel(
+            section_frame,
+            text=title,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=self.colors['primary']
+        ).pack(anchor="w", pady=10)
+        
+        # Divider line
+        divider = ctk.CTkFrame(section_frame, height=1, fg_color=("gray80", "gray30"))
+        divider.pack(fill="x", pady=(5, 0))
+
+    def create_enhanced_field(self, parent, label, key, field_type, vars_dict, placeholder="", required=True):
+        """Create enhanced form field with modern styling"""
+        field_container = ctk.CTkFrame(
+            parent, 
+            fg_color=("white", "gray20"),
+            corner_radius=10,
+            border_width=1,
+            border_color=("gray90", "gray30")
+        )
+        field_container.pack(fill="x", pady=8, padx=5)
+        
+        field_frame = ctk.CTkFrame(field_container, fg_color="transparent")
+        field_frame.pack(fill="x", padx=15, pady=12)
+        
+        # Label with required indicator
+        required_indicator = " *" if required else ""
+        label_widget = ctk.CTkLabel(
+            field_frame,
+            text=f"{label}{required_indicator}",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=("gray10", "gray90")
+        )
+        label_widget.pack(anchor="w", pady=(0, 6))
+        
+        # Input field
+        vars_dict[key] = tk.StringVar()
+        
+        if field_type == "email":
+            entry = ctk.CTkEntry(
+                field_frame,
+                textvariable=vars_dict[key],
+                placeholder_text=placeholder,
+                height=38,
+                corner_radius=8,
+                border_width=1,
+                font=ctk.CTkFont(size=12)
+            )
+        else:
+            entry = ctk.CTkEntry(
+                field_frame,
+                textvariable=vars_dict[key],
+                placeholder_text=placeholder,
+                height=38,
+                corner_radius=8,
+                border_width=1,
+                font=ctk.CTkFont(size=12)
+            )
+        
+        entry.pack(fill="x", pady=(0, 3))
+        
+        # Helper text
+        if placeholder and field_type != "text":
+            helper_text = ctk.CTkLabel(
+                field_frame,
+                text=f"Format: {placeholder}",
+                font=ctk.CTkFont(size=10),
+                text_color=("gray50", "gray50")
+            )
+            helper_text.pack(anchor="w")
+        
+        return entry
+
+    def create_enhanced_combo(self, parent, label, key, options, vars_dict, required=True):
+        """Create enhanced combo box with modern styling"""
+        field_container = ctk.CTkFrame(
+            parent, 
+            fg_color=("white", "gray20"),
+            corner_radius=10,
+            border_width=1,
+            border_color=("gray90", "gray30")
+        )
+        field_container.pack(fill="x", pady=8, padx=5)
+        
+        field_frame = ctk.CTkFrame(field_container, fg_color="transparent")
+        field_frame.pack(fill="x", padx=15, pady=12)
+        
+        # Label
+        required_indicator = " *" if required else ""
+        label_widget = ctk.CTkLabel(
+            field_frame,
+            text=f"{label}{required_indicator}",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=("gray10", "gray90")
+        )
+        label_widget.pack(anchor="w", pady=(0, 6))
+        
+        # Combo box
+        vars_dict[key] = tk.StringVar(value=options[0] if options else "")
+        combo = ctk.CTkComboBox(
+            field_frame,
+            values=options,
+            variable=vars_dict[key],
+            height=38,
+            corner_radius=8,
+            border_width=1,
+            font=ctk.CTkFont(size=12),
+            dropdown_font=ctk.CTkFont(size=11)
+        )
+        combo.pack(fill="x")
+        
+        return combo
+
+    def create_enhanced_form_buttons(self, parent, module_type):
+        """Create enhanced form buttons with modern styling"""
+        button_container = ctk.CTkFrame(parent, fg_color="transparent", height=80)
+        button_container.pack(fill="x", pady=(30, 20))
+        button_container.pack_propagate(False)
+        
+        button_frame = ctk.CTkFrame(button_container, fg_color="transparent")
+        button_frame.pack(expand=True)
+        
+        # Submit button
+        submit_btn = ctk.CTkButton(
+            button_frame,
+            text="💾 Save Record",
+            command=lambda: self.save_record(module_type),
+            width=140,
+            height=45,
+            corner_radius=12,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=self.colors['success'],
+            hover_color=self.darken_color(self.colors['success'])
+        )
+        submit_btn.pack(side="left", padx=(0, 15))
+        
+        # Clear button
+        clear_btn = ctk.CTkButton(
+            button_frame,
+            text="🗑️ Clear Form",
+            command=lambda: self.clear_form(module_type),
+            width=140,
+            height=45,
+            corner_radius=12,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=self.colors['warning'],
+            hover_color=self.darken_color(self.colors['warning'])
+        )
+        clear_btn.pack(side="left")
+
+    def create_enhanced_data_table(self, parent, module_type):
+        """Create enhanced data table with modern styling"""
+        # Table header
+        table_header = ctk.CTkFrame(
+            parent, 
+            height=60, 
+            corner_radius=12,
+            fg_color=self.colors['primary']
+        )
+        table_header.pack(fill="x", padx=15, pady=(15, 10))
+        table_header.pack_propagate(False)
+        
+        header_content = ctk.CTkFrame(table_header, fg_color="transparent")
+        header_content.pack(expand=True, fill="both", padx=20, pady=15)
+        
+        ctk.CTkLabel(
+            header_content,
+            text=f"📊 {module_type.title()} Records",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="white"
+        ).pack(side="left")
+        
+        # Refresh button
+        refresh_btn = ctk.CTkButton(
+            header_content,
+            text="🔄 Refresh",
+            command=lambda: self.refresh_table(module_type),
+            width=100,
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="white",
+            text_color=self.colors['primary'],
+            hover_color="gray90"
+        )
+        refresh_btn.pack(side="right")
+        
+        # Table frame
+        table_frame = ctk.CTkFrame(parent, corner_radius=10)
+        table_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Create the actual table
+        self.create_data_table_content(table_frame, module_type)
+
+    def create_data_table_content(self, parent, module_type):
+        """Create the actual data table content"""
+        # This will call the existing create_data_table method
+        self.create_data_table(parent, module_type)
+
     def create_employee_form(self, form_panel, data_panel):
         """Create enhanced employee form with department and position dropdowns"""
         # Form header
@@ -454,7 +705,7 @@ class ModernDataPageGUI:
         self.create_date_picker(form_scroll, "Join Date", "join_date", self.emp_vars)
         
         # Form buttons
-        self.create_form_buttons(form_scroll, "employee")
+        self.create_form_buttons(form_scroll, "employees")
         
         # Data table
         self.create_data_table(data_panel, "employees")
@@ -485,13 +736,13 @@ class ModernDataPageGUI:
         # Date picker
         self.create_date_picker(form_scroll, "Date", "date", self.att_vars)
         
-        # Time pickers with improved layout
-        self.create_time_picker(form_scroll, "Time In", "time_in", self.att_vars)
-        self.create_time_picker(form_scroll, "Time Out", "time_out", self.att_vars)
+        # Time pickers with improved layout (store references for dynamic control)
+        self.time_in_widgets = self.create_time_picker(form_scroll, "Time In", "time_in", self.att_vars)
+        self.time_out_widgets = self.create_time_picker(form_scroll, "Time Out", "time_out", self.att_vars)
         
-        # Status dropdown with simplified options
-        self.create_combo_field(form_scroll, "Status", "status", 
-                               ["Present", "Absent", "Late", "Half Day"], self.att_vars)
+        # Status dropdown with all valid options from reports
+        self.create_attendance_status_dropdown(form_scroll, "Status", "status", 
+                               ["Present", "Absent", "Late", "Half Day", "Leave", "Overtime", "Remote Work"], self.att_vars)
         
         # Notes field (optional)
         self.create_form_field(form_scroll, "Notes (Optional)", "notes", "text", self.att_vars, 
@@ -696,6 +947,75 @@ class ModernDataPageGUI:
             font=ctk.CTkFont(size=10)
         )
         helper_text.pack(anchor="w", pady=(8, 0))
+        
+        # Return widgets for potential disabling
+        return {
+            'hour_combo': hour_combo,
+            'minute_combo': minute_combo,
+            'quick_buttons': buttons_frame
+        }
+
+    def create_attendance_status_dropdown(self, parent, label, key, options, vars_dict):
+        """Create attendance status dropdown with time field control"""
+        field_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        field_frame.pack(fill="x", pady=8)
+
+        # Label
+        label_widget = ctk.CTkLabel(
+            field_frame,
+            text=f"{label}*",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        label_widget.pack(anchor="w", pady=(0, 5))
+
+        # Dropdown
+        vars_dict[key] = tk.StringVar()
+        dropdown = ctk.CTkComboBox(
+            field_frame,
+            variable=vars_dict[key],
+            values=options,
+            width=300,
+            height=35,
+            corner_radius=6,
+            border_width=1,
+            font=ctk.CTkFont(size=12),
+            command=self.on_status_change
+        )
+        dropdown.pack(fill="x", pady=(0, 5))
+
+        # Helper text
+        helper_text = ctk.CTkLabel(
+            field_frame,
+            text="Select attendance status",
+            font=ctk.CTkFont(size=10)
+        )
+        helper_text.pack(anchor="w")
+
+    def on_status_change(self, status):
+        """Handle status change to enable/disable time fields"""
+        try:
+            if hasattr(self, 'time_in_widgets') and hasattr(self, 'time_out_widgets'):
+                is_absent_or_leave = status.lower() in ["absent", "leave"]
+                
+                # Disable/enable time input widgets
+                for widget_dict in [self.time_in_widgets, self.time_out_widgets]:
+                    if widget_dict:
+                        widget_dict['hour_combo'].configure(state="disabled" if is_absent_or_leave else "normal")
+                        widget_dict['minute_combo'].configure(state="disabled" if is_absent_or_leave else "normal")
+                        
+                        # Disable quick buttons
+                        for child in widget_dict['quick_buttons'].winfo_children():
+                            if isinstance(child, ctk.CTkButton):
+                                child.configure(state="disabled" if is_absent_or_leave else "normal")
+                
+                # Set default values for absent/leave
+                if is_absent_or_leave:
+                    if 'time_in' in self.att_vars:
+                        self.att_vars['time_in'].set("--:--")
+                    if 'time_out' in self.att_vars:
+                        self.att_vars['time_out'].set("--:--")
+        except Exception as e:
+            logger.error(f"Error handling status change: {e}")
     
     def set_time(self, time_str, hour_var, minute_var):
         """Set time from button click"""
@@ -1056,12 +1376,32 @@ class ModernDataPageGUI:
                 # Convert date string to datetime object
                 if data.get("date"):
                     data["date"] = datetime.strptime(data["date"], "%Y-%m-%d")
-                # Get employee name from dropdown
-                emp_id = data.get("employee_id")
-                if emp_id:
+                
+                # Extract employee_id from dropdown (format: "EMP001 - John Doe")
+                emp_selection = data.get("employee_id", "")
+                if " - " in emp_selection:
+                    emp_id = emp_selection.split(" - ")[0].strip()
+                    data["employee_id"] = emp_id
+                    # Get employee name
                     employees = self.data_service.get_employees({"employee_id": emp_id})
                     if not employees.empty:
                         data["employee_name"] = employees.iloc[0]["name"]
+                else:
+                    raise ValueError("Please select a valid employee")
+                
+                # Handle time fields based on status
+                status = data.get("status", "").lower()
+                if status in ["absent", "leave"]:
+                    # For absent/leave, set meaningful default times or empty
+                    data["time_in"] = ""
+                    data["time_out"] = ""
+                else:
+                    # For other statuses, ensure times are provided
+                    if not data.get("time_in") or data.get("time_in") == "--:--":
+                        data["time_in"] = "09:00"
+                    if not data.get("time_out") or data.get("time_out") == "--:--":
+                        data["time_out"] = "17:00"
+                
                 result = self.data_service.add_attendance(data)
                 
             elif module_type == "stock":
@@ -1127,17 +1467,35 @@ class ModernDataPageGUI:
     def delete_record(self, module_type):
         """Delete selected records from table"""
         try:
-            # Get the appropriate tree widget - fix the naming issue
-            tree_name = f"{module_type}s_tree"
+            # Map module types to their tree widget names
+            tree_mapping = {
+                'employees': 'employees_tree',
+                'employee': 'employees_tree',
+                'attendance': 'attendance_tree',
+                'stock': 'stock_tree',
+                'sales': 'sales_tree',
+                'sale': 'sales_tree',
+                'purchases': 'purchases_tree',
+                'purchase': 'purchases_tree'
+            }
+            
+            tree_name = tree_mapping.get(module_type, f"{module_type}_tree")
             tree = getattr(self, tree_name, None)
+            
             if not tree:
-                self.show_status_message(f"Table not found: {tree_name}", "error")
+                self.show_status_message(f"Table not found for {module_type}", "error")
                 return
                 
             # Get selected items
             selected_items = tree.selection()
             if not selected_items:
                 self.show_status_message("Please select rows to delete", "warning")
+                return
+            
+            # Confirmation dialog
+            from tkinter import messagebox
+            if not messagebox.askyesno("Confirm Delete", 
+                                     f"Are you sure you want to delete {len(selected_items)} record(s)?"):
                 return
             
             # Delete each selected record
@@ -1149,7 +1507,7 @@ class ModernDataPageGUI:
                     
                 # Build filter for deletion based on module type
                 result = False
-                if module_type == "employee":
+                if module_type in ["employee", "employees"]:
                     result = self.data_service.delete_employee(values[0])
                 elif module_type == "attendance":
                     # Parse date properly for attendance deletion
@@ -1167,7 +1525,7 @@ class ModernDataPageGUI:
                         continue
                 elif module_type == "stock":
                     result = self.data_service.delete_stock_item(values[0])
-                elif module_type == "sale":  # Note: singular form
+                elif module_type in ["sale", "sales"]:
                     # Parse date properly for sales deletion
                     date_str = str(values[4])
                     try:
@@ -1180,7 +1538,7 @@ class ModernDataPageGUI:
                     except Exception as e:
                         logger.error(f"Error parsing date for sales deletion: {e}")
                         continue
-                elif module_type == "purchase":  # Note: singular form
+                elif module_type in ["purchase", "purchases"]:
                     # Parse date properly for purchase deletion  
                     date_str = str(values[4])
                     try:
@@ -1208,13 +1566,33 @@ class ModernDataPageGUI:
             self.show_status_message(f"Failed to delete records: {str(e)}", "error")
     
     def clear_form(self, module_type):
-        """Clear form fields"""
+        """Clear form fields for all module types"""
         try:
-            var_dict = getattr(self, f"{module_type}_vars", {})
+            # Map module types to their variable dictionaries
+            var_mapping = {
+                'employees': 'emp_vars',
+                'employee': 'emp_vars',
+                'attendance': 'att_vars',
+                'stock': 'stock_vars',
+                'sales': 'sales_vars',
+                'purchases': 'purchase_vars',
+                'purchase': 'purchase_vars'
+            }
+            
+            var_attr_name = var_mapping.get(module_type, f"{module_type}_vars")
+            var_dict = getattr(self, var_attr_name, {})
+            
+            if not var_dict:
+                self.show_status_message(f"No form fields found for {module_type}", "warning")
+                return
+                
+            # Clear all form variables
             for var in var_dict.values():
                 if hasattr(var, 'set'):
                     var.set("")
-            self.show_status_message(f"{module_type.capitalize()} form cleared", "info")
+                    
+            self.show_status_message(f"{module_type.capitalize()} form cleared successfully", "success")
+            
         except Exception as e:
             self.show_status_message(f"Failed to clear form: {str(e)}", "error")
     

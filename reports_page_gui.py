@@ -49,7 +49,9 @@ class ModernReportsPageGUI:
             'Late': '#F59E0B',         # Orange
             'Half Day': '#84CC16',     # Light Green
             'Leave': '#8B5CF6',        # Purple
-            'Overtime': '#06B6D4'      # Cyan
+            'Overtime': '#06B6D4',     # Cyan
+            'Remote Work': '#EC4899',  # Pink
+            'Work from Home': '#EC4899'  # Pink (alias)
         }
         
         # Set matplotlib style
@@ -410,17 +412,36 @@ class ModernReportsPageGUI:
             return
         
         try:
+            import pandas as pd
+            
             # Get employee info
             employee_info = self.get_employee_info(self.selected_employee)
-            
-            # Get attendance data for selected employee
-            attendance_df = self.data_service.get_attendance({
-                "employee_id": self.selected_employee
-            })
             
             # Create calendar for current month
             year = self.selected_year
             month = self.selected_month
+            
+            # Get attendance data for selected employee (handle data inconsistency)
+            # Some records may have employee_id as "35011" and others as "35011 - Name"
+            attendance_df_exact = self.data_service.get_attendance({
+                "employee_id": self.selected_employee
+            })
+            
+            # Also get records that might have the employee name appended
+            all_attendance = self.data_service.get_attendance()
+            attendance_df_flexible = all_attendance[
+                all_attendance['employee_id'].str.startswith(self.selected_employee)
+            ] if not all_attendance.empty else pd.DataFrame()
+            
+            # Combine both result sets and remove duplicates
+            if not attendance_df_exact.empty and not attendance_df_flexible.empty:
+                attendance_df = pd.concat([attendance_df_exact, attendance_df_flexible]).drop_duplicates()
+            elif not attendance_df_exact.empty:
+                attendance_df = attendance_df_exact
+            elif not attendance_df_flexible.empty:
+                attendance_df = attendance_df_flexible
+            else:
+                attendance_df = pd.DataFrame()
             
             # Employee info header
             emp_info_frame = ctk.CTkFrame(self.calendar_frame, corner_radius=10)
@@ -524,19 +545,28 @@ class ModernReportsPageGUI:
         attendance_lookup = {}
         if not attendance_df.empty:
             for _, record in attendance_df.iterrows():
-                # Handle both datetime and string date formats
-                if isinstance(record['date'], str):
-                    try:
-                        record_date = datetime.strptime(record['date'], '%Y-%m-%d').date()
-                    except:
+                # Handle different date formats properly
+                try:
+                    if hasattr(record['date'], 'date'):
+                        # Pandas Timestamp or datetime object
+                        record_date = record['date'].date()
+                    elif isinstance(record['date'], str):
+                        # String date
                         try:
-                            record_date = datetime.fromisoformat(record['date'].replace('Z', '+00:00')).date()
-                        except:
-                            continue
-                else:
-                    record_date = record['date'].date() if hasattr(record['date'], 'date') else record['date']
-                
-                attendance_lookup[record_date] = record['status']
+                            record_date = datetime.strptime(record['date'], '%Y-%m-%d').date()
+                        except ValueError:
+                            try:
+                                record_date = datetime.fromisoformat(record['date'].replace('Z', '+00:00')).date()
+                            except ValueError:
+                                continue
+                    else:
+                        # Other format, try to convert
+                        record_date = pd.to_datetime(record['date']).date()
+                    
+                    attendance_lookup[record_date] = record['status']
+                except Exception as e:
+                    logger.error(f"Error parsing date {record['date']}: {e}")
+                    continue
         
         # Create calendar cells with enhanced design
         for week_num, week in enumerate(cal):
@@ -620,7 +650,9 @@ class ModernReportsPageGUI:
             'Late': '⏰',
             'Half Day': '🕐',
             'Leave': '🏖️',
-            'Overtime': '⏱️'
+            'Overtime': '⏱️',
+            'Remote Work': '🏠',
+            'Work from Home': '🏠'
         }
         return emoji_map.get(status, '📅')
     

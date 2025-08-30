@@ -288,6 +288,10 @@ class SettingsPageGUI:
                      command=lambda: self.import_data_from_excel("attendance")).pack(side="left", padx=5)
         ctk.CTkButton(import_button_frame, text="Import Stock", 
                      command=lambda: self.import_data_from_excel("stock")).pack(side="left", padx=5)
+        ctk.CTkButton(import_button_frame, text="Import Sales", 
+                     command=lambda: self.import_data_from_excel("sales")).pack(side="left", padx=5)
+        ctk.CTkButton(import_button_frame, text="Import Purchases", 
+                     command=lambda: self.import_data_from_excel("purchases")).pack(side="left", padx=5)
         
         # Database reset section
         reset_frame = ctk.CTkFrame(main_container)
@@ -760,6 +764,12 @@ SECRET_KEY=change-this-for-production
                                 success_count += 1
                         elif collection_name == "stock":
                             if self.data_service.add_stock_item(record):
+                                success_count += 1
+                        elif collection_name == "sales":
+                            if self.data_service.add_sale(record):
+                                success_count += 1
+                        elif collection_name == "purchases":
+                            if self.data_service.add_purchase(record):
                                 success_count += 1
                     except Exception as e:
                         logger.error(f"Error importing record: {e}")
