@@ -79,6 +79,27 @@ class MongoDBManager:
             self.client.close()
             logger.info("MongoDB connection closed")
     
+    def ping(self):
+        """Test database connectivity"""
+        try:
+            if self.client is None:
+                return False
+            self.client.admin.command('ping')
+            return True
+        except Exception as e:
+            logger.error(f"Database ping failed: {e}")
+            return False
+    
+    def list_collections(self):
+        """List all collections in the database"""
+        try:
+            if self.db is None:
+                return []
+            return self.db.list_collection_names()
+        except Exception as e:
+            logger.error(f"Failed to list collections: {e}")
+            return []
+    
     def create_collections(self):
         """
         Create all necessary collections with validation schemas

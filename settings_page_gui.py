@@ -78,7 +78,7 @@ class SettingsPageGUI:
         ctk.CTkLabel(main_container, text="MongoDB Atlas Configuration", 
                     font=ctk.CTkFont(size=24, weight="bold")).pack(pady=(10, 15))
         
-        # Edit mode toggle
+        # Edit mode toggle with warning
         edit_mode_frame = ctk.CTkFrame(main_container)
         edit_mode_frame.pack(fill="x", pady=(0, 15))
         
@@ -88,9 +88,37 @@ class SettingsPageGUI:
             text="🔓 Edit Mode (Enable to modify settings)", 
             variable=self.edit_mode_var,
             command=self.toggle_edit_mode,
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="red"  # Red color to indicate danger
         )
-        self.edit_mode_switch.pack(anchor="w", padx=15, pady=10)
+        self.edit_mode_switch.pack(anchor="w", padx=15, pady=(10, 5))
+        
+        # Warning message (hidden by default)
+        self.warning_label = ctk.CTkLabel(
+            edit_mode_frame,
+            text="⚠️ Change with Caution",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="red"
+        )
+        # Don't pack initially - will be shown when edit mode is enabled
+        
+        # Risk description (hidden by default)
+        risk_description = (
+            "⚠️ RISK WARNING: Modifying database settings can break the connection and "
+            "make your data inaccessible. Incorrect settings may cause application failures, "
+            "data loss, or security vulnerabilities. Only change these settings if you are "
+            "certain about the new configuration. Always test the connection before saving."
+        )
+        
+        self.risk_description_label = ctk.CTkLabel(
+            edit_mode_frame,
+            text=risk_description,
+            font=ctk.CTkFont(size=10),
+            text_color="red",
+            wraplength=800,
+            justify="left"
+        )
+        # Don't pack initially - will be shown when edit mode is enabled
         
         # Current connection status
         status_frame = ctk.CTkFrame(main_container)
@@ -565,11 +593,23 @@ Last Updated: August 2025"""
         self.save_settings_button.configure(state=button_state)
         self.restart_button.configure(state=button_state)
         
-        # Update switch text
+        # Update switch text and warning visibility
         if edit_enabled:
-            self.edit_mode_switch.configure(text="🔓 Edit Mode (Settings can be modified)")
+            self.edit_mode_switch.configure(
+                text="🔓 Edit Mode (Settings can be modified)", 
+                text_color="red"
+            )
+            # Show warning messages
+            self.warning_label.pack(anchor="w", padx=15, pady=(0, 5))
+            self.risk_description_label.pack(anchor="w", padx=15, pady=(0, 10))
         else:
-            self.edit_mode_switch.configure(text="🔒 View Mode (Settings are read-only)")
+            self.edit_mode_switch.configure(
+                text="🔒 View Mode (Settings are read-only)",
+                text_color="gray"
+            )
+            # Hide warning messages
+            self.warning_label.pack_forget()
+            self.risk_description_label.pack_forget()
     
     def parse_connection_string(self, uri):
         """Parse MongoDB connection string into components"""
@@ -620,9 +660,6 @@ Last Updated: August 2025"""
             try:
                 self.db_status_label.configure(text="🔄 Testing connection...", text_color="orange")
                 
-                # Test with current settings
-                from database import MongoDBManager
-                
                 uri = self.mongodb_uri_var.get().strip()
                 database = self.mongodb_database_var.get().strip() or "hr_management_db"
                 
@@ -630,26 +667,46 @@ Last Updated: August 2025"""
                     self.db_status_label.configure(text="❌ No connection string provided", text_color="red")
                     return
                 
-                # Create test connection
-                test_manager = MongoDBManager(uri, database)
+                # Test connection using PyMongo directly for more control
+                from pymongo import MongoClient
+                from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure, OperationFailure
                 
-                if test_manager.connect():
-                    # Test basic operations
-                    test_manager.ping()
-                    collections = test_manager.list_collections()
+                # Create test client with shorter timeout
+                test_client = MongoClient(uri, serverSelectionTimeoutMS=5000)
+                
+                try:
+                    # Test ping
+                    test_client.admin.command('ping')
+                    
+                    # Test database access
+                    test_db = test_client[database]
+                    collections = test_db.list_collection_names()
                     
                     self.db_status_label.configure(
-                        text=f"✅ Connection successful! Found {len(collections)} collections", 
+                        text=f"✅ Connection successful! Database: {database}, Collections: {len(collections)}", 
                         text_color="green"
                     )
                     
-                    test_manager.disconnect()
-                else:
-                    self.db_status_label.configure(text="❌ Connection failed", text_color="red")
+                except OperationFailure as e:
+                    if "authentication failed" in str(e).lower():
+                        self.db_status_label.configure(text="❌ Authentication failed - Check username/password", text_color="red")
+                    else:
+                        self.db_status_label.configure(text=f"❌ Database operation failed: {str(e)[:50]}...", text_color="red")
+                        
+                except (ServerSelectionTimeoutError, ConnectionFailure) as e:
+                    if "dns" in str(e).lower():
+                        self.db_status_label.configure(text="❌ DNS error - Check cluster URL", text_color="red")
+                    else:
+                        self.db_status_label.configure(text="❌ Network error - Check internet connection", text_color="red")
+                        
+                finally:
+                    # Clean up test connection
+                    test_client.close()
                     
             except Exception as e:
+                error_msg = str(e)
                 self.db_status_label.configure(
-                    text=f"❌ Connection error: {str(e)}", 
+                    text=f"❌ Unexpected error: {error_msg[:50]}{'...' if len(error_msg) > 50 else ''}", 
                     text_color="red"
                 )
         
