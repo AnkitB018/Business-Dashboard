@@ -298,7 +298,45 @@ class HRDataService:
             dashboard_logger.log_user_activity("EMPLOYEE_DELETE_ERROR", {"employee_id": employee_id, "error": str(e)})
             dashboard_logger.log_data_operation("delete_employee", "employees", 0, False, e)
             raise
-    
+
+    @log_function_call
+    def update_employee(self, employee_id: str, employee_data: Dict) -> int:
+        """Update employee record by employee ID"""
+        try:
+            # Ensure employee_id is a string
+            employee_id = str(employee_id)
+            log_info(f"Updating employee: {employee_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("EMPLOYEE_UPDATE_START", {"employee_id": employee_id})
+            
+            # Check if employee exists
+            existing = self.db_manager.find_documents("employees", {"employee_id": employee_id})
+            
+            if not existing:
+                error_msg = f"Employee ID {employee_id} not found"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("EMPLOYEE_UPDATE_FAILED", {"employee_id": employee_id, "reason": "not_found"})
+                return 0
+            
+            # Update the employee
+            result = self.db_manager.update_document("employees", {"employee_id": employee_id}, employee_data)
+            
+            if result > 0:
+                log_info(f"Employee updated successfully: {employee_id}", "DATA_SERVICE")
+                dashboard_logger.log_user_activity("EMPLOYEE_UPDATE_SUCCESS", {"employee_id": employee_id, "updated_count": result})
+                dashboard_logger.log_data_operation("update_employee", "employees", result, True)
+            else:
+                log_error(Exception("Update operation failed"), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("EMPLOYEE_UPDATE_FAILED", {"employee_id": employee_id, "reason": "update_failed"})
+                dashboard_logger.log_data_operation("update_employee", "employees", 0, False)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_UPDATE_EMPLOYEE")
+            dashboard_logger.log_user_activity("EMPLOYEE_UPDATE_ERROR", {"employee_id": employee_id, "error": str(e)})
+            dashboard_logger.log_data_operation("update_employee", "employees", 0, False, e)
+            raise
+
     @log_function_call
     def add_attendance(self, attendance_data: Dict) -> str:
         """Add attendance record"""

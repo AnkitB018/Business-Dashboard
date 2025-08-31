@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import messagebox, ttk
 import pandas as pd
 from datetime import datetime, date
+import re
 import logging
 
 logger = logging.getLogger(__name__)
@@ -48,6 +49,10 @@ class ModernDataPageGUI:
             'title_green': '#059669'     # Green color for module titles
         }
         
+        # Edit mode tracking
+        self.edit_mode = False
+        self.editing_employee_id = None
+        
         self.create_page()
         
     def darken_color(self, color, factor=0.8):
@@ -60,6 +65,334 @@ class ModernDataPageGUI:
         darkened = tuple(int(c * factor) for c in rgb)
         # Convert back to hex
         return f"#{darkened[0]:02x}{darkened[1]:02x}{darkened[2]:02x}"
+    
+    def validate_employee_data(self, data):
+        """
+        Comprehensive validation for employee data
+        Returns (is_valid, error_message)
+        """
+        try:
+            # Employee ID validation
+            if not self.validate_employee_id(data.get("employee_id", "")):
+                return False, "Employee ID must be in format: EMP001, HR001, IT001, etc. (3 letters + 3 digits)"
+            
+            # Name validation
+            if not self.validate_name(data.get("name", "")):
+                return False, "Name must be 2-50 characters, letters and spaces only"
+            
+            # Email validation
+            if not self.validate_email(data.get("email", "")):
+                return False, "Email must be valid format (e.g., user@company.com, .org, .in, .net allowed)"
+            
+            # Phone validation
+            if not self.validate_phone(data.get("phone", "")):
+                return False, "Phone must be 10 digits (e.g., 9876543210) or with country code (+91 9876543210)"
+            
+            # Salary validation
+            if not self.validate_salary(data.get("salary", "")):
+                return False, "Salary must be a positive number between 1,000 and 10,00,000"
+            
+            # Department and position validation
+            if not data.get("department", "").strip():
+                return False, "Please select a department"
+            
+            if not data.get("position", "").strip():
+                return False, "Please select a position"
+            
+            return True, "Valid"
+            
+        except Exception as e:
+            return False, f"Validation error: {str(e)}"
+    
+    def validate_employee_id(self, emp_id):
+        """Validate employee ID format: 3 letters + 3 digits (e.g., EMP001, HR001)"""
+        if not emp_id or len(emp_id.strip()) == 0:
+            return False
+        
+        # Pattern: 3 letters followed by 3 digits
+        pattern = r'^[A-Z]{2,4}\d{3,4}$'
+        return bool(re.match(pattern, emp_id.strip().upper()))
+    
+    def validate_name(self, name):
+        """Validate employee name: 2-50 characters, letters and spaces only"""
+        if not name or len(name.strip()) < 2:
+            return False
+        
+        name = name.strip()
+        if len(name) > 50:
+            return False
+        
+        # Allow letters, spaces, apostrophes, hyphens
+        pattern = r"^[A-Za-z\s\'\-\.]+$"
+        return bool(re.match(pattern, name))
+    
+    def validate_email(self, email):
+        """Validate email format with common domains"""
+        if not email or len(email.strip()) == 0:
+            return False
+        
+        email = email.strip().lower()
+        
+        # Basic email pattern
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        if not re.match(pattern, email):
+            return False
+        
+        # Check for valid domain extensions
+        valid_domains = ['.com', '.org', '.net', '.edu', '.gov', '.in', '.co.in', '.ac.in', '.co.uk']
+        return any(email.endswith(domain) for domain in valid_domains)
+    
+    def validate_phone(self, phone):
+        """Validate phone number: 10 digits or with country code"""
+        if not phone or len(phone.strip()) == 0:
+            return False
+        
+        # Remove all non-digit characters except +
+        phone_clean = re.sub(r'[^\d+]', '', phone.strip())
+        
+        # Case 1: 10 digits (Indian mobile)
+        if len(phone_clean) == 10 and phone_clean.isdigit():
+            # Should start with 6, 7, 8, or 9
+            return phone_clean[0] in ['6', '7', '8', '9']
+        
+        # Case 2: With country code +91
+        if phone_clean.startswith('+91') and len(phone_clean) == 13:
+            mobile_part = phone_clean[3:]
+            return mobile_part.isdigit() and mobile_part[0] in ['6', '7', '8', '9']
+        
+        # Case 3: Without + but with 91
+        if phone_clean.startswith('91') and len(phone_clean) == 12:
+            mobile_part = phone_clean[2:]
+            return mobile_part.isdigit() and mobile_part[0] in ['6', '7', '8', '9']
+        
+        return False
+    
+    def validate_salary(self, salary):
+        """Validate salary: positive number between 1,000 and 10,00,000"""
+        if not salary:
+            return False
+        
+        try:
+            salary_val = float(str(salary).replace(',', ''))
+            return 1000 <= salary_val <= 1000000
+        except (ValueError, TypeError):
+            return False
+    
+    def validate_field_realtime(self, field_key):
+        """Real-time validation for individual fields"""
+        if not hasattr(self, 'field_widgets') or field_key not in self.field_widgets:
+            return
+        
+        if not hasattr(self, 'emp_vars') or field_key not in self.emp_vars:
+            return
+        
+        value = self.emp_vars[field_key].get()
+        error_label = self.field_widgets[field_key]['error_label']
+        entry = self.field_widgets[field_key]['entry']
+        
+        # Clear previous error state
+        self.clear_field_error(field_key)
+        
+        # Don't validate empty fields in real-time (will be caught during submit)
+        if not value.strip():
+            return
+        
+        # Validate based on field type
+        is_valid = True
+        error_msg = ""
+        
+        if field_key == "employee_id":
+            if not self.validate_employee_id(value):
+                is_valid = False
+                error_msg = "Format: 3-4 letters + 3-4 digits (e.g., EMP001)"
+        elif field_key == "name":
+            if not self.validate_name(value):
+                is_valid = False
+                error_msg = "2-50 characters, letters and spaces only"
+        elif field_key == "email":
+            if not self.validate_email(value):
+                is_valid = False
+                error_msg = "Valid email with .com/.org/.net/.in domain required"
+        elif field_key == "phone":
+            if not self.validate_phone(value):
+                is_valid = False
+                error_msg = "10 digits starting with 6,7,8,9 or +91 format"
+        elif field_key == "salary":
+            if not self.validate_salary(value):
+                is_valid = False
+                error_msg = "Amount between ₹1,000 and ₹10,00,000"
+        
+        # Show error if validation failed
+        if not is_valid:
+            self.show_field_error(field_key, error_msg)
+    
+    def show_field_error(self, field_key, error_msg):
+        """Show error message under a specific field"""
+        if not hasattr(self, 'field_widgets') or field_key not in self.field_widgets:
+            return
+        
+        widgets = self.field_widgets[field_key]
+        error_label = widgets['error_label']
+        entry = widgets['entry']
+        
+        # Update error message and show
+        error_label.configure(text=f"❌ {error_msg}")
+        error_label.pack(anchor="w", pady=(2, 0))
+        
+        # Change entry border color to red (if supported)
+        try:
+            entry.configure(border_color="red")
+        except:
+            pass
+    
+    def clear_field_error(self, field_key):
+        """Clear error message for a specific field"""
+        if not hasattr(self, 'field_widgets') or field_key not in self.field_widgets:
+            return
+        
+        widgets = self.field_widgets[field_key]
+        error_label = widgets['error_label']
+        entry = widgets['entry']
+        
+        # Hide error label
+        error_label.pack_forget()
+        
+        # Reset entry border color
+        try:
+            entry.configure(border_color=("gray80", "gray20"))
+        except:
+            pass
+    
+    def clear_all_field_errors(self):
+        """Clear all field errors"""
+        if not hasattr(self, 'field_widgets'):
+            return
+        
+        for field_key in self.field_widgets.keys():
+            self.clear_field_error(field_key)
+    
+    def validate_employee_data_with_feedback(self, data):
+        """
+        Enhanced validation with field-specific error feedback
+        Returns (is_valid, error_message)
+        """
+        try:
+            self.clear_all_field_errors()
+            is_valid = True
+            error_fields = []
+            
+            # Employee ID validation
+            if not self.validate_employee_id(data.get("employee_id", "")):
+                self.show_field_error("employee_id", "Format: 3-4 letters + 3-4 digits (e.g., EMP001)")
+                is_valid = False
+                error_fields.append("Employee ID")
+            
+            # Name validation
+            if not self.validate_name(data.get("name", "")):
+                self.show_field_error("name", "2-50 characters, letters and spaces only")
+                is_valid = False
+                error_fields.append("Name")
+            
+            # Email validation
+            if not self.validate_email(data.get("email", "")):
+                self.show_field_error("email", "Valid email with .com/.org/.net/.in domain required")
+                is_valid = False
+                error_fields.append("Email")
+            
+            # Phone validation
+            if not self.validate_phone(data.get("phone", "")):
+                self.show_field_error("phone", "10 digits starting with 6,7,8,9 or +91 format")
+                is_valid = False
+                error_fields.append("Phone")
+            
+            # Salary validation
+            if not self.validate_salary(data.get("salary", "")):
+                self.show_field_error("salary", "Amount between ₹1,000 and ₹10,00,000")
+                is_valid = False
+                error_fields.append("Salary")
+            
+            # Department and position validation (no field-level errors for dropdowns)
+            if not data.get("department", "").strip():
+                is_valid = False
+                error_fields.append("Department")
+            
+            if not data.get("position", "").strip():
+                is_valid = False
+                error_fields.append("Position")
+            
+            if is_valid:
+                return True, "Valid"
+            else:
+                return False, f"Please fix errors in: {', '.join(error_fields)}"
+                
+        except Exception as e:
+            return False, f"Validation error: {str(e)}"
+
+    def show_validation_summary(self):
+        """Show a summary of validation rules to help users"""
+        validation_info = """
+📋 Employee Data Validation Rules:
+
+🆔 Employee ID:
+   • Format: 3-4 letters + 3-4 digits (e.g., EMP001, HR001, IT123)
+   • Case insensitive (emp001 = EMP001)
+
+👤 Full Name:
+   • 2-50 characters long
+   • Letters, spaces, apostrophes, hyphens allowed
+   • No numbers or special characters
+
+📧 Email Address:
+   • Valid email format (user@domain.extension)
+   • Allowed domains: .com, .org, .net, .edu, .gov, .in, .co.in, .ac.in, .co.uk
+
+📱 Phone Number:
+   • 10 digits: 9876543210 (must start with 6, 7, 8, or 9)
+   • With country code: +91 9876543210 or 919876543210
+
+💰 Salary:
+   • Range: ₹1,000 to ₹10,00,000
+   • Numbers only (commas will be removed automatically)
+
+🏢 Department & Position:
+   • Must be selected from dropdown options
+        """
+        
+        # Create info popup
+        info_window = ctk.CTkToplevel(self.parent)
+        info_window.title("Validation Rules")
+        info_window.geometry("600x500")
+        info_window.transient(self.parent)
+        info_window.grab_set()
+        
+        # Center the window
+        info_window.update_idletasks()
+        x = (info_window.winfo_screenwidth() // 2) - (600 // 2)
+        y = (info_window.winfo_screenheight() // 2) - (500 // 2)
+        info_window.geometry(f"600x500+{x}+{y}")
+        
+        # Content
+        content_frame = ctk.CTkScrollableFrame(info_window)
+        content_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        info_label = ctk.CTkLabel(
+            content_frame,
+            text=validation_info,
+            font=ctk.CTkFont(size=12),
+            justify="left",
+            anchor="nw"
+        )
+        info_label.pack(fill="both", expand=True)
+        
+        # Close button
+        close_btn = ctk.CTkButton(
+            info_window,
+            text="Got it!",
+            command=info_window.destroy,
+            width=100,
+            height=35
+        )
+        close_btn.pack(pady=10)
         
     def create_page(self):
         """Create the enhanced data management page with navigation support"""
@@ -856,15 +1189,15 @@ class ModernDataPageGUI:
         # Form fields with enhanced controls
         self.emp_vars = {}
         
-        # Basic info fields
+        # Basic info fields with validation hints
         self.create_form_field(form_scroll, "Employee ID", "employee_id", "text", self.emp_vars,
-                              placeholder="e.g., EMP001")
+                              placeholder="e.g., EMP001, HR001, IT001 (3-4 letters + 3-4 digits)")
         self.create_form_field(form_scroll, "Full Name", "name", "text", self.emp_vars,
-                              placeholder="Enter full name")
+                              placeholder="Enter full name (2-50 characters, letters only)")
         self.create_form_field(form_scroll, "Email Address", "email", "text", self.emp_vars,
-                              placeholder="employee@company.com")
+                              placeholder="employee@company.com (.com/.org/.net/.in allowed)")
         self.create_form_field(form_scroll, "Phone Number", "phone", "text", self.emp_vars,
-                              placeholder="+91 98765 43210")
+                              placeholder="9876543210 or +91 9876543210 (10 digits)")
         
         # Department dropdown
         departments = [
@@ -883,9 +1216,9 @@ class ModernDataPageGUI:
         ]
         self.create_combo_field(form_scroll, "Position", "position", positions, self.emp_vars)
         
-        # Salary field
+        # Salary field with validation hint
         self.create_form_field(form_scroll, "Monthly Salary (₹)", "salary", "number", self.emp_vars,
-                              placeholder="50000")
+                              placeholder="50000 (Range: 1,000 - 10,00,000)")
         
         # Join date
         self.create_date_picker(form_scroll, "Join Date", "join_date", self.emp_vars)
@@ -1347,7 +1680,7 @@ class ModernDataPageGUI:
         self.create_data_table(data_panel, "purchases")
     
     def create_form_field(self, parent, label, key, field_type, var_dict, placeholder=""):
-        """Create a modern form field"""
+        """Create a modern form field with validation error display"""
         # Field container
         field_frame = ctk.CTkFrame(parent, fg_color="transparent")
         field_frame.pack(fill="x", pady=8)
@@ -1373,6 +1706,30 @@ class ModernDataPageGUI:
             placeholder_text=placeholder if placeholder else f"Enter {label.lower()}"
         )
         entry.pack(fill="x")
+        
+        # Error label (initially hidden)
+        error_label = ctk.CTkLabel(
+            field_frame,
+            text="",
+            font=ctk.CTkFont(size=10),
+            text_color="red",
+            anchor="w"
+        )
+        error_label.pack(anchor="w", pady=(2, 0))
+        error_label.pack_forget()  # Initially hidden
+        
+        # Store references for validation feedback
+        if not hasattr(self, 'field_widgets'):
+            self.field_widgets = {}
+        self.field_widgets[key] = {
+            'entry': entry,
+            'error_label': error_label,
+            'field_frame': field_frame
+        }
+        
+        # Add real-time validation for employees
+        if hasattr(self, 'emp_vars') and key in ['employee_id', 'name', 'email', 'phone', 'salary']:
+            var_dict[key].trace('w', lambda *args, k=key: self.validate_field_realtime(k))
         
         return entry
     
@@ -1424,18 +1781,48 @@ class ModernDataPageGUI:
         )
         add_btn.pack(fill="x", pady=2)
         
-        # Update button
-        update_btn = ctk.CTkButton(
-            button_frame,
-            text="📝 Update Record",
-            command=lambda: self.update_record(module_type),
-            height=40,
-            corner_radius=8,
-            font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color=self.colors['primary'],
-            hover_color=self.darken_color(self.colors['primary'])
-        )
-        update_btn.pack(fill="x", pady=2)
+        # Edit/Update button - only functional for employees
+        if module_type == "employees":
+            edit_btn = ctk.CTkButton(
+                button_frame,
+                text="✏️ Edit Employee",
+                command=lambda: self.edit_employee(),
+                height=40,
+                corner_radius=8,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                fg_color=self.colors['primary'],
+                hover_color=self.darken_color(self.colors['primary'])
+            )
+            edit_btn.pack(fill="x", pady=2)
+            
+            # Update button (shown only in edit mode)
+            self.update_btn = ctk.CTkButton(
+                button_frame,
+                text="💾 Update Employee",
+                command=self.update_employee_record,
+                height=40,
+                corner_radius=8,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                fg_color=self.colors['warning'],
+                hover_color=self.darken_color(self.colors['warning'])
+            )
+            # Initially hidden
+            
+            # Cancel edit button (shown only in edit mode)
+            self.cancel_edit_btn = ctk.CTkButton(
+                button_frame,
+                text="❌ Cancel Edit",
+                command=self.cancel_edit_employee,
+                height=40,
+                corner_radius=8,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                fg_color=self.colors['gray'],
+                hover_color=self.darken_color(self.colors['gray'])
+            )
+            # Initially hidden
+        else:
+            # For other modules, remove the non-functional update button
+            pass
         
         # Delete button
         delete_btn = ctk.CTkButton(
@@ -1462,6 +1849,20 @@ class ModernDataPageGUI:
             hover_color=self.darken_color(self.colors['warning'])
         )
         clear_btn.pack(fill="x", pady=2)
+        
+        # Validation help button - only for employees
+        if module_type == "employees":
+            help_btn = ctk.CTkButton(
+                button_frame,
+                text="❓ Validation Rules",
+                command=self.show_validation_summary,
+                height=40,
+                corner_radius=8,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                fg_color=self.colors['purple'],
+                hover_color=self.darken_color(self.colors['purple'])
+            )
+            help_btn.pack(fill="x", pady=2)
     
     def create_data_table(self, parent, table_type):
         """Create modern data table"""
@@ -1562,6 +1963,14 @@ class ModernDataPageGUI:
             
             if module_type == "employees":
                 data = {key: var.get().strip() for key, var in self.emp_vars.items()}
+                
+                # Validate employee data with field-specific feedback
+                is_valid, error_message = self.validate_employee_data_with_feedback(data)
+                if not is_valid:
+                    self.show_status_message(f"Validation Error: {error_message}", "error")
+                    return
+                
+                # Convert salary to float after validation
                 if data.get("salary"):
                     data["salary"] = float(data["salary"])
                 # Add joining date as datetime
@@ -1658,10 +2067,145 @@ class ModernDataPageGUI:
         except Exception as e:
             self.show_status_message(f"Failed to add record: {str(e)}", "error")
     
-    def update_record(self, module_type):
-        """Update existing record"""
-        # Update functionality placeholder - no popup
-        pass
+    def edit_employee(self):
+        """Edit selected employee details"""
+        try:
+            # Get selected employee from the table
+            if not hasattr(self, 'employees_tree'):
+                self.show_status_message("Employee table not found", "error")
+                return
+                
+            selected_items = self.employees_tree.selection()
+            if not selected_items:
+                self.show_status_message("Please select an employee to edit", "warning")
+                return
+                
+            if len(selected_items) > 1:
+                self.show_status_message("Please select only one employee to edit", "warning")
+                return
+            
+            # Get employee data from selection
+            item = self.employees_tree.item(selected_items[0])
+            values = item['values']
+            
+            if not values:
+                self.show_status_message("Invalid employee selection", "error")
+                return
+            
+            employee_id = str(values[0])  # Ensure it's a string
+            
+            # Populate form with current employee data
+            if hasattr(self, 'emp_vars'):
+                self.emp_vars["employee_id"].set(values[0])  # Employee ID
+                self.emp_vars["name"].set(values[1])          # Name
+                self.emp_vars["email"].set(values[2])         # Email
+                self.emp_vars["phone"].set(values[3])         # Phone
+                self.emp_vars["department"].set(values[4])    # Department
+                self.emp_vars["position"].set(values[5])      # Position
+                # Remove currency formatting for salary
+                salary_str = str(values[6]).replace("₹", "").replace(",", "")
+                self.emp_vars["salary"].set(salary_str)
+                
+                # Enable editing mode
+                self.edit_mode = True
+                self.editing_employee_id = employee_id  # This is now guaranteed to be a string
+                
+                # Show update and cancel buttons, hide edit button
+                if hasattr(self, 'update_btn'):
+                    self.update_btn.pack(fill="x", pady=2)
+                if hasattr(self, 'cancel_edit_btn'):
+                    self.cancel_edit_btn.pack(fill="x", pady=2)
+                
+                self.show_status_message(f"Editing employee: {values[1]} ({employee_id}). Modify fields and click 'Update Employee'.", "info")
+                
+                # Create update button if it doesn't exist
+                self.create_update_employee_button()
+            else:
+                self.show_status_message("Employee form not found", "error")
+                
+        except Exception as e:
+            self.show_status_message(f"Failed to load employee for editing: {str(e)}", "error")
+    
+    def create_update_employee_button(self):
+        """Create or show the update employee button"""
+        try:
+            # Store update button reference for easier management
+            if not hasattr(self, 'employee_update_button'):
+                # We'll create the button dynamically when needed
+                # For now, just show a message to the user
+                self.show_status_message("Employee loaded for editing. Modify the fields and click 'Add Record' to update, or use the form buttons.", "info")
+        except Exception as e:
+            print(f"Error with update button: {e}")
+
+    def cancel_edit_employee(self):
+        """Cancel employee editing mode"""
+        try:
+            # Reset edit mode
+            self.edit_mode = False
+            self.editing_employee_id = None
+            
+            # Hide update and cancel buttons
+            if hasattr(self, 'update_btn'):
+                self.update_btn.pack_forget()
+            if hasattr(self, 'cancel_edit_btn'):
+                self.cancel_edit_btn.pack_forget()
+            
+            # Clear the form
+            self.clear_form("employees")
+            
+            self.show_status_message("Edit mode cancelled", "info")
+            
+        except Exception as e:
+            self.show_status_message(f"Error cancelling edit: {str(e)}", "error")
+    
+    def update_employee_record(self):
+        """Update the employee record with form data"""
+        try:
+            if not self.data_service:
+                self.show_status_message("Database not connected", "error")
+                return
+            
+            if not hasattr(self, 'emp_vars'):
+                self.show_status_message("Employee form not found", "error")
+                return
+            
+            if not self.edit_mode or not self.editing_employee_id:
+                self.show_status_message("Not in edit mode. Please select an employee to edit first.", "warning")
+                return
+            
+            # Get form data
+            data = {key: var.get().strip() for key, var in self.emp_vars.items()}
+            
+            # Validate employee data with field-specific feedback
+            is_valid, error_message = self.validate_employee_data_with_feedback(data)
+            if not is_valid:
+                self.show_status_message(f"Validation Error: {error_message}", "error")
+                return
+            
+            # Use the original employee ID for updating (in case it was changed in form)
+            employee_id = str(self.editing_employee_id)  # Ensure it's a string
+            
+            # Remove employee_id from update data (we use it as filter)
+            update_data = {k: v for k, v in data.items() if k != "employee_id"}
+            
+            # Convert salary to float after validation
+            if update_data.get("salary"):
+                update_data["salary"] = float(update_data["salary"])
+            
+            # Update employee record
+            result = self.data_service.update_employee(employee_id, update_data)
+            
+            if result > 0:
+                self.show_status_message(f"Employee {employee_id} updated successfully!", "success")
+                # Refresh the table
+                self.refresh_table("employees")
+                # Exit edit mode
+                self.cancel_edit_employee()
+            else:
+                self.show_status_message(f"Failed to update employee {employee_id}", "error")
+                
+        except Exception as e:
+            self.show_status_message(f"Failed to update employee: {str(e)}", "error")
     
     def delete_record(self, module_type):
         """Delete selected records from table"""
@@ -1789,6 +2333,10 @@ class ModernDataPageGUI:
             for var in var_dict.values():
                 if hasattr(var, 'set'):
                     var.set("")
+            
+            # Clear validation errors for employees
+            if module_type == "employees":
+                self.clear_all_field_errors()
                     
             self.show_status_message(f"{module_type.capitalize()} form cleared successfully", "success")
             
