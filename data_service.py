@@ -265,6 +265,40 @@ class HRDataService:
             dashboard_logger.log_data_operation("add_employee", "employees", 0, False, e)
             raise
     
+    def delete_employee(self, employee_id: str) -> int:
+        """Delete employee record by employee ID"""
+        try:
+            log_info(f"Deleting employee: {employee_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("EMPLOYEE_DELETE_START", {"employee_id": employee_id})
+            
+            # Check if employee exists
+            existing = self.db_manager.find_documents("employees", {"employee_id": employee_id})
+            if not existing:
+                error_msg = f"Employee ID {employee_id} not found"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("EMPLOYEE_DELETE_FAILED", {"employee_id": employee_id, "reason": "not_found"})
+                return 0
+            
+            # Delete the employee
+            result = self.db_manager.delete_documents("employees", {"employee_id": employee_id})
+            
+            if result > 0:
+                log_info(f"Employee deleted successfully: {employee_id}", "DATA_SERVICE")
+                dashboard_logger.log_user_activity("EMPLOYEE_DELETE_SUCCESS", {"employee_id": employee_id, "deleted_count": result})
+                dashboard_logger.log_data_operation("delete_employee", "employees", result, True)
+            else:
+                log_error(Exception("Delete operation failed"), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("EMPLOYEE_DELETE_FAILED", {"employee_id": employee_id, "reason": "delete_failed"})
+                dashboard_logger.log_data_operation("delete_employee", "employees", 0, False)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_DELETE_EMPLOYEE")
+            dashboard_logger.log_user_activity("EMPLOYEE_DELETE_ERROR", {"employee_id": employee_id, "error": str(e)})
+            dashboard_logger.log_data_operation("delete_employee", "employees", 0, False, e)
+            raise
+    
     @log_function_call
     def add_attendance(self, attendance_data: Dict) -> str:
         """Add attendance record"""
@@ -300,6 +334,10 @@ class HRDataService:
             dashboard_logger.log_user_activity("ATTENDANCE_ADD_ERROR", {"employee_id": emp_id, "date": str(date_val), "error": str(e)})
             dashboard_logger.log_data_operation("add_attendance", "attendance", 0, False, e)
             raise
+    
+    def get_attendance(self, filter_dict: Dict = None) -> pd.DataFrame:
+        """Get attendance records as DataFrame"""
+        return self.db_manager.get_collection_as_dataframe("attendance", filter_dict)
     
     def delete_attendance(self, filter_dict: Dict) -> int:
         """Delete attendance records"""

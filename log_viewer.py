@@ -18,7 +18,7 @@ class LogViewer:
     def __init__(self):
         self.root = tk.Tk()
         self.root.title("Business Dashboard - Log Viewer & Analyzer")
-        self.root.geometry("1200x800")
+        self.root.geometry("1400x800")
         
         # Log directory
         self.log_dir = Path("logs")
@@ -44,7 +44,7 @@ class LogViewer:
         # Log file selection
         ttk.Label(controls_frame, text="Log File:").pack(side="left", padx=(0, 5))
         self.log_file_var = tk.StringVar()
-        self.log_file_combo = ttk.Combobox(controls_frame, textvariable=self.log_file_var, width=30)
+        self.log_file_combo = ttk.Combobox(controls_frame, textvariable=self.log_file_var, width=60)
         self.log_file_combo.pack(side="left", padx=(0, 10))
         self.log_file_combo.bind("<<ComboboxSelected>>", self.on_log_file_selected)
         
@@ -200,7 +200,16 @@ class LogViewer:
                 # Add file with size and modification date
                 size = file_path.stat().st_size
                 mod_time = datetime.fromtimestamp(file_path.stat().st_mtime)
-                log_files.append(f"{file_path.name} ({size} bytes, {mod_time.strftime('%Y-%m-%d %H:%M')})")
+                
+                # Format file size in a more readable way
+                if size < 1024:
+                    size_str = f"{size} B"
+                elif size < 1024 * 1024:
+                    size_str = f"{size/1024:.1f} KB"
+                else:
+                    size_str = f"{size/(1024*1024):.1f} MB"
+                
+                log_files.append(f"{file_path.name} ({size_str}, {mod_time.strftime('%Y-%m-%d %H:%M')})")
         
         if not log_files:
             log_files = ["No log files found"]
