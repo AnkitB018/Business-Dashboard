@@ -2,9 +2,11 @@ import pandas as pd
 from database import get_db_manager
 from datetime import datetime, date
 from typing import Dict, List, Optional
-import logging
+from logger_config import get_logger, log_function_call, log_info, log_error
 
-logger = logging.getLogger(__name__)
+# Initialize enhanced logging
+dashboard_logger = get_logger()
+logger = dashboard_logger.main_logger
 
 class DataMigration:
     """
@@ -235,42 +237,69 @@ class HRDataService:
         """Get employees as DataFrame"""
         return self.db_manager.get_collection_as_dataframe("employees", filter_dict)
     
+    @log_function_call
     def add_employee(self, employee_data: Dict) -> str:
         """Add new employee"""
-        # Ensure employee_id is unique
-        existing = self.db_manager.find_documents("employees", {"employee_id": employee_data["employee_id"]})
-        if existing:
-            raise ValueError(f"Employee ID {employee_data['employee_id']} already exists")
-        
-        return self.db_manager.insert_document("employees", employee_data)
+        try:
+            log_info(f"Adding new employee: {employee_data.get('employee_id', 'unknown')}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("EMPLOYEE_ADD_START", {"employee_id": employee_data.get('employee_id')})
+            
+            # Ensure employee_id is unique
+            existing = self.db_manager.find_documents("employees", {"employee_id": employee_data["employee_id"]})
+            if existing:
+                error_msg = f"Employee ID {employee_data['employee_id']} already exists"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("EMPLOYEE_ADD_FAILED", {"employee_id": employee_data.get('employee_id'), "reason": "duplicate"})
+                raise ValueError(error_msg)
+            
+            result = self.db_manager.insert_document("employees", employee_data)
+            log_info(f"Employee added successfully: {employee_data.get('employee_id')}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("EMPLOYEE_ADD_SUCCESS", {"employee_id": employee_data.get('employee_id'), "result_id": result})
+            dashboard_logger.log_data_operation("add_employee", "employees", 1, True)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_ADD_EMPLOYEE")
+            dashboard_logger.log_user_activity("EMPLOYEE_ADD_ERROR", {"employee_id": employee_data.get('employee_id'), "error": str(e)})
+            dashboard_logger.log_data_operation("add_employee", "employees", 0, False, e)
+            raise
     
-    def update_employee(self, employee_id: str, update_data: Dict) -> int:
-        """Update employee data"""
-        return self.db_manager.update_document("employees", {"employee_id": employee_id}, update_data)
-    
-    def delete_employee(self, employee_id: str) -> int:
-        """Delete employee"""
-        return self.db_manager.delete_documents("employees", {"employee_id": employee_id})
-    
-    # Attendance operations
-    def get_attendance(self, filter_dict: Dict = None) -> pd.DataFrame:
-        """Get attendance as DataFrame"""
-        return self.db_manager.get_collection_as_dataframe("attendance", filter_dict)
-    
+    @log_function_call
     def add_attendance(self, attendance_data: Dict) -> str:
         """Add attendance record"""
-        # Check for duplicate entries
-        existing = self.db_manager.find_documents(
-            "attendance", 
-            {
-                "employee_id": attendance_data["employee_id"],
-                "date": attendance_data["date"]
-            }
-        )
-        if existing:
-            raise ValueError("Attendance record already exists for this employee and date")
-        
-        return self.db_manager.insert_document("attendance", attendance_data)
+        try:
+            emp_id = attendance_data.get("employee_id", "unknown")
+            date_val = attendance_data.get("date", "unknown")
+            log_info(f"Adding attendance for employee {emp_id} on {date_val}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("ATTENDANCE_ADD_START", {"employee_id": emp_id, "date": str(date_val)})
+            
+            # Check for duplicate entries
+            existing = self.db_manager.find_documents(
+                "attendance", 
+                {
+                    "employee_id": attendance_data["employee_id"],
+                    "date": attendance_data["date"]
+                }
+            )
+            if existing:
+                error_msg = "Attendance record already exists for this employee and date"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("ATTENDANCE_ADD_FAILED", {"employee_id": emp_id, "date": str(date_val), "reason": "duplicate"})
+                raise ValueError(error_msg)
+            
+            result = self.db_manager.insert_document("attendance", attendance_data)
+            log_info(f"Attendance added successfully for employee {emp_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("ATTENDANCE_ADD_SUCCESS", {"employee_id": emp_id, "date": str(date_val), "result_id": result})
+            dashboard_logger.log_data_operation("add_attendance", "attendance", 1, True)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_ADD_ATTENDANCE")
+            dashboard_logger.log_user_activity("ATTENDANCE_ADD_ERROR", {"employee_id": emp_id, "date": str(date_val), "error": str(e)})
+            dashboard_logger.log_data_operation("add_attendance", "attendance", 0, False, e)
+            raise
     
     def delete_attendance(self, filter_dict: Dict) -> int:
         """Delete attendance records"""

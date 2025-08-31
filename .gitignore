@@ -344,3 +344,8 @@ Temporary Items
 tmp/
 temp/
 cache/
+
+# Logging files
+logs/
+*.log
+log_viewer_exports/

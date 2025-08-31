@@ -4,7 +4,10 @@ from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
 import pandas as pd
 from datetime import datetime
 from typing import Dict, List, Optional, Any
-import logging
+import time
+
+# Import enhanced logging
+from logger_config import get_logger, log_function_call, log_info, log_error
 
 # Import configuration
 try:
@@ -14,9 +17,9 @@ except ImportError:
     MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/')
     MONGODB_DATABASE = os.getenv('MONGODB_DATABASE', 'hr_management_db')
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Initialize enhanced logging
+dashboard_logger = get_logger()
+logger = dashboard_logger.db_logger
 
 class MongoDBManager:
     """
@@ -37,6 +40,7 @@ class MongoDBManager:
         self.db = None
         self.connect()
     
+    @log_function_call
     def connect(self) -> bool:
         """
         Establish connection to MongoDB
@@ -44,15 +48,29 @@ class MongoDBManager:
         Returns:
             bool: True if connection successful, False otherwise
         """
+        start_time = time.time()
         try:
+            log_info(f"Attempting to connect to MongoDB database: {self.database_name}", "DB_CONNECT")
+            dashboard_logger.log_database_operation("connect", "database", {"database": self.database_name})
+            
             self.client = MongoClient(self.connection_string, serverSelectionTimeoutMS=5000)
             # Test the connection
             self.client.admin.command('ping')
             self.db = self.client[self.database_name]
-            logger.info(f"Successfully connected to MongoDB: {self.database_name}")
+            
+            duration = (time.time() - start_time) * 1000
+            log_info(f"Successfully connected to MongoDB: {self.database_name} in {duration:.2f}ms", "DB_CONNECT")
+            dashboard_logger.log_database_operation("connect", "database", 
+                                                   {"database": self.database_name}, 
+                                                   {"success": True}, duration)
             return True
+            
         except (ServerSelectionTimeoutError, ConnectionFailure) as e:
-            logger.error(f"Failed to connect to MongoDB: {e}")
+            duration = (time.time() - start_time) * 1000
+            log_error(e, "DB_CONNECT")
+            dashboard_logger.log_database_operation("connect", "database", 
+                                                   {"database": self.database_name}, 
+                                                   {"success": False, "error": str(e)}, duration)
             return False
     
     def disconnect(self):
@@ -209,6 +227,7 @@ class MongoDBManager:
     
     # CRUD Operations
     
+    @log_function_call
     def insert_document(self, collection_name: str, document: Dict) -> str:
         """
         Insert a document into specified collection
@@ -220,22 +239,35 @@ class MongoDBManager:
         Returns:
             str: Inserted document ID
         """
+        start_time = time.time()
         try:
             if self.db is None:
-                logger.error("Database connection not established")
+                log_error(Exception("Database connection not established"), "DB_INSERT")
                 return None
                 
+            # Add timestamps
             document['created_at'] = datetime.now()
             if 'updated_at' not in document:
                 document['updated_at'] = datetime.now()
             
+            log_info(f"Inserting document into {collection_name}", "DB_INSERT")
             result = self.db[collection_name].insert_one(document)
-            logger.info(f"Document inserted into {collection_name}: {result.inserted_id}")
+            
+            duration = (time.time() - start_time) * 1000
+            log_info(f"Document inserted into {collection_name}: {result.inserted_id} in {duration:.2f}ms", "DB_INSERT")
+            dashboard_logger.log_database_operation("insert", collection_name, document, 
+                                                   {"inserted_id": str(result.inserted_id)}, duration)
+            
             return str(result.inserted_id)
+            
         except Exception as e:
-            logger.error(f"Error inserting document into {collection_name}: {e}")
+            duration = (time.time() - start_time) * 1000
+            log_error(e, f"DB_INSERT_{collection_name}")
+            dashboard_logger.log_database_operation("insert", collection_name, document, 
+                                                   {"success": False, "error": str(e)}, duration)
             raise
     
+    @log_function_call
     def find_documents(self, collection_name: str, filter_dict: Dict = None, limit: int = None) -> List[Dict]:
         """
         Find documents in specified collection
@@ -248,12 +280,15 @@ class MongoDBManager:
         Returns:
             List[Dict]: List of documents
         """
+        start_time = time.time()
         try:
             if self.db is None:
-                logger.error("Database connection not established")
+                log_error(Exception("Database connection not established"), "DB_FIND")
                 return []
                 
             filter_dict = filter_dict or {}
+            log_info(f"Querying {collection_name} with filter: {filter_dict}", "DB_FIND")
+            
             cursor = self.db[collection_name].find(filter_dict)
             if limit:
                 cursor = cursor.limit(limit)
@@ -263,9 +298,18 @@ class MongoDBManager:
             for doc in documents:
                 doc['_id'] = str(doc['_id'])
             
+            duration = (time.time() - start_time) * 1000
+            log_info(f"Found {len(documents)} documents in {collection_name} in {duration:.2f}ms", "DB_FIND")
+            dashboard_logger.log_database_operation("find", collection_name, filter_dict, 
+                                                   {"count": len(documents)}, duration)
+            
             return documents
+            
         except Exception as e:
-            logger.error(f"Error finding documents in {collection_name}: {e}")
+            duration = (time.time() - start_time) * 1000
+            log_error(e, f"DB_FIND_{collection_name}")
+            dashboard_logger.log_database_operation("find", collection_name, filter_dict, 
+                                                   {"success": False, "error": str(e)}, duration)
             return []
     
     def update_document(self, collection_name: str, filter_dict: Dict, update_dict: Dict) -> int:

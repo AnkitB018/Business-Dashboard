@@ -11,75 +11,94 @@ import sys
 import os
 from database import get_db_manager
 from data_service import HRDataService
+from logger_config import get_logger, log_function_call, log_info, log_error
 import logging
+import time
+from datetime import datetime
 
 # Import GUI pages
 from data_page_gui import ModernDataPageGUI
 from reports_page_gui import ModernReportsPageGUI
 from settings_page_gui import SettingsPageGUI
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Initialize enhanced logging system
+dashboard_logger = get_logger()
+logger = dashboard_logger.main_logger
 
 class HRManagementApp:
+    @log_function_call
     def __init__(self):
-        # Set modern appearance with improved theme
-        ctk.set_appearance_mode("light")  # Modern light mode
-        ctk.set_default_color_theme("blue")
-        
-        # Create main window with modern styling
-        self.root = ctk.CTk()
-        self.root.title("🏢 Business Dashboard - Enterprise Edition")
-        self.root.geometry("1600x1000")
-        self.root.minsize(1400, 900)
-        
-        # Modern color scheme for light theme
-        self.colors = {
-            'primary': '#F8FAFC',      # Light gray background
-            'secondary': '#E5E7EB',    # Light medium gray
-            'accent': '#3B82F6',       # Blue (same)
-            'success': '#10B981',      # Green (same)
-            'warning': '#F59E0B',      # Orange (same)
-            'danger': '#EF4444',       # Red (same)
-            'surface': '#FFFFFF',      # White surface
-            'text_primary': '#111827', # Dark gray text
-            'text_secondary': '#6B7280' # Medium gray text
-        }
-        
-        # Configure window icon and styling
         try:
-            # Try to set a modern icon (if available)
-            self.root.iconbitmap(default='')
-        except:
-            pass
+            # Log application startup
+            dashboard_logger.log_app_start()
+            log_info("Initializing Business Dashboard Application", "APP_INIT")
             
-        # Center the window
-        self.center_window()
-        
-        # Initialize database connection immediately (no threading for now)
-        self.db_manager = None
-        self.data_service = None
-        self.is_connected = False
-        
-        # Initialize pages storage
-        self.pages = {}
-        self.current_page = None
-        
-        # Create modern frame structure
-        self.create_main_structure()
-        
-        # Initialize database connection synchronously
-        self.initialize_database_sync()
-        
-        # Create pages after database initialization
-        self.create_pages()
-        
-        # Show default page
-        self.show_page("data")
-        
-        # Handle window close event
-        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+            # Set modern appearance with improved theme
+            ctk.set_appearance_mode("light")  # Modern light mode
+            ctk.set_default_color_theme("blue")
+            log_info("CustomTkinter theme configured", "APP_INIT")
+            
+            # Create main window with modern styling
+            self.root = ctk.CTk()
+            self.root.title("🏢 Business Dashboard - Enterprise Edition")
+            self.root.geometry("1600x1000")
+            self.root.minsize(1400, 900)
+            log_info("Main window created with dimensions 1600x1000", "APP_INIT")
+            
+            # Modern color scheme for light theme
+            self.colors = {
+                'primary': '#F8FAFC',      # Light gray background
+                'secondary': '#E5E7EB',    # Light medium gray
+                'accent': '#3B82F6',       # Blue (same)
+                'success': '#10B981',      # Green (same)
+                'warning': '#F59E0B',      # Orange (same)
+                'danger': '#EF4444',       # Red (same)
+                'surface': '#FFFFFF',      # White surface
+                'text_primary': '#111827', # Dark gray text
+                'text_secondary': '#6B7280' # Medium gray text
+            }
+            
+            # Configure window icon and styling
+            try:
+                # Try to set a modern icon (if available)
+                self.root.iconbitmap(default='')
+            except Exception as e:
+                dashboard_logger.log_debug("No icon file found, using default", {'error': str(e)})
+                
+            # Center the window
+            self.center_window()
+            
+            # Initialize database connection immediately (no threading for now)
+            self.db_manager = None
+            self.data_service = None
+            self.is_connected = False
+            
+            # Initialize pages storage
+            self.pages = {}
+            self.current_page = None
+            
+            # Create modern frame structure
+            self.create_main_structure()
+            
+            # Initialize database connection synchronously
+            self.initialize_database_sync()
+            
+            # Create pages after database initialization
+            self.create_pages()
+            
+            # Show default page
+            self.show_page("data")
+            
+            # Handle window close event
+            self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+            
+            log_info("Application initialization completed successfully", "APP_INIT")
+            
+        except Exception as e:
+            log_error(e, "APP_INIT_CRITICAL")
+            messagebox.showerror("Initialization Error", 
+                               f"Failed to initialize application: {str(e)}")
+            sys.exit(1)
         
     def center_window(self):
         """Center the window on the screen"""
@@ -90,45 +109,54 @@ class HRManagementApp:
         y = (self.root.winfo_screenheight() // 2) - (height // 2)
         self.root.geometry(f"{width}x{height}+{x}+{y}")
         
+    @log_function_call
     def create_main_structure(self):
         """Create modern application structure with enhanced UI"""
-        # Create modern header with gradient-like effect
-        self.header_frame = ctk.CTkFrame(
-            self.root, 
-            height=80, 
-            corner_radius=0,
-            fg_color=self.colors['surface']
-        )
-        self.header_frame.pack(fill="x", padx=0, pady=0)
-        self.header_frame.pack_propagate(False)
-        
-        # App title with modern typography
-        title_frame = ctk.CTkFrame(self.header_frame, fg_color="transparent")
-        title_frame.pack(side="left", fill="y", padx=30, pady=10)
-        
-        app_title = ctk.CTkLabel(
-            title_frame,
-            text="🏢 Business Dashboard",
-            font=ctk.CTkFont(size=24, weight="bold"),
-            text_color=self.colors['text_primary']
-        )
-        app_title.pack(side="top", pady=(5, 0))
-        
-        subtitle = ctk.CTkLabel(
-            title_frame,
-            text="Enterprise Management System",
-            font=ctk.CTkFont(size=12),
-            text_color=self.colors['text_secondary']
-        )
-        subtitle.pack(side="top")
-        
-        # Modern status indicator
-        self.status_frame = ctk.CTkFrame(
-            self.header_frame, 
-            corner_radius=20,
-            fg_color=self.colors['secondary']
-        )
-        self.status_frame.pack(side="right", padx=30, pady=15)
+        try:
+            log_info("Creating main UI structure", "UI_INIT")
+            
+            # Create modern header with gradient-like effect
+            self.header_frame = ctk.CTkFrame(
+                self.root, 
+                height=80, 
+                corner_radius=0,
+                fg_color=self.colors['surface']
+            )
+            self.header_frame.pack(fill="x", padx=0, pady=0)
+            self.header_frame.pack_propagate(False)
+            
+            # App title with modern typography
+            title_frame = ctk.CTkFrame(self.header_frame, fg_color="transparent")
+            title_frame.pack(side="left", fill="y", padx=30, pady=10)
+            
+            app_title = ctk.CTkLabel(
+                title_frame,
+                text="🏢 Business Dashboard",
+                font=ctk.CTkFont(size=24, weight="bold"),
+                text_color=self.colors['text_primary']
+            )
+            app_title.pack(side="top", pady=(5, 0))
+            
+            subtitle = ctk.CTkLabel(
+                title_frame,
+                text="Enterprise Management System",
+                font=ctk.CTkFont(size=12),
+                text_color=self.colors['text_secondary']
+            )
+            subtitle.pack(side="top")
+            
+            # Modern status indicator
+            self.status_frame = ctk.CTkFrame(
+                self.header_frame, 
+                corner_radius=20,
+                fg_color=self.colors['secondary']
+            )
+            self.status_frame.pack(side="right", padx=30, pady=15)
+            
+            log_info("Main UI structure created successfully", "UI_INIT")
+            
+        except Exception as e:
+            log_error(e, "UI_INIT")
         
         self.status_indicator = ctk.CTkFrame(
             self.status_frame,
@@ -208,48 +236,73 @@ class HRManagementApp:
         )
         self.content_frame.pack(fill="both", expand=True, padx=0, pady=0)
         
+    @log_function_call
     def initialize_database_sync(self):
         """Initialize database connection synchronously"""
+        start_time = time.time()
         try:
-            logger.info("Initializing database connection...")
+            log_info("Initializing database connection...", "DB_INIT")
+            dashboard_logger.log_user_activity("DATABASE_INIT_START", {"method": "synchronous"})
+            
             self.db_manager = get_db_manager()
             
             if self.db_manager.connect():
                 self.data_service = HRDataService(self.db_manager)
                 self.is_connected = True
                 self.update_connection_status(True, "Connected to MongoDB Atlas")
-                logger.info("Database connection established successfully")
+                
+                duration = (time.time() - start_time) * 1000
+                log_info(f"Database connection established successfully in {duration:.2f}ms", "DB_INIT")
+                dashboard_logger.log_performance("database_connection", duration, {"success": True})
+                dashboard_logger.log_user_activity("DATABASE_CONNECTED", {"duration_ms": duration})
+                
             else:
                 self.update_connection_status(False, "Failed to connect to database")
-                logger.error("Failed to establish database connection")
+                log_error(Exception("Database connection failed"), "DB_INIT")
+                dashboard_logger.log_user_activity("DATABASE_CONNECTION_FAILED", {})
                 
         except Exception as e:
+            duration = (time.time() - start_time) * 1000
             error_msg = f"Database connection error: {str(e)}"
             self.update_connection_status(False, error_msg)
-            logger.error(f"Database initialization error: {e}")
+            log_error(e, "DB_INIT")
+            dashboard_logger.log_performance("database_connection", duration, {"success": False, "error": str(e)})
+            dashboard_logger.log_user_activity("DATABASE_INIT_ERROR", {"error": str(e), "duration_ms": duration})
             
+    @log_function_call
     def initialize_database(self):
         """Initialize database connection in a separate thread"""
         def connect_db():
+            start_time = time.time()
             try:
-                logger.info("Initializing database connection...")
+                log_info("Initializing database connection (threaded)...", "DB_INIT_THREAD")
+                dashboard_logger.log_user_activity("DATABASE_INIT_START", {"method": "threaded"})
+                
                 self.db_manager = get_db_manager()
                 
                 if self.db_manager.connect():
                     self.data_service = HRDataService(self.db_manager)
                     self.is_connected = True
                     
+                    duration = (time.time() - start_time) * 1000
                     # Update UI in main thread
                     self.root.after(0, self.update_connection_status, True, "Connected to MongoDB Atlas")
-                    logger.info("Database connection established successfully")
+                    log_info(f"Database connection established successfully in {duration:.2f}ms", "DB_INIT_THREAD")
+                    dashboard_logger.log_performance("database_connection_threaded", duration, {"success": True})
+                    dashboard_logger.log_user_activity("DATABASE_CONNECTED", {"duration_ms": duration, "method": "threaded"})
+                    
                 else:
                     self.root.after(0, self.update_connection_status, False, "Failed to connect to database")
-                    logger.error("Failed to establish database connection")
+                    log_error(Exception("Database connection failed"), "DB_INIT_THREAD")
+                    dashboard_logger.log_user_activity("DATABASE_CONNECTION_FAILED", {"method": "threaded"})
                     
             except Exception as e:
+                duration = (time.time() - start_time) * 1000
                 error_msg = f"Database connection error: {str(e)}"
                 self.root.after(0, self.update_connection_status, False, error_msg)
-                logger.error(f"Database initialization error: {e}")
+                log_error(e, "DB_INIT_THREAD")
+                dashboard_logger.log_performance("database_connection_threaded", duration, {"success": False, "error": str(e)})
+                dashboard_logger.log_user_activity("DATABASE_INIT_ERROR", {"error": str(e), "duration_ms": duration, "method": "threaded"})
         
         # Start connection in background thread
         threading.Thread(target=connect_db, daemon=True).start()
@@ -382,37 +435,63 @@ class HRManagementApp:
             logger.error(f"Error restarting application: {e}")
             messagebox.showerror("Restart Error", f"Failed to restart application: {str(e)}")
     
+    @log_function_call
     def on_closing(self):
         """Handle application closing"""
         try:
+            log_info("Application shutdown initiated", "APP_SHUTDOWN")
+            dashboard_logger.log_user_activity("APPLICATION_SHUTDOWN_START", {})
+            
             # Close database connection
             if self.db_manager:
                 self.db_manager.disconnect()
-                logger.info("Database connection closed")
+                log_info("Database connection closed", "APP_SHUTDOWN")
+                dashboard_logger.log_database_operation("disconnect", "all_collections")
                 
+            # Log application shutdown
+            dashboard_logger.log_app_shutdown()
+            dashboard_logger.log_user_activity("APPLICATION_SHUTDOWN_COMPLETE", {})
+            
             # Destroy the main window
             self.root.destroy()
             
         except Exception as e:
-            logger.error(f"Error during application shutdown: {e}")
+            log_error(e, "APP_SHUTDOWN")
         finally:
             sys.exit(0)
     
+    @log_function_call
     def run(self):
         """Start the application"""
-        logger.info("Starting HR Management System...")
         try:
+            log_info("Starting HR Management System main loop...", "APP_RUN")
+            dashboard_logger.log_user_activity("APPLICATION_MAIN_LOOP_START", {})
             self.root.mainloop()
         except Exception as e:
-            logger.error(f"Application error: {e}")
+            log_error(e, "APP_RUN")
+            dashboard_logger.log_user_activity("APPLICATION_MAIN_LOOP_ERROR", {"error": str(e)})
             messagebox.showerror("Application Error", f"An unexpected error occurred: {str(e)}")
 
 
 def main():
     """Main entry point"""
     try:
+        log_info("=== BUSINESS DASHBOARD APPLICATION STARTING ===", "MAIN")
+        dashboard_logger.log_user_activity("APPLICATION_START", {
+            "python_version": sys.version,
+            "platform": sys.platform,
+            "working_directory": os.getcwd()
+        })
+        
         app = HRManagementApp()
         app.run()
+        
+    except Exception as e:
+        log_error(e, "MAIN_CRITICAL")
+        dashboard_logger.log_user_activity("APPLICATION_CRITICAL_ERROR", {"error": str(e)})
+        messagebox.showerror("Critical Error", 
+                           f"Critical application error: {str(e)}")
+        sys.exit(1)
     except Exception as e:
         logger.error(f"Failed to start application: {e}")
         messagebox.showerror("Startup Error", f"Failed to start the HR Management System: {str(e)}")
