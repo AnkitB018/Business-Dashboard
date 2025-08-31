@@ -5,7 +5,7 @@ Handles database configuration, theme settings, data management, and system pref
 
 import customtkinter as ctk
 import tkinter as tk
-from tkinter import messagebox, filedialog, ttk
+from tkinter import messagebox, filedialog
 import os
 import json
 import threading
@@ -31,19 +31,125 @@ class SettingsPageGUI:
         self.create_page()
         
     def create_page(self):
-        """Create the settings page"""
+        """Create the settings page with enhanced tab design"""
         # Main frame for this page
         self.frame = ctk.CTkFrame(self.parent, corner_radius=0, fg_color="transparent")
         
-        # Create notebook for different settings tabs
-        self.notebook = ttk.Notebook(self.frame)
-        self.notebook.pack(fill="both", expand=True, padx=10, pady=10)
+        # Create custom tab navigation
+        self.create_custom_tab_navigation()
         
-        # Create settings tabs
-        self.create_database_settings_tab()
-        self.create_appearance_settings_tab()
-        self.create_data_management_tab()
-        self.create_system_settings_tab()
+        # Create container for tab content
+        self.content_container = ctk.CTkFrame(self.frame, corner_radius=10)
+        self.content_container.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        # Create all tab frames (initially hidden)
+        self.create_all_tab_frames()
+        
+        # Show default tab (Database Settings)
+        self.show_tab("database")
+        
+    def create_custom_tab_navigation(self):
+        """Create enhanced tab navigation with bigger, better-looking buttons"""
+        # Navigation frame
+        nav_frame = ctk.CTkFrame(self.frame, height=80, corner_radius=10)
+        nav_frame.pack(fill="x", padx=10, pady=(10, 10))
+        nav_frame.pack_propagate(False)  # Maintain fixed height
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            nav_frame, 
+            text="⚙️ Settings Configuration", 
+            font=ctk.CTkFont(size=20, weight="bold")
+        )
+        title_label.pack(side="left", padx=20, pady=20)
+        
+        # Tab buttons container
+        tab_buttons_frame = ctk.CTkFrame(nav_frame, fg_color="transparent")
+        tab_buttons_frame.pack(side="right", padx=20, pady=15)
+        
+        # Enhanced tab buttons with better styling
+        self.tab_buttons = {}
+        tab_configs = [
+            ("database", "🗄️ Database Settings", "Configure MongoDB Atlas connection"),
+            ("appearance", "🎨 Appearance", "Customize theme and UI settings"),
+            ("data", "💾 Data Management", "Import/export and backup data"),
+            ("system", "⚙️ System Settings", "Application preferences and logs")
+        ]
+        
+        for i, (tab_id, tab_text, tooltip) in enumerate(tab_configs):
+            # Create enhanced button
+            btn = ctk.CTkButton(
+                tab_buttons_frame,
+                text=tab_text,
+                width=180,  # Bigger width
+                height=45,  # Bigger height
+                font=ctk.CTkFont(size=14, weight="bold"),
+                corner_radius=8,
+                fg_color=("gray70", "gray25"),  # Default inactive color
+                hover_color=("gray60", "gray35"),
+                command=lambda t=tab_id: self.show_tab(t)
+            )
+            btn.pack(side="left", padx=8, pady=5)
+            self.tab_buttons[tab_id] = btn
+            
+            # Add tooltip (simple hover effect)
+            self.add_button_tooltip(btn, tooltip)
+    
+    def add_button_tooltip(self, button, tooltip_text):
+        """Add hover tooltip effect to buttons"""
+        def on_enter(event):
+            button.configure(text_color=("gray10", "gray90"))
+            
+        def on_leave(event):
+            button.configure(text_color=("gray10", "gray90"))
+            
+        button.bind("<Enter>", on_enter)
+        button.bind("<Leave>", on_leave)
+    
+    def show_tab(self, tab_id):
+        """Show the selected tab and update button appearance"""
+        # Update button colors
+        for btn_id, btn in self.tab_buttons.items():
+            if btn_id == tab_id:
+                # Active tab - highlighted
+                btn.configure(
+                    fg_color=("gray20", "gray80"),  # Active color
+                    text_color=("white", "gray10")
+                )
+            else:
+                # Inactive tabs - muted
+                btn.configure(
+                    fg_color=("gray70", "gray25"),  # Inactive color
+                    text_color=("gray10", "gray90")
+                )
+        
+        # Hide all tab frames
+        for frame in [self.db_frame, self.appearance_frame, self.data_frame, self.system_frame]:
+            frame.pack_forget()
+        
+        # Show selected tab frame
+        if tab_id == "database":
+            self.db_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        elif tab_id == "appearance":
+            self.appearance_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        elif tab_id == "data":
+            self.data_frame.pack(fill="both", expand=True, padx=20, pady=20)
+        elif tab_id == "system":
+            self.system_frame.pack(fill="both", expand=True, padx=20, pady=20)
+    
+    def create_all_tab_frames(self):
+        """Create all tab content frames"""
+        # Create frames for each tab
+        self.db_frame = ctk.CTkFrame(self.content_container, corner_radius=8)
+        self.appearance_frame = ctk.CTkFrame(self.content_container, corner_radius=8)
+        self.data_frame = ctk.CTkFrame(self.content_container, corner_radius=8)
+        self.system_frame = ctk.CTkFrame(self.content_container, corner_radius=8)
+        
+        # Populate each frame with its content
+        self.setup_database_settings_content()
+        self.setup_appearance_settings_content()
+        self.setup_data_management_content()
+        self.setup_system_settings_content()
         
     def configure_scroll_speed(self, scrollable_frame):
         """Configure improved scroll speed for CTkScrollableFrame"""
@@ -62,13 +168,10 @@ class SettingsPageGUI:
             # Fallback - just continue without enhanced scrolling
             pass
         
-    def create_database_settings_tab(self):
-        """Create database settings tab"""
-        db_frame = ctk.CTkFrame(self.notebook)
-        self.notebook.add(db_frame, text="🗄️ Database Settings")
-        
+    def setup_database_settings_content(self):
+        """Setup database settings tab content"""
         # Main container with scrollable frame
-        main_container = ctk.CTkScrollableFrame(db_frame)
+        main_container = ctk.CTkScrollableFrame(self.db_frame)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Configure improved scroll speed
@@ -218,13 +321,10 @@ class SettingsPageGUI:
         # Load current settings on startup
         self.load_current_settings()
         
-    def create_appearance_settings_tab(self):
-        """Create appearance settings tab"""
-        appearance_frame = ctk.CTkFrame(self.notebook)
-        self.notebook.add(appearance_frame, text="🎨 Appearance")
-        
+    def setup_appearance_settings_content(self):
+        """Setup appearance settings tab content"""
         # Main container
-        main_container = ctk.CTkFrame(appearance_frame)
+        main_container = ctk.CTkFrame(self.appearance_frame)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Title
@@ -299,13 +399,10 @@ class SettingsPageGUI:
                      command=self.apply_appearance_settings,
                      fg_color="green", hover_color="dark green").pack(pady=30)
         
-    def create_data_management_tab(self):
-        """Create data management tab"""
-        data_frame = ctk.CTkFrame(self.notebook)
-        self.notebook.add(data_frame, text="💾 Data Management")
-        
+    def setup_data_management_content(self):
+        """Setup data management tab content"""
         # Main container with scrollable frame
-        main_container = ctk.CTkScrollableFrame(data_frame)
+        main_container = ctk.CTkScrollableFrame(self.data_frame)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Configure improved scroll speed
@@ -413,13 +510,10 @@ class SettingsPageGUI:
         # Load initial statistics
         self.update_database_statistics()
         
-    def create_system_settings_tab(self):
-        """Create system settings tab"""
-        system_frame = ctk.CTkFrame(self.notebook)
-        self.notebook.add(system_frame, text="⚙️ System")
-        
+    def setup_system_settings_content(self):
+        """Setup system settings tab content"""
         # Main container
-        main_container = ctk.CTkScrollableFrame(system_frame)
+        main_container = ctk.CTkScrollableFrame(self.system_frame)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
         # Configure improved scroll speed
@@ -1078,7 +1172,7 @@ Last Updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}"""
             
             # Create text widget for logs
             log_text = tk.Text(log_window, wrap=tk.WORD)
-            scrollbar = ttk.Scrollbar(log_window, orient="vertical", command=log_text.yview)
+            scrollbar = tk.Scrollbar(log_window, orient="vertical", command=log_text.yview)
             log_text.configure(yscrollcommand=scrollbar.set)
             
             log_text.pack(side="left", fill="both", expand=True)
