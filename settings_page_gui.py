@@ -76,7 +76,21 @@ class SettingsPageGUI:
         
         # Title
         ctk.CTkLabel(main_container, text="MongoDB Atlas Configuration", 
-                    font=ctk.CTkFont(size=24, weight="bold")).pack(pady=(10, 20))
+                    font=ctk.CTkFont(size=24, weight="bold")).pack(pady=(10, 15))
+        
+        # Edit mode toggle
+        edit_mode_frame = ctk.CTkFrame(main_container)
+        edit_mode_frame.pack(fill="x", pady=(0, 15))
+        
+        self.edit_mode_var = tk.BooleanVar(value=False)
+        self.edit_mode_switch = ctk.CTkSwitch(
+            edit_mode_frame, 
+            text="🔓 Edit Mode (Enable to modify settings)", 
+            variable=self.edit_mode_var,
+            command=self.toggle_edit_mode,
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        self.edit_mode_switch.pack(anchor="w", padx=15, pady=10)
         
         # Current connection status
         status_frame = ctk.CTkFrame(main_container)
@@ -106,7 +120,7 @@ class SettingsPageGUI:
         
         self.mongodb_uri_var = tk.StringVar()
         self.mongodb_uri_entry = ctk.CTkEntry(config_frame, textvariable=self.mongodb_uri_var, 
-                                             width=600, height=40, 
+                                             width=600, height=40, state="readonly",
                                              placeholder_text="mongodb+srv://username:password@cluster.mongodb.net/database")
         self.mongodb_uri_entry.pack(padx=10, pady=(5, 10), fill="x")
         
@@ -115,8 +129,9 @@ class SettingsPageGUI:
                     font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=10)
         
         self.mongodb_database_var = tk.StringVar()
-        ctk.CTkEntry(config_frame, textvariable=self.mongodb_database_var, 
-                    width=300, placeholder_text="hr_management_db").pack(anchor="w", padx=10, pady=(5, 10))
+        self.mongodb_database_entry = ctk.CTkEntry(config_frame, textvariable=self.mongodb_database_var, 
+                    width=300, state="readonly", placeholder_text="hr_management_db")
+        self.mongodb_database_entry.pack(anchor="w", padx=10, pady=(5, 10))
         
         # Individual fields for easier editing
         individual_frame = ctk.CTkFrame(config_frame)
@@ -128,40 +143,49 @@ class SettingsPageGUI:
         # Username
         ctk.CTkLabel(individual_frame, text="Username:").pack(anchor="w", padx=10)
         self.db_username_var = tk.StringVar()
-        ctk.CTkEntry(individual_frame, textvariable=self.db_username_var, width=250).pack(anchor="w", padx=10, pady=(5, 10))
+        self.db_username_entry = ctk.CTkEntry(individual_frame, textvariable=self.db_username_var, 
+                                             width=250, state="readonly")
+        self.db_username_entry.pack(anchor="w", padx=10, pady=(5, 10))
         
         # Password
         ctk.CTkLabel(individual_frame, text="Password:").pack(anchor="w", padx=10)
         self.db_password_var = tk.StringVar()
-        ctk.CTkEntry(individual_frame, textvariable=self.db_password_var, width=250, show="*").pack(anchor="w", padx=10, pady=(5, 10))
+        self.db_password_entry = ctk.CTkEntry(individual_frame, textvariable=self.db_password_var, 
+                                             width=250, show="*", state="readonly")
+        self.db_password_entry.pack(anchor="w", padx=10, pady=(5, 10))
         
         # Cluster URL
         ctk.CTkLabel(individual_frame, text="Cluster URL:").pack(anchor="w", padx=10)
         self.db_cluster_var = tk.StringVar()
-        ctk.CTkEntry(individual_frame, textvariable=self.db_cluster_var, width=400, 
-                    placeholder_text="cluster0.xxxxx.mongodb.net").pack(anchor="w", padx=10, pady=(5, 10))
+        self.db_cluster_entry = ctk.CTkEntry(individual_frame, textvariable=self.db_cluster_var, 
+                    width=400, state="readonly", placeholder_text="cluster0.xxxxx.mongodb.net")
+        self.db_cluster_entry.pack(anchor="w", padx=10, pady=(5, 10))
         
         # Build connection string button
-        ctk.CTkButton(individual_frame, text="Build Connection String", 
-                     command=self.build_connection_string).pack(anchor="w", padx=10, pady=10)
+        self.build_string_button = ctk.CTkButton(individual_frame, text="Build Connection String", 
+                     command=self.build_connection_string, state="disabled")
+        self.build_string_button.pack(anchor="w", padx=10, pady=10)
         
         # Action buttons
         button_frame = ctk.CTkFrame(main_container)
         button_frame.pack(fill="x", pady=20)
         
         # Load current settings
-        ctk.CTkButton(button_frame, text="Load Current Settings", 
-                     command=self.load_current_settings).pack(side="left", padx=10, pady=10)
+        self.load_settings_button = ctk.CTkButton(button_frame, text="🔄 Refresh Settings", 
+                     command=self.load_current_settings)
+        self.load_settings_button.pack(side="left", padx=10, pady=10)
         
         # Save settings
-        ctk.CTkButton(button_frame, text="Save Settings", 
-                     command=self.save_database_settings, 
-                     fg_color="green", hover_color="dark green").pack(side="left", padx=10, pady=10)
+        self.save_settings_button = ctk.CTkButton(button_frame, text="💾 Save Settings", 
+                     command=self.save_database_settings, state="disabled",
+                     fg_color="green", hover_color="dark green")
+        self.save_settings_button.pack(side="left", padx=10, pady=10)
         
         # Restart application
-        ctk.CTkButton(button_frame, text="Save & Restart Application", 
-                     command=self.save_and_restart, 
-                     fg_color="orange", hover_color="dark orange").pack(side="left", padx=10, pady=10)
+        self.restart_button = ctk.CTkButton(button_frame, text="🔄 Save & Restart Application", 
+                     command=self.save_and_restart, state="disabled",
+                     fg_color="orange", hover_color="dark orange")
+        self.restart_button.pack(side="left", padx=10, pady=10)
         
         # Load current settings on startup
         self.load_current_settings()
@@ -470,25 +494,82 @@ Last Updated: August 2025"""
     def load_current_settings(self):
         """Load current database settings"""
         try:
-            # Try to load from .env file first
+            # Load from environment variables and .env file
+            env_values = {}
+            
+            # First, load from environment variables (runtime values)
+            env_values['MONGODB_URI'] = os.getenv('MONGODB_URI', '')
+            env_values['MONGODB_DATABASE'] = os.getenv('MONGODB_DATABASE', '')
+            env_values['ATLAS_CLUSTER_NAME'] = os.getenv('ATLAS_CLUSTER_NAME', '')
+            env_values['ATLAS_DATABASE_USER'] = os.getenv('ATLAS_DATABASE_USER', '')
+            env_values['ATLAS_DATABASE_PASSWORD'] = os.getenv('ATLAS_DATABASE_PASSWORD', '')
+            
+            # Then, try to load from .env file to get any additional values
             if os.path.exists(self.env_file_path):
                 with open(self.env_file_path, 'r') as f:
                     content = f.read()
                     
-                for line in content.split('\\n'):
-                    if line.startswith('MONGODB_URI='):
-                        uri = line.split('=', 1)[1].strip()
-                        self.mongodb_uri_var.set(uri)
-                        self.parse_connection_string(uri)
-                    elif line.startswith('MONGODB_DATABASE='):
-                        db = line.split('=', 1)[1].strip()
-                        self.mongodb_database_var.set(db)
+                for line in content.split('\n'):  # Fixed: was '\\n' 
+                    line = line.strip()
+                    if line and not line.startswith('#') and '=' in line:
+                        key, value = line.split('=', 1)
+                        key = key.strip()
+                        value = value.strip()
+                        if key in env_values:
+                            env_values[key] = value
             
-            self.db_status_label.configure(text="✅ Settings loaded successfully", text_color="green")
+            # Set the UI fields with loaded values
+            self.mongodb_uri_var.set(env_values.get('MONGODB_URI', ''))
+            self.mongodb_database_var.set(env_values.get('MONGODB_DATABASE', ''))
+            
+            # Set individual component fields if available
+            if hasattr(self, 'db_username_var'):
+                self.db_username_var.set(env_values.get('ATLAS_DATABASE_USER', ''))
+            if hasattr(self, 'db_password_var'):
+                self.db_password_var.set(env_values.get('ATLAS_DATABASE_PASSWORD', ''))
+            if hasattr(self, 'db_cluster_var'):
+                self.db_cluster_var.set(env_values.get('ATLAS_CLUSTER_NAME', ''))
+            
+            # Parse connection string to extract components if individual fields are empty
+            uri = env_values.get('MONGODB_URI', '')
+            if uri and hasattr(self, 'db_username_var'):
+                self.parse_connection_string(uri)
+            
+            # Update status based on what was loaded
+            if env_values.get('MONGODB_URI'):
+                self.db_status_label.configure(text="✅ Current settings loaded successfully", text_color="green")
+            else:
+                self.db_status_label.configure(text="⚠️ No database configuration found", text_color="orange")
             
         except Exception as e:
             self.db_status_label.configure(text=f"❌ Error loading settings: {str(e)}", text_color="red")
             logger.error(f"Error loading settings: {e}")
+    
+    def toggle_edit_mode(self):
+        """Toggle edit mode for database settings"""
+        edit_enabled = self.edit_mode_var.get()
+        
+        # Toggle state of all input widgets
+        state = "normal" if edit_enabled else "readonly"
+        button_state = "normal" if edit_enabled else "disabled"
+        
+        # Entry widgets
+        self.mongodb_uri_entry.configure(state=state)
+        self.mongodb_database_entry.configure(state=state)
+        self.db_username_entry.configure(state=state)
+        self.db_password_entry.configure(state=state)
+        self.db_cluster_entry.configure(state=state)
+        
+        # Buttons
+        self.build_string_button.configure(state=button_state)
+        self.save_settings_button.configure(state=button_state)
+        self.restart_button.configure(state=button_state)
+        
+        # Update switch text
+        if edit_enabled:
+            self.edit_mode_switch.configure(text="🔓 Edit Mode (Settings can be modified)")
+        else:
+            self.edit_mode_switch.configure(text="🔒 View Mode (Settings are read-only)")
     
     def parse_connection_string(self, uri):
         """Parse MongoDB connection string into components"""
@@ -580,19 +661,36 @@ Last Updated: August 2025"""
         try:
             uri = self.mongodb_uri_var.get().strip()
             database = self.mongodb_database_var.get().strip() or "hr_management_db"
+            username = self.db_username_var.get().strip()
+            password = self.db_password_var.get().strip()
+            cluster = self.db_cluster_var.get().strip()
             
             if not uri:
                 messagebox.showerror("Error", "Connection string is required")
                 return
             
-            # Create .env content
+            # Create comprehensive .env content
             env_content = f"""# MongoDB Atlas Configuration
+# Replace these values with your actual MongoDB Atlas credentials
+
+# MongoDB Atlas Connection String
+# Get this from your MongoDB Atlas dashboard -> Connect -> Connect your application
+# Format: mongodb+srv://<username>:<password>@<cluster-name>.mongodb.net/<database-name>?retryWrites=true&w=majority
 MONGODB_URI={uri}
+
+# Database name
 MONGODB_DATABASE={database}
 
-# Optional Application Settings
-DEBUG_MODE=True
+# Atlas cluster details (for reference and component building)
+ATLAS_CLUSTER_NAME={cluster}
+ATLAS_DATABASE_USER={username}
+ATLAS_DATABASE_PASSWORD={password}
+
+# Application Security
 SECRET_KEY=change-this-for-production
+
+# Development Settings
+DEBUG_MODE=True
 
 # Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 """
@@ -601,7 +699,16 @@ SECRET_KEY=change-this-for-production
             with open(self.env_file_path, 'w') as f:
                 f.write(env_content)
             
-            messagebox.showinfo("Success", "Database settings saved successfully!\n\nNote: You may need to restart the application for changes to take effect.")
+            messagebox.showinfo("Success", 
+                "Database settings saved successfully!\n\n"
+                "✅ Connection string saved\n"
+                "✅ Database name saved\n" 
+                "✅ Atlas credentials saved\n\n"
+                "Note: You may need to restart the application for changes to take effect.")
+            
+            # Disable edit mode after saving
+            self.edit_mode_var.set(False)
+            self.toggle_edit_mode()
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save settings: {str(e)}")
