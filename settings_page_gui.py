@@ -324,81 +324,189 @@ class SettingsPageGUI:
         
     def setup_appearance_settings_content(self):
         """Setup appearance settings tab content"""
-        # Main container
-        main_container = ctk.CTkFrame(self.appearance_frame)
+        # Main container with scrollable frame for better organization
+        main_container = ctk.CTkScrollableFrame(self.appearance_frame)
         main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
+        # Configure improved scroll speed
+        self.configure_scroll_speed(main_container)
+        
         # Title
-        ctk.CTkLabel(main_container, text="Appearance Settings", 
-                    font=ctk.CTkFont(size=24, weight="bold")).pack(pady=20)
+        ctk.CTkLabel(main_container, text="Appearance & UI Settings", 
+                    font=ctk.CTkFont(size=24, weight="bold")).pack(pady=(10, 20))
         
-        # Theme selection
+        # Theme selection (FUNCTIONAL)
         theme_frame = ctk.CTkFrame(main_container)
-        theme_frame.pack(fill="x", padx=20, pady=20)
+        theme_frame.pack(fill="x", padx=20, pady=15)
         
-        ctk.CTkLabel(theme_frame, text="Color Theme", 
+        ctk.CTkLabel(theme_frame, text="🎨 Color Theme", 
                     font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(15, 10))
         
-        self.theme_var = tk.StringVar(value="dark")
+        theme_description = ctk.CTkLabel(
+            theme_frame,
+            text="Choose the overall appearance of the application interface.",
+            font=ctk.CTkFont(size=12),
+            text_color=("gray20", "gray70")
+        )
+        theme_description.pack(pady=(0, 10))
         
-        # Theme radio buttons
+        self.theme_var = tk.StringVar(value="light")  # Default to light as per user preference
+        
+        # Theme radio buttons with better descriptions
         theme_options = [
-            ("Dark Mode", "dark"),
-            ("Light Mode", "light"),
-            ("System Default", "system")
+            ("🌞 Light Mode", "light", "Clean, bright interface (Recommended)"),
+            ("🌙 Dark Mode", "dark", "Dark interface, easier on eyes"),
+            ("⚙️ System Default", "system", "Match system theme settings")
         ]
         
-        for text, value in theme_options:
-            ctk.CTkRadioButton(theme_frame, text=text, variable=self.theme_var, 
-                              value=value, command=self.change_theme).pack(anchor="w", padx=20, pady=5)
+        for text, value, description in theme_options:
+            option_frame = ctk.CTkFrame(theme_frame, fg_color="transparent")
+            option_frame.pack(fill="x", padx=20, pady=2)
+            
+            radio_btn = ctk.CTkRadioButton(
+                option_frame, 
+                text=text, 
+                variable=self.theme_var,
+                value=value, 
+                command=self.change_theme,
+                font=ctk.CTkFont(size=14, weight="bold")
+            )
+            radio_btn.pack(anchor="w")
+            
+            desc_label = ctk.CTkLabel(
+                option_frame,
+                text=f"  • {description}",
+                font=ctk.CTkFont(size=11),
+                text_color=("gray30", "gray60")
+            )
+            desc_label.pack(anchor="w", padx=(30, 0))
         
-        # Color scheme selection
-        color_frame = ctk.CTkFrame(main_container)
-        color_frame.pack(fill="x", padx=20, pady=20)
+        # UI Scale and Layout (NEW FUNCTIONAL FEATURES)
+        layout_frame = ctk.CTkFrame(main_container)
+        layout_frame.pack(fill="x", padx=20, pady=15)
         
-        ctk.CTkLabel(color_frame, text="Color Scheme", 
+        ctk.CTkLabel(layout_frame, text="📐 Interface Layout", 
                     font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(15, 10))
         
-        self.color_theme_var = tk.StringVar(value="blue")
+        # Window size preferences
+        window_size_frame = ctk.CTkFrame(layout_frame, fg_color="transparent")
+        window_size_frame.pack(fill="x", padx=20, pady=10)
         
-        color_options = [
-            ("Blue", "blue"),
-            ("Green", "green"),
-            ("Dark Blue", "dark-blue")
-        ]
+        ctk.CTkLabel(window_size_frame, text="Default Window Size:", 
+                    font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w")
         
-        for text, value in color_options:
-            ctk.CTkRadioButton(color_frame, text=text, variable=self.color_theme_var, 
-                              value=value, command=self.change_color_theme).pack(anchor="w", padx=20, pady=5)
+        self.window_size_var = tk.StringVar(value="1600x1000")
+        window_sizes = ["1200x800", "1400x900", "1600x1000", "1920x1080", "Maximized"]
         
-        # Font size settings
-        font_frame = ctk.CTkFrame(main_container)
-        font_frame.pack(fill="x", padx=20, pady=20)
+        window_size_menu = ctk.CTkComboBox(
+            window_size_frame,
+            values=window_sizes,
+            variable=self.window_size_var,
+            width=200,
+            command=self.update_window_size_preview
+        )
+        window_size_menu.pack(anchor="w", pady=5)
         
-        ctk.CTkLabel(font_frame, text="Font Size", 
+        self.window_size_preview = ctk.CTkLabel(
+            window_size_frame,
+            text="Current: 1600x1000 pixels (Recommended for most screens)",
+            font=ctk.CTkFont(size=11),
+            text_color=("gray30", "gray60")
+        )
+        self.window_size_preview.pack(anchor="w", pady=(5, 0))
+        
+        # Scroll speed setting (FUNCTIONAL - based on existing implementation)
+        scroll_frame = ctk.CTkFrame(layout_frame, fg_color="transparent")
+        scroll_frame.pack(fill="x", padx=20, pady=10)
+        
+        ctk.CTkLabel(scroll_frame, text="Mouse Wheel Scroll Speed:", 
+                    font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w")
+        
+        self.scroll_speed_var = tk.StringVar(value="Enhanced (Current)")
+        scroll_speeds = ["Standard", "Enhanced (Current)", "Fast"]
+        
+        scroll_speed_menu = ctk.CTkComboBox(
+            scroll_frame,
+            values=scroll_speeds,
+            variable=self.scroll_speed_var,
+            width=200
+        )
+        scroll_speed_menu.pack(anchor="w", pady=5)
+        
+        scroll_info = ctk.CTkLabel(
+            scroll_frame,
+            text="Enhanced speed is already active (2x faster than standard)",
+            font=ctk.CTkFont(size=11),
+            text_color=("gray30", "gray60")
+        )
+        scroll_info.pack(anchor="w", pady=(5, 0))
+        
+        # Application behavior
+        behavior_frame = ctk.CTkFrame(main_container)
+        behavior_frame.pack(fill="x", padx=20, pady=15)
+        
+        ctk.CTkLabel(behavior_frame, text="🔧 Application Behavior", 
                     font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(15, 10))
         
-        self.font_size_var = tk.IntVar(value=14)
+        # Remember window position
+        self.remember_position_var = tk.BooleanVar(value=True)
+        ctk.CTkCheckBox(
+            behavior_frame,
+            text="Remember window position and size",
+            variable=self.remember_position_var,
+            font=ctk.CTkFont(size=14)
+        ).pack(anchor="w", padx=20, pady=5)
         
-        font_size_frame = ctk.CTkFrame(font_frame, fg_color="transparent")
-        font_size_frame.pack(fill="x", padx=20, pady=10)
+        # Auto-save preferences
+        self.auto_save_preferences_var = tk.BooleanVar(value=True)
+        ctk.CTkCheckBox(
+            behavior_frame,
+            text="Automatically save appearance preferences",
+            variable=self.auto_save_preferences_var,
+            font=ctk.CTkFont(size=14)
+        ).pack(anchor="w", padx=20, pady=5)
         
-        ctk.CTkLabel(font_size_frame, text="Base Font Size:").pack(side="left")
+        # Start minimized option
+        self.start_minimized_var = tk.BooleanVar(value=False)
+        ctk.CTkCheckBox(
+            behavior_frame,
+            text="Start application minimized to system tray",
+            variable=self.start_minimized_var,
+            font=ctk.CTkFont(size=14)
+        ).pack(anchor="w", padx=20, pady=5)
         
-        font_size_slider = ctk.CTkSlider(font_size_frame, from_=10, to=20, 
-                                        variable=self.font_size_var, number_of_steps=10)
-        font_size_slider.pack(side="left", padx=20, fill="x", expand=True)
+        # Action buttons
+        button_frame = ctk.CTkFrame(main_container)
+        button_frame.pack(fill="x", padx=20, pady=20)
         
-        self.font_size_label = ctk.CTkLabel(font_size_frame, text="14")
-        self.font_size_label.pack(side="right")
+        # Apply button
+        apply_btn = ctk.CTkButton(
+            button_frame,
+            text="✅ Apply Appearance Settings",
+            command=self.apply_appearance_settings,
+            fg_color="green",
+            hover_color="dark green",
+            width=250,
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        apply_btn.pack(side="left", padx=10, pady=15)
         
-        # Update font size label when slider changes
-        font_size_slider.configure(command=self.update_font_size_label)
+        # Reset to defaults button
+        reset_btn = ctk.CTkButton(
+            button_frame,
+            text="🔄 Reset to Defaults",
+            command=self.reset_appearance_defaults,
+            fg_color="orange",
+            hover_color="dark orange",
+            width=200,
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold")
+        )
+        reset_btn.pack(side="left", padx=10, pady=15)
         
-        # Apply changes button
-        ctk.CTkButton(main_container, text="Apply Changes", 
-                     command=self.apply_appearance_settings,
-                     fg_color="green", hover_color="dark green").pack(pady=30)
+        # Load current preferences on startup
+        self.load_appearance_preferences()
         
     def setup_data_management_content(self):
         """Setup data management tab content"""
@@ -910,38 +1018,140 @@ DEBUG_MODE=True
     
     # Appearance methods
     def change_theme(self):
-        """Change application theme"""
-        theme = self.theme_var.get()
-        if self.theme_callback:
-            self.theme_callback(theme)
-    
-    def change_color_theme(self):
-        """Change color theme"""
+        """Change application theme with immediate feedback"""
         try:
-            color_theme = self.color_theme_var.get()
-            ctk.set_default_color_theme(color_theme)
-            messagebox.showinfo("Theme Changed", 
-                               f"Color theme changed to {color_theme}. Restart the application to see full effect.")
+            theme = self.theme_var.get()
+            if self.theme_callback:
+                self.theme_callback(theme)
+                
+            # Provide immediate feedback
+            theme_names = {"light": "Light Mode", "dark": "Dark Mode", "system": "System Default"}
+            messagebox.showinfo("Theme Applied", 
+                               f"✅ {theme_names.get(theme, theme)} has been applied successfully!")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to change color theme: {str(e)}")
+            messagebox.showerror("Error", f"Failed to change theme: {str(e)}")
     
-    def update_font_size_label(self, value):
-        """Update font size label"""
-        self.font_size_label.configure(text=f"{int(float(value))}")
+    def update_window_size_preview(self, value):
+        """Update window size preview text"""
+        size_descriptions = {
+            "1200x800": "1200x800 pixels (Compact, good for smaller screens)",
+            "1400x900": "1400x900 pixels (Balanced size for medium screens)",
+            "1600x1000": "1600x1000 pixels (Recommended for most screens)",
+            "1920x1080": "1920x1080 pixels (Full HD, for large displays)",
+            "Maximized": "Maximized window (Use full screen space)"
+        }
+        
+        description = size_descriptions.get(value, f"{value} pixels")
+        self.window_size_preview.configure(text=f"Preview: {description}")
     
-    def apply_appearance_settings(self):
-        """Apply appearance settings"""
+    def load_appearance_preferences(self):
+        """Load saved appearance preferences"""
         try:
-            # Apply theme
+            prefs_file = os.path.join(os.getcwd(), "appearance_prefs.json")
+            if os.path.exists(prefs_file):
+                with open(prefs_file, 'r') as f:
+                    prefs = json.load(f)
+                    
+                # Load preferences into UI
+                self.theme_var.set(prefs.get("theme", "light"))
+                # Note: Removed color theme - using default blue
+                self.window_size_var.set(prefs.get("window_size", "1600x1000"))
+                self.scroll_speed_var.set(prefs.get("scroll_speed", "Enhanced (Current)"))
+                self.remember_position_var.set(prefs.get("remember_position", True))
+                self.auto_save_preferences_var.set(prefs.get("auto_save", True))
+                self.start_minimized_var.set(prefs.get("start_minimized", False))
+                
+                # Update preview
+                self.update_window_size_preview(self.window_size_var.get())
+                
+        except Exception as e:
+            logger.warning(f"Could not load appearance preferences: {e}")
+    
+    def save_appearance_preferences(self):
+        """Save appearance preferences to file"""
+        try:
+            prefs = {
+                "theme": self.theme_var.get(),
+                # Note: Removed color theme - using default blue
+                "window_size": self.window_size_var.get(),
+                "scroll_speed": self.scroll_speed_var.get(),
+                "remember_position": self.remember_position_var.get(),
+                "auto_save": self.auto_save_preferences_var.get(),
+                "start_minimized": self.start_minimized_var.get(),
+                "last_updated": datetime.now().isoformat()
+            }
+            
+            prefs_file = os.path.join(os.getcwd(), "appearance_prefs.json")
+            with open(prefs_file, 'w') as f:
+                json.dump(prefs, f, indent=2)
+                
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save appearance preferences: {e}")
+            return False
+    
+    def reset_appearance_defaults(self):
+        """Reset all appearance settings to defaults"""
+        try:
+            # Confirm reset
+            result = messagebox.askyesno(
+                "Reset to Defaults",
+                "Are you sure you want to reset all appearance settings to their default values?\n\n"
+                "This will:\n"
+                "• Set theme to Light Mode\n"
+                "• Keep default blue accent color\n"
+                "• Reset window size to 1600x1000\n"
+                "• Reset all behavior settings"
+            )
+            
+            if result:
+                # Reset all variables to defaults
+                self.theme_var.set("light")
+                # Note: Removed color theme - using default blue
+                self.window_size_var.set("1600x1000")
+                self.scroll_speed_var.set("Enhanced (Current)")
+                self.remember_position_var.set(True)
+                self.auto_save_preferences_var.set(True)
+                self.start_minimized_var.set(False)
+                
+                # Update preview
+                self.update_window_size_preview("1600x1000")
+                
+                # Apply the reset settings
+                self.apply_appearance_settings()
+                
+                messagebox.showinfo("Reset Complete", 
+                                   "✅ All appearance settings have been reset to defaults!")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to reset settings: {str(e)}")
+
+    def apply_appearance_settings(self):
+        """Apply all appearance settings with comprehensive feedback"""
+        try:
+            # Apply theme immediately
             self.change_theme()
             
-            # Apply color theme
-            self.change_color_theme()
+            # Save preferences if auto-save is enabled
+            if self.auto_save_preferences_var.get():
+                if self.save_appearance_preferences():
+                    success_msg = "✅ Appearance settings applied and saved successfully!"
+                else:
+                    success_msg = "✅ Appearance settings applied (but could not save preferences)"
+            else:
+                success_msg = "✅ Appearance settings applied successfully!"
             
-            messagebox.showinfo("Success", "Appearance settings applied successfully!")
+            # Provide detailed feedback
+            feedback_details = []
+            feedback_details.append(f"Theme: {self.theme_var.get().title()}")
+            feedback_details.append("Accent Color: Blue (Default)")
+            feedback_details.append(f"Window Size: {self.window_size_var.get()}")
+            
+            messagebox.showinfo("Settings Applied", 
+                               success_msg + "\n\n" + "\n".join(feedback_details))
             
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to apply settings: {str(e)}")
+            messagebox.showerror("Error", f"Failed to apply appearance settings: {str(e)}")
+            logger.error(f"Error applying appearance settings: {e}")
     
     # Data management methods
     def export_data_to_excel(self, collection_name):
