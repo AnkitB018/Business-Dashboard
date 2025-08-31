@@ -9,6 +9,7 @@ from tkinter import messagebox, filedialog
 import os
 import json
 import threading
+import subprocess
 import pandas as pd
 from datetime import datetime
 import logging
@@ -543,29 +544,58 @@ class SettingsPageGUI:
         ctk.CTkCheckBox(app_frame, text="Show system notifications", 
                        variable=self.notifications_var).pack(anchor="w", padx=20, pady=5)
         
-        # Logging settings
+        # Log Viewer section
         logging_frame = ctk.CTkFrame(main_container)
         logging_frame.pack(fill="x", pady=20)
         
-        ctk.CTkLabel(logging_frame, text="Logging & Debug", 
+        ctk.CTkLabel(logging_frame, text="Application Logs", 
                     font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(15, 10))
         
-        self.debug_mode_var = tk.BooleanVar()
-        ctk.CTkCheckBox(logging_frame, text="Enable debug mode", 
-                       variable=self.debug_mode_var).pack(anchor="w", padx=20, pady=5)
+        # Description
+        description_text = (
+            "The application automatically logs all activities, errors, database operations, "
+            "and performance metrics. Use the advanced log viewer to analyze system behavior "
+            "and troubleshoot issues."
+        )
         
-        self.log_level_var = tk.StringVar(value="INFO")
+        description_label = ctk.CTkLabel(
+            logging_frame,
+            text=description_text,
+            font=ctk.CTkFont(size=12),
+            wraplength=700,
+            justify="left",
+            text_color=("gray20", "gray70")
+        )
+        description_label.pack(anchor="w", padx=20, pady=(0, 15))
         
-        log_level_frame = ctk.CTkFrame(logging_frame, fg_color="transparent")
-        log_level_frame.pack(anchor="w", padx=20, pady=10)
+        # Log viewer button with icon and description
+        log_viewer_button = ctk.CTkButton(
+            logging_frame, 
+            text="🔍 Open Advanced Log Viewer", 
+            command=self.open_log_viewer,
+            width=250,
+            height=40,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("blue", "dark blue"),
+            hover_color=("dark blue", "blue")
+        )
+        log_viewer_button.pack(anchor="w", padx=20, pady=10)
         
-        ctk.CTkLabel(log_level_frame, text="Log Level:").pack(side="left")
-        ctk.CTkComboBox(log_level_frame, values=["DEBUG", "INFO", "WARNING", "ERROR"], 
-                       variable=self.log_level_var, width=120).pack(side="left", padx=10)
+        # Log info
+        log_info_frame = ctk.CTkFrame(logging_frame, fg_color="transparent")
+        log_info_frame.pack(anchor="w", padx=20, pady=(0, 10))
         
-        # View logs button
-        ctk.CTkButton(logging_frame, text="View Application Logs", 
-                     command=self.view_logs).pack(anchor="w", padx=20, pady=10)
+        info_text = (
+            "📊 Available logs: Main activity, Errors, Database operations, "
+            "User activity, Performance metrics, Debug information"
+        )
+        
+        ctk.CTkLabel(
+            log_info_frame,
+            text=info_text,
+            font=ctk.CTkFont(size=11),
+            text_color=("gray30", "gray60")
+        ).pack(anchor="w")
         
         # Performance settings
         performance_frame = ctk.CTkFrame(main_container)
@@ -1162,35 +1192,47 @@ Last Updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}"""
             logger.error(f"Error updating statistics: {e}")
     
     # System settings methods
-    def view_logs(self):
-        """View application logs"""
+    def open_log_viewer(self):
+        """Open the advanced log viewer application"""
         try:
-            # Create a new window for logs
-            log_window = ctk.CTkToplevel(self.frame)
-            log_window.title("Application Logs")
-            log_window.geometry("800x600")
+            import subprocess
+            import sys
             
-            # Create text widget for logs
-            log_text = tk.Text(log_window, wrap=tk.WORD)
-            scrollbar = tk.Scrollbar(log_window, orient="vertical", command=log_text.yview)
-            log_text.configure(yscrollcommand=scrollbar.set)
+            # Get the Python executable from the current virtual environment
+            python_executable = sys.executable
+            log_viewer_path = os.path.join(os.getcwd(), "log_viewer.py")
             
-            log_text.pack(side="left", fill="both", expand=True)
-            scrollbar.pack(side="right", fill="y")
+            # Check if log_viewer.py exists
+            if not os.path.exists(log_viewer_path):
+                messagebox.showerror(
+                    "Log Viewer Not Found", 
+                    "The log viewer application (log_viewer.py) was not found in the current directory."
+                )
+                return
             
-            # Get recent log entries
-            log_content = "Application Logs\n" + "="*50 + "\n\n"
-            log_content += "Recent activity:\n"
-            log_content += f"Application started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-            log_content += "Database connection: Active\n"
-            log_content += "System status: Running\n\n"
-            log_content += "For detailed logs, check the application directory."
+            # Launch the log viewer as a separate process
+            subprocess.Popen([python_executable, log_viewer_path], 
+                           creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == 'nt' else 0)
             
-            log_text.insert("1.0", log_content)
-            log_text.configure(state="disabled")
+            # Show success message
+            messagebox.showinfo(
+                "Log Viewer Launched", 
+                "🔍 Advanced Log Viewer has been opened in a separate window.\n\n"
+                "You can now:\n"
+                "• Browse all application logs\n"
+                "• Filter by date and log type\n"
+                "• Search through log content\n"
+                "• Analyze system performance\n"
+                "• Export log data"
+            )
             
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to view logs: {str(e)}")
+            messagebox.showerror(
+                "Error", 
+                f"Failed to open log viewer: {str(e)}\n\n"
+                "You can manually run the log viewer by executing:\n"
+                "python log_viewer.py"
+            )
     
     def clear_cache(self):
         """Clear application cache"""
@@ -1216,8 +1258,6 @@ Last Updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}"""
                 "auto_start": self.auto_start_var.get(),
                 "auto_backup": self.auto_backup_var.get(),
                 "notifications": self.notifications_var.get(),
-                "debug_mode": self.debug_mode_var.get(),
-                "log_level": self.log_level_var.get(),
                 "cache_size": self.cache_size_var.get(),
                 "last_updated": datetime.now().isoformat()
             }
