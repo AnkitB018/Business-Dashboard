@@ -52,6 +52,11 @@ class ModernDataPageGUI:
         # Edit mode tracking
         self.edit_mode = False
         self.editing_employee_id = None
+        self.editing_attendance_id = None
+        self.editing_sale_id = None
+        self.editing_purchase_id = None
+        self.editing_stock_item = None
+        self.edit_module_type = None
         
         self.create_page()
         
@@ -228,39 +233,53 @@ class ModernDataPageGUI:
     
     def show_field_error(self, field_key, error_msg):
         """Show error message under a specific field"""
-        if not hasattr(self, 'field_widgets') or field_key not in self.field_widgets:
-            return
-        
-        widgets = self.field_widgets[field_key]
-        error_label = widgets['error_label']
-        entry = widgets['entry']
-        
-        # Update error message and show
-        error_label.configure(text=f"❌ {error_msg}")
-        error_label.pack(anchor="w", pady=(2, 0))
-        
-        # Change entry border color to red (if supported)
         try:
-            entry.configure(border_color="red")
-        except:
+            if not hasattr(self, 'field_widgets') or field_key not in self.field_widgets:
+                return
+            
+            widgets = self.field_widgets[field_key]
+            if 'error_label' not in widgets or 'entry' not in widgets:
+                return
+                
+            error_label = widgets['error_label']
+            entry = widgets['entry']
+            
+            # Update error message and show
+            error_label.configure(text=f"❌ {error_msg}")
+            error_label.pack(anchor="w", pady=(2, 0))
+            
+            # Change entry border color to red (if supported)
+            try:
+                entry.configure(border_color="red")
+            except:
+                pass
+        except Exception as e:
+            # Don't raise the exception, just log it
             pass
     
     def clear_field_error(self, field_key):
         """Clear error message for a specific field"""
-        if not hasattr(self, 'field_widgets') or field_key not in self.field_widgets:
-            return
-        
-        widgets = self.field_widgets[field_key]
-        error_label = widgets['error_label']
-        entry = widgets['entry']
-        
-        # Hide error label
-        error_label.pack_forget()
-        
-        # Reset entry border color
         try:
-            entry.configure(border_color=("gray80", "gray20"))
-        except:
+            if not hasattr(self, 'field_widgets') or field_key not in self.field_widgets:
+                return
+            
+            widgets = self.field_widgets[field_key]
+            if 'error_label' not in widgets or 'entry' not in widgets:
+                return
+                
+            error_label = widgets['error_label']
+            entry = widgets['entry']
+            
+            # Hide error label
+            error_label.pack_forget()
+            
+            # Reset entry border color
+            try:
+                entry.configure(border_color=("gray80", "gray20"))
+            except:
+                pass
+        except Exception as e:
+            # Don't raise the exception, just log it
             pass
     
     def clear_all_field_errors(self):
@@ -282,41 +301,48 @@ class ModernDataPageGUI:
             error_fields = []
             
             # Employee ID validation
-            if not self.validate_employee_id(data.get("employee_id", "")):
+            emp_id_valid = self.validate_employee_id(data.get("employee_id", ""))
+            if not emp_id_valid:
                 self.show_field_error("employee_id", "Format: 3-4 letters + 3-4 digits (e.g., EMP001)")
                 is_valid = False
                 error_fields.append("Employee ID")
             
             # Name validation
-            if not self.validate_name(data.get("name", "")):
+            name_valid = self.validate_name(data.get("name", ""))
+            if not name_valid:
                 self.show_field_error("name", "2-50 characters, letters and spaces only")
                 is_valid = False
                 error_fields.append("Name")
             
             # Email validation
-            if not self.validate_email(data.get("email", "")):
+            email_valid = self.validate_email(data.get("email", ""))
+            if not email_valid:
                 self.show_field_error("email", "Valid email with .com/.org/.net/.in domain required")
                 is_valid = False
                 error_fields.append("Email")
             
             # Phone validation
-            if not self.validate_phone(data.get("phone", "")):
+            phone_valid = self.validate_phone(data.get("phone", ""))
+            if not phone_valid:
                 self.show_field_error("phone", "10 digits starting with 6,7,8,9 or +91 format")
                 is_valid = False
                 error_fields.append("Phone")
             
             # Salary validation
-            if not self.validate_salary(data.get("salary", "")):
+            salary_valid = self.validate_salary(data.get("salary", ""))
+            if not salary_valid:
                 self.show_field_error("salary", "Amount between ₹1,000 and ₹10,00,000")
                 is_valid = False
                 error_fields.append("Salary")
             
             # Department and position validation (no field-level errors for dropdowns)
-            if not data.get("department", "").strip():
+            dept_valid = bool(data.get("department", "").strip())
+            if not dept_valid:
                 is_valid = False
                 error_fields.append("Department")
             
-            if not data.get("position", "").strip():
+            pos_valid = bool(data.get("position", "").strip())
+            if not pos_valid:
                 is_valid = False
                 error_fields.append("Position")
             
@@ -326,6 +352,8 @@ class ModernDataPageGUI:
                 return False, f"Please fix errors in: {', '.join(error_fields)}"
                 
         except Exception as e:
+            import traceback
+            traceback.print_exc()
             return False, f"Validation error: {str(e)}"
 
     def show_validation_summary(self):
@@ -1093,7 +1121,7 @@ class ModernDataPageGUI:
         submit_btn = ctk.CTkButton(
             button_frame,
             text="💾 Save Record",
-            command=lambda: self.save_record(module_type),
+            command=lambda: self.add_record(module_type),
             width=140,
             height=45,
             corner_radius=12,
@@ -1102,6 +1130,9 @@ class ModernDataPageGUI:
             hover_color=self.darken_color(self.colors['success'])
         )
         submit_btn.pack(side="left", padx=(0, 15))
+        
+        # Store button reference for dynamic text updates
+        setattr(self, f'{module_type}_add_btn', submit_btn)
         
         # Clear button
         clear_btn = ctk.CTkButton(
@@ -1367,6 +1398,24 @@ class ModernDataPageGUI:
             corner_radius=6
         )
         today_btn.pack(side="left")
+        
+        # Store widget references for edit mode control
+        if not hasattr(self, 'field_widgets'):
+            self.field_widgets = {}
+        if not hasattr(self, 'employee_field_widgets'):
+            self.employee_field_widgets = {}
+            
+        widget_info = {
+            'date_entry': date_entry,
+            'today_btn': today_btn,
+            'field_frame': field_frame,
+            'type': 'date'
+        }
+        self.field_widgets[key] = widget_info
+        
+        # If this is an employee field, also store in employee-specific dict
+        if hasattr(self, 'emp_vars') and key in self.emp_vars:
+            self.employee_field_widgets[key] = widget_info
         
         # Helper text
         helper_text = ctk.CTkLabel(
@@ -1718,14 +1767,24 @@ class ModernDataPageGUI:
         error_label.pack(anchor="w", pady=(2, 0))
         error_label.pack_forget()  # Initially hidden
         
-        # Store references for validation feedback
+        # Store references for validation feedback and edit mode control
         if not hasattr(self, 'field_widgets'):
             self.field_widgets = {}
-        self.field_widgets[key] = {
+        if not hasattr(self, 'employee_field_widgets'):
+            self.employee_field_widgets = {}
+            
+        # Store in both general and employee-specific widgets for easy access
+        widget_info = {
             'entry': entry,
             'error_label': error_label,
-            'field_frame': field_frame
+            'field_frame': field_frame,
+            'type': 'entry'
         }
+        self.field_widgets[key] = widget_info
+        
+        # If this is an employee field, also store in employee-specific dict
+        if hasattr(self, 'emp_vars') and key in self.emp_vars:
+            self.employee_field_widgets[key] = widget_info
         
         # Add real-time validation for employees
         if hasattr(self, 'emp_vars') and key in ['employee_id', 'name', 'email', 'phone', 'salary']:
@@ -1761,6 +1820,23 @@ class ModernDataPageGUI:
         )
         combo.pack(fill="x")
         
+        # Store widget references for edit mode control
+        if not hasattr(self, 'field_widgets'):
+            self.field_widgets = {}
+        if not hasattr(self, 'employee_field_widgets'):
+            self.employee_field_widgets = {}
+            
+        widget_info = {
+            'combo': combo,
+            'field_frame': field_frame,
+            'type': 'combo'
+        }
+        self.field_widgets[key] = widget_info
+        
+        # If this is an employee field, also store in employee-specific dict
+        if hasattr(self, 'emp_vars') and key in self.emp_vars:
+            self.employee_field_widgets[key] = widget_info
+        
         return combo
     
     def create_form_buttons(self, parent, module_type):
@@ -1768,7 +1844,7 @@ class ModernDataPageGUI:
         button_frame = ctk.CTkFrame(parent, fg_color="transparent")
         button_frame.pack(fill="x", pady=20)
         
-        # Add button
+        # Add button (stores reference for dynamic text updates)
         add_btn = ctk.CTkButton(
             button_frame,
             text="✅ Add Record",
@@ -1781,48 +1857,48 @@ class ModernDataPageGUI:
         )
         add_btn.pack(fill="x", pady=2)
         
-        # Edit/Update button - only functional for employees
-        if module_type == "employees":
-            edit_btn = ctk.CTkButton(
-                button_frame,
-                text="✏️ Edit Employee",
-                command=lambda: self.edit_employee(),
-                height=40,
-                corner_radius=8,
-                font=ctk.CTkFont(size=12, weight="bold"),
-                fg_color=self.colors['primary'],
-                hover_color=self.darken_color(self.colors['primary'])
-            )
-            edit_btn.pack(fill="x", pady=2)
-            
-            # Update button (shown only in edit mode)
-            self.update_btn = ctk.CTkButton(
-                button_frame,
-                text="💾 Update Employee",
-                command=self.update_employee_record,
-                height=40,
-                corner_radius=8,
-                font=ctk.CTkFont(size=12, weight="bold"),
-                fg_color=self.colors['warning'],
-                hover_color=self.darken_color(self.colors['warning'])
-            )
-            # Initially hidden
-            
-            # Cancel edit button (shown only in edit mode)
-            self.cancel_edit_btn = ctk.CTkButton(
-                button_frame,
-                text="❌ Cancel Edit",
-                command=self.cancel_edit_employee,
-                height=40,
-                corner_radius=8,
-                font=ctk.CTkFont(size=12, weight="bold"),
-                fg_color=self.colors['gray'],
-                hover_color=self.darken_color(self.colors['gray'])
-            )
-            # Initially hidden
-        else:
-            # For other modules, remove the non-functional update button
-            pass
+        # Store reference to add button for dynamic text updates
+        setattr(self, f'{module_type}_add_btn', add_btn)
+        
+        # Edit/Update button - now functional for all modules
+        edit_btn = ctk.CTkButton(
+            button_frame,
+            text=f"✏️ Edit {module_type.title()[:-1] if module_type.endswith('s') else module_type.title()}",
+            command=lambda: self.edit_record(module_type),
+            height=40,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=self.colors['primary'],
+            hover_color=self.darken_color(self.colors['primary'])
+        )
+        edit_btn.pack(fill="x", pady=2)
+        
+        # Update button (shown only in edit mode)
+        update_text = f"💾 Update {module_type.title()[:-1] if module_type.endswith('s') else module_type.title()}"
+        setattr(self, f'{module_type}_update_btn', ctk.CTkButton(
+            button_frame,
+            text=update_text,
+            command=lambda: self.update_record(module_type),
+            height=40,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=self.colors['warning'],
+            hover_color=self.darken_color(self.colors['warning'])
+        ))
+        # Initially hidden
+        
+        # Cancel edit button (shown only in edit mode)
+        setattr(self, f'{module_type}_cancel_edit_btn', ctk.CTkButton(
+            button_frame,
+            text="❌ Cancel Edit",
+            command=lambda: self.cancel_edit_record(module_type),
+            height=40,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=self.colors['gray'],
+            hover_color=self.darken_color(self.colors['gray'])
+        ))
+        # Initially hidden
         
         # Delete button
         delete_btn = ctk.CTkButton(
@@ -1955,10 +2031,16 @@ class ModernDataPageGUI:
     
     # Data operations
     def add_record(self, module_type):
-        """Add new record with proper data conversion"""
+        """Add new record with proper data conversion or update if in edit mode"""
         try:
             if not self.data_service:
                 self.show_status_message("Database not connected", "error")
+                return
+            
+            # Check if we're in edit mode for this module
+            if self.edit_mode and self.edit_module_type == module_type:
+                # If in edit mode, call the update method instead
+                self.update_record(module_type)
                 return
             
             if module_type == "employees":
@@ -1977,6 +2059,7 @@ class ModernDataPageGUI:
                 if data.get("join_date"):
                     data["hire_date"] = datetime.strptime(data["join_date"], "%Y-%m-%d")
                     del data["join_date"]  # Remove old key
+                
                 result = self.data_service.add_employee(data)
                 
             elif module_type == "attendance":
@@ -2176,6 +2259,18 @@ class ModernDataPageGUI:
             # Get form data
             data = {key: var.get().strip() for key, var in self.emp_vars.items()}
             
+            # For edit mode, ensure we have the original employee_id and join_date
+            # since these fields might be disabled and empty
+            data["employee_id"] = str(self.editing_employee_id)
+            if not data.get("join_date"):
+                # Get the original join_date from the current employee data if empty
+                try:
+                    original_employee = self.data_service.get_employees({"employee_id": str(self.editing_employee_id)})
+                    if not original_employee.empty:
+                        data["join_date"] = original_employee.iloc[0].get("join_date", "")
+                except:
+                    data["join_date"] = ""  # Default to empty if we can't get it
+            
             # Validate employee data with field-specific feedback
             is_valid, error_message = self.validate_employee_data_with_feedback(data)
             if not is_valid:
@@ -2200,12 +2295,270 @@ class ModernDataPageGUI:
                 # Refresh the table
                 self.refresh_table("employees")
                 # Exit edit mode
-                self.cancel_edit_employee()
+                self.cancel_edit_record("employees")
             else:
                 self.show_status_message(f"Failed to update employee {employee_id}", "error")
                 
         except Exception as e:
             self.show_status_message(f"Failed to update employee: {str(e)}", "error")
+    
+    def edit_record(self, module_type):
+        """Generic edit method for all modules"""
+        try:
+            # Map module types to their tree widget names
+            tree_mapping = {
+                'employees': 'employees_tree',
+                'attendance': 'attendance_tree',
+                'stock': 'stock_tree',
+                'sales': 'sales_tree',
+                'purchases': 'purchases_tree'
+            }
+            
+            tree_name = tree_mapping.get(module_type, f"{module_type}_tree")
+            tree = getattr(self, tree_name, None)
+            
+            if not tree:
+                self.show_status_message(f"Table not found for {module_type}", "error")
+                return
+                
+            selected_items = tree.selection()
+            if not selected_items:
+                self.show_status_message(f"Please select a {module_type[:-1]} to edit", "warning")
+                return
+                
+            if len(selected_items) > 1:
+                self.show_status_message(f"Please select only one {module_type[:-1]} to edit", "warning")
+                return
+            
+            # Get record data from selection
+            item = tree.item(selected_items[0])
+            values = item['values']
+            
+            # Get MongoDB document ID from the item tags
+            tags = tree.item(selected_items[0], 'tags')
+            mongo_id = tags[0] if tags else None
+            
+            if not values:
+                self.show_status_message(f"Invalid {module_type[:-1]} selection", "error")
+                return
+            
+            # Call specific edit method based on module type
+            if module_type == "employees":
+                self.edit_employee_data(values, mongo_id)
+            elif module_type == "attendance":
+                self.edit_attendance_data(values, mongo_id)
+            elif module_type == "stock":
+                self.edit_stock_data(values, mongo_id)
+            elif module_type == "sales":
+                self.edit_sales_data(values, mongo_id)
+            elif module_type == "purchases":
+                self.edit_purchases_data(values, mongo_id)
+                
+        except Exception as e:
+            self.show_status_message(f"Failed to load {module_type[:-1]} for editing: {str(e)}", "error")
+    
+    def edit_employee_data(self, values, mongo_id=None):
+        """Edit employee specific data"""
+        employee_id = str(values[0])
+        
+        if hasattr(self, 'emp_vars'):
+            self.emp_vars["employee_id"].set(values[0])
+            self.emp_vars["name"].set(values[1])
+            self.emp_vars["email"].set(values[2])
+            self.emp_vars["phone"].set(values[3])
+            self.emp_vars["department"].set(values[4])
+            self.emp_vars["position"].set(values[5])
+            salary_str = str(values[6]).replace("₹", "").replace(",", "")
+            self.emp_vars["salary"].set(salary_str)
+            
+            self.edit_mode = True
+            self.editing_employee_id = employee_id
+            self.edit_module_type = "employees"
+            
+            # Disable employee ID and join date fields during edit
+            self.disable_employee_fields(['employee_id', 'join_date'])
+            
+            self.show_edit_buttons("employees")
+            self.show_status_message(f"Editing employee: {values[1]} ({employee_id}). Employee ID and Join Date are locked for security.", "info")
+    
+    def edit_attendance_data(self, values, mongo_id):
+        """Edit attendance specific data"""
+        if hasattr(self, 'att_vars'):
+            # Find the employee in dropdown format
+            employee_id = str(values[0])
+            try:
+                employees_df = self.data_service.get_employees({"employee_id": employee_id})
+                if not employees_df.empty:
+                    employee_name = employees_df.iloc[0]["name"]
+                    self.att_vars["employee_id"].set(f"{employee_id} - {employee_name}")
+                else:
+                    self.att_vars["employee_id"].set(employee_id)
+            except:
+                self.att_vars["employee_id"].set(employee_id)
+            
+            self.att_vars["date"].set(values[1])
+            if len(values) > 2:
+                self.att_vars["time_in"].set(values[2] if values[2] != 'N/A' else '')
+            if len(values) > 3:
+                self.att_vars["time_out"].set(values[3] if values[3] != 'N/A' else '')
+            if len(values) > 4:
+                self.att_vars["status"].set(values[4])
+            if len(values) > 6 and hasattr(self, 'att_vars') and "notes" in self.att_vars:
+                self.att_vars["notes"].set(values[6] if len(values) > 6 else "")
+            
+            self.edit_mode = True
+            self.editing_attendance_id = mongo_id  # Use MongoDB ID
+            self.edit_module_type = "attendance"
+            
+            self.show_edit_buttons("attendance")
+            self.show_status_message(f"Editing attendance: {employee_id} on {values[1]}", "info")
+    
+    def edit_stock_data(self, values, mongo_id):
+        """Edit stock specific data"""
+        item_name = str(values[0])
+        
+        if hasattr(self, 'stock_vars'):
+            self.stock_vars["item_name"].set(values[0])
+            if len(values) > 1:
+                self.stock_vars["category"].set(values[1])
+            if len(values) > 2:
+                self.stock_vars["quantity"].set(values[2])
+            if len(values) > 3:
+                price_str = str(values[3]).replace("₹", "").replace(",", "")
+                self.stock_vars["price_per_unit"].set(price_str)
+            if len(values) > 4:
+                self.stock_vars["supplier"].set(values[4])
+            
+            self.edit_mode = True
+            self.editing_stock_item = item_name  # Keep item name for stock (using item_name as key)
+            self.edit_module_type = "stock"
+            
+            self.show_edit_buttons("stock")
+            self.show_status_message(f"Editing stock item: {item_name}", "info")
+    
+    def edit_sales_data(self, values, mongo_id):
+        """Edit sales specific data"""
+        if hasattr(self, 'sales_vars'):
+            self.sales_vars["item_name"].set(values[0])
+            if len(values) > 1:
+                self.sales_vars["quantity"].set(values[1])
+            if len(values) > 2:
+                price_str = str(values[2]).replace("₹", "").replace(",", "")
+                self.sales_vars["price_per_unit"].set(price_str)
+            if len(values) > 3:
+                self.sales_vars["customer"].set(values[3])
+            if len(values) > 4:
+                self.sales_vars["date"].set(values[4])
+            
+            self.edit_mode = True
+            self.editing_sale_id = mongo_id  # Use MongoDB ID
+            self.edit_module_type = "sales"
+            
+            self.show_edit_buttons("sales")
+            self.show_status_message(f"Editing sale: {values[0]} to {values[3]}", "info")
+    
+    def edit_purchases_data(self, values, mongo_id):
+        """Edit purchases specific data"""
+        if hasattr(self, 'purchase_vars'):
+            self.purchase_vars["item_name"].set(values[0])
+            if len(values) > 1:
+                self.purchase_vars["quantity"].set(values[1])
+            if len(values) > 2:
+                price_str = str(values[2]).replace("₹", "").replace(",", "")
+                self.purchase_vars["price_per_unit"].set(price_str)
+            if len(values) > 3:
+                self.purchase_vars["supplier"].set(values[3])
+            if len(values) > 4:
+                self.purchase_vars["date"].set(values[4])
+            
+            self.edit_mode = True
+            self.editing_purchase_id = mongo_id  # Use MongoDB ID
+            self.edit_module_type = "purchases"
+            
+            self.show_edit_buttons("purchases")
+            self.show_status_message(f"Editing purchase: {values[0]} from {values[3]}", "info")
+    
+    def show_edit_buttons(self, module_type):
+        """Show update and cancel buttons for edit mode"""
+        try:
+            update_btn = getattr(self, f'{module_type}_update_btn', None)
+            cancel_btn = getattr(self, f'{module_type}_cancel_edit_btn', None)
+            add_btn = getattr(self, f'{module_type}_add_btn', None)
+            
+            if update_btn:
+                update_btn.pack(fill="x", pady=2)
+            if cancel_btn:
+                cancel_btn.pack(fill="x", pady=2)
+            
+            # Change add button text to indicate update mode
+            if add_btn:
+                module_name = module_type.title()[:-1] if module_type.endswith('s') else module_type.title()
+                add_btn.configure(text=f"💾 Update {module_name}")
+                
+        except Exception as e:
+            print(f"Error showing edit buttons: {e}")
+    
+    def hide_edit_buttons(self, module_type):
+        """Hide update and cancel buttons"""
+        try:
+            update_btn = getattr(self, f'{module_type}_update_btn', None)
+            cancel_btn = getattr(self, f'{module_type}_cancel_edit_btn', None)
+            add_btn = getattr(self, f'{module_type}_add_btn', None)
+            
+            if update_btn:
+                update_btn.pack_forget()
+            if cancel_btn:
+                cancel_btn.pack_forget()
+            
+            # Restore add button text to normal
+            if add_btn:
+                add_btn.configure(text="💾 Save Record")
+                
+        except Exception as e:
+            print(f"Error hiding edit buttons: {e}")
+    
+    def update_record(self, module_type):
+        """Generic update method for all modules"""
+        try:
+            if not self.edit_mode or self.edit_module_type != module_type:
+                self.show_status_message(f"Not in edit mode for {module_type}", "warning")
+                return
+            
+            if module_type == "employees":
+                self.update_employee_record()
+            elif module_type == "attendance":
+                self.update_attendance_record()
+            elif module_type == "stock":
+                self.update_stock_record()
+            elif module_type == "sales":
+                self.update_sales_record()
+            elif module_type == "purchases":
+                self.update_purchases_record()
+                
+        except Exception as e:
+            self.show_status_message(f"Failed to update {module_type[:-1]}: {str(e)}", "error")
+    
+    def cancel_edit_record(self, module_type):
+        """Generic cancel edit method for all modules"""
+        try:
+            self.edit_mode = False
+            self.edit_module_type = None
+            self.editing_employee_id = None
+            self.editing_attendance_id = None
+            self.editing_sale_id = None
+            self.editing_purchase_id = None
+            self.editing_stock_item = None
+            
+            # Re-enable employee fields if we were editing an employee
+            if module_type in ['employee', 'employees']:
+                self.enable_employee_fields(['employee_id', 'join_date'])
+            
+            self.hide_edit_buttons(module_type)
+            self.clear_form(module_type)
+            self.show_status_message("Edit mode cancelled", "info")
+            
+        except Exception as e:
+            self.show_status_message(f"Error cancelling edit: {str(e)}", "error")
     
     def delete_record(self, module_type):
         """Delete selected records from table"""
@@ -2334,9 +2687,11 @@ class ModernDataPageGUI:
                 if hasattr(var, 'set'):
                     var.set("")
             
-            # Clear validation errors for employees
-            if module_type == "employees":
+            # Clear validation errors and re-enable fields for employees
+            if module_type in ["employees", "employee"]:
                 self.clear_all_field_errors()
+                # Re-enable employee fields in case they were disabled during edit
+                self.enable_employee_fields(['employee_id', 'join_date'])
                     
             self.show_status_message(f"{module_type.capitalize()} form cleared successfully", "success")
             
@@ -2375,25 +2730,33 @@ class ModernDataPageGUI:
             
             # Get fresh data using correct method names
             data_df = None
+            raw_records = []  # Store raw records with _id
+            
             if table_type == "employees":
                 data_df = self.data_service.get_employees()
+                # Get raw records with _id for editing
+                raw_records = self.data_service.db_manager.find_documents("employees")
             elif table_type == "attendance":
                 data_df = self.data_service.get_attendance()
+                raw_records = self.data_service.db_manager.find_documents("attendance")
             elif table_type == "stock":
                 data_df = self.data_service.get_stock()
+                raw_records = self.data_service.db_manager.find_documents("stock")
             elif table_type == "sales":
                 data_df = self.data_service.get_sales()
+                raw_records = self.data_service.db_manager.find_documents("sales")
             elif table_type == "purchases":
                 data_df = self.data_service.get_purchases()
+                raw_records = self.data_service.db_manager.find_documents("purchases")
             
-            # Convert DataFrame to list of dictionaries
+            # Convert DataFrame to list of dictionaries and add MongoDB IDs
             if data_df is not None and not data_df.empty:
-                data = data_df.to_dict('records')
-                
-                # Populate table
-                for record in data:
+                # Create a mapping from display data to MongoDB IDs
+                for i, (_, record) in enumerate(data_df.iterrows()):
                     values = self.extract_table_values(record, table_type)
-                    tree.insert("", "end", values=values)
+                    # Store the MongoDB document ID as item data using tags
+                    mongo_id = raw_records[i].get('_id', '') if i < len(raw_records) else ''
+                    item_id = tree.insert("", "end", values=values, tags=(mongo_id,))
                 
         except Exception as e:
             logger.error(f"Error refreshing {table_type} table: {e}")
@@ -2552,6 +2915,244 @@ class ModernDataPageGUI:
         """Hide this page"""
         if self.frame:
             self.frame.pack_forget()
+    
+    def update_attendance_record(self):
+        """Update attendance record with form data"""
+        try:
+            if not self.data_service or not hasattr(self, 'att_vars'):
+                self.show_status_message("Database or form not available", "error")
+                return
+            
+            if not self.editing_attendance_id:
+                self.show_status_message("No attendance record selected for editing", "error")
+                return
+            
+            # Get form data
+            data = {key: var.get().strip() for key, var in self.att_vars.items()}
+            
+            # Extract employee_id from dropdown
+            emp_selection = data.get("employee_id", "")
+            if " - " in emp_selection:
+                emp_id = emp_selection.split(" - ")[0].strip()
+                data["employee_id"] = emp_id
+            
+            # Convert date to datetime
+            if data.get("date"):
+                data["date"] = datetime.strptime(data["date"], "%Y-%m-%d")
+            
+            # Remove keys that shouldn't be updated or are used for identification
+            update_data = {k: v for k, v in data.items() if k not in ["employee_id", "date"]}
+            
+            # Update attendance record using MongoDB ID
+            result = self.data_service.update_attendance(self.editing_attendance_id, update_data)
+            
+            if result > 0:
+                self.show_status_message("Attendance updated successfully!", "success")
+                self.refresh_table("attendance")
+                self.cancel_edit_record("attendance")
+            else:
+                self.show_status_message("Failed to update attendance", "error")
+                
+        except Exception as e:
+            self.show_status_message(f"Failed to update attendance: {str(e)}", "error")
+    
+    def update_stock_record(self):
+        """Update stock record with form data"""
+        try:
+            if not self.data_service or not hasattr(self, 'stock_vars'):
+                self.show_status_message("Database or form not available", "error")
+                return
+            
+            # Get form data
+            data = {key: var.get().strip() for key, var in self.stock_vars.items()}
+            
+            # Convert numeric fields with correct field names
+            if data.get("quantity"):
+                data["current_quantity"] = int(data["quantity"])
+            if data.get("price_per_unit"):
+                data["unit_cost_average"] = float(data["price_per_unit"])
+                data["total_value"] = data.get("current_quantity", 0) * float(data["price_per_unit"])
+            
+            # Use the original item name for updating
+            item_name = self.editing_stock_item
+            
+            # Remove form field names from update data and add database field names
+            update_data = {}
+            for k, v in data.items():
+                if k == "item_name":
+                    continue  # Skip item_name as we use it for filtering
+                elif k == "quantity":
+                    update_data["current_quantity"] = int(v) if v else 0
+                elif k == "price_per_unit":
+                    update_data["unit_cost_average"] = float(v) if v else 0.0
+                else:
+                    update_data[k] = v
+                    
+            update_data["last_updated"] = datetime.now()
+            
+            # Update stock record
+            result = self.data_service.update_stock(item_name, update_data)
+            
+            if result > 0:
+                self.show_status_message(f"Stock item '{item_name}' updated successfully!", "success")
+                self.refresh_table("stock")
+                self.cancel_edit_record("stock")
+            else:
+                self.show_status_message(f"Failed to update stock item '{item_name}'", "error")
+                
+        except Exception as e:
+            self.show_status_message(f"Failed to update stock: {str(e)}", "error")
+    
+    def update_sales_record(self):
+        """Update sales record with form data"""
+        try:
+            if not self.data_service or not hasattr(self, 'sales_vars'):
+                self.show_status_message("Database or form not available", "error")
+                return
+            
+            if not self.editing_sale_id:
+                self.show_status_message("No sales record selected for editing", "error")
+                return
+            
+            # Get form data
+            data = {key: var.get().strip() for key, var in self.sales_vars.items()}
+            
+            # Map form fields to database fields
+            update_data = {}
+            for k, v in data.items():
+                if k == "customer":
+                    update_data["customer_name"] = v
+                elif k == "price_per_unit":
+                    update_data["unit_price"] = float(v) if v else 0.0
+                else:
+                    update_data[k] = v
+            
+            # Convert numeric fields
+            if update_data.get("quantity"):
+                update_data["quantity"] = int(update_data["quantity"])
+            
+            # Calculate total
+            if update_data.get("quantity") and update_data.get("unit_price"):
+                update_data["total_price"] = update_data["quantity"] * update_data["unit_price"]
+            
+            # Convert date
+            if update_data.get("date"):
+                update_data["date"] = datetime.strptime(update_data["date"], "%Y-%m-%d")
+            
+            # Update sales record using MongoDB ID
+            result = self.data_service.update_sale(self.editing_sale_id, update_data)
+            
+            if result > 0:
+                self.show_status_message("Sales record updated successfully!", "success")
+                self.refresh_table("sales")
+                self.cancel_edit_record("sales")
+            else:
+                self.show_status_message("Failed to update sales record", "error")
+                
+        except Exception as e:
+            self.show_status_message(f"Failed to update sales: {str(e)}", "error")
+    
+    def update_purchases_record(self):
+        """Update purchases record with form data"""
+        try:
+            if not self.data_service or not hasattr(self, 'purchase_vars'):
+                self.show_status_message("Database or form not available", "error")
+                return
+            
+            if not self.editing_purchase_id:
+                self.show_status_message("No purchase record selected for editing", "error")
+                return
+            
+            # Get form data
+            data = {key: var.get().strip() for key, var in self.purchase_vars.items()}
+            
+            # Convert numeric fields
+            if data.get("quantity"):
+                data["quantity"] = int(data["quantity"])
+            if data.get("price_per_unit"):
+                data["price_per_unit"] = float(data["price_per_unit"])
+                data["total_amount"] = data["quantity"] * data["price_per_unit"]
+            
+            # Convert date
+            if data.get("date"):
+                data["date"] = datetime.strptime(data["date"], "%Y-%m-%d")
+            
+            # Update purchase record using MongoDB ID
+            result = self.data_service.update_purchase(self.editing_purchase_id, data)
+            
+            if result > 0:
+                self.show_status_message("Purchase record updated successfully!", "success")
+                self.refresh_table("purchases")
+                self.cancel_edit_record("purchases")
+            else:
+                self.show_status_message("Failed to update purchase record", "error")
+                
+        except Exception as e:
+            self.show_status_message(f"Failed to update purchase: {str(e)}", "error")
+    
+    def disable_employee_fields(self, field_keys):
+        """Disable specific employee form fields"""
+        try:
+            if not hasattr(self, 'employee_field_widgets'):
+                return
+                
+            for key in field_keys:
+                widget_info = self.employee_field_widgets.get(key)
+                if not widget_info:
+                    continue
+                    
+                widget_type = widget_info.get('type', 'entry')
+                
+                if widget_type == 'entry':
+                    entry = widget_info.get('entry')
+                    if entry:
+                        entry.configure(state='disabled')
+                elif widget_type == 'combo':
+                    combo = widget_info.get('combo')
+                    if combo:
+                        combo.configure(state='disabled')
+                elif widget_type == 'date':
+                    date_entry = widget_info.get('date_entry')
+                    today_btn = widget_info.get('today_btn')
+                    if date_entry:
+                        date_entry.configure(state='disabled')
+                    if today_btn:
+                        today_btn.configure(state='disabled')
+                        
+        except Exception as e:
+            print(f"Error disabling employee fields: {e}")
+    
+    def enable_employee_fields(self, field_keys):
+        """Enable specific employee form fields"""
+        try:
+            if not hasattr(self, 'employee_field_widgets'):
+                return
+                
+            for key in field_keys:
+                widget_info = self.employee_field_widgets.get(key)
+                if not widget_info:
+                    continue
+                    
+                widget_type = widget_info.get('type', 'entry')
+                
+                if widget_type == 'entry':
+                    entry = widget_info.get('entry')
+                    if entry:
+                        entry.configure(state='normal')
+                elif widget_type == 'combo':
+                    combo = widget_info.get('combo')
+                    if combo:
+                        combo.configure(state='readonly')  # combo boxes should be readonly, not normal
+                elif widget_type == 'date':
+                    date_entry = widget_info.get('date_entry')
+                    today_btn = widget_info.get('today_btn')
+                    if date_entry:
+                        date_entry.configure(state='normal')
+                    if today_btn:
+                        today_btn.configure(state='normal')
+                        
+        except Exception as e:
+            print(f"Error enabling employee fields: {e}")
 
 # Alias for compatibility
 DataPageGUI = ModernDataPageGUI

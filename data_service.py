@@ -224,7 +224,7 @@ class DataMigration:
             return False
 
 
-class HRDataService:
+class HRDataService: 
     """
     Service layer for HR data operations
     """
@@ -381,6 +381,42 @@ class HRDataService:
         """Delete attendance records"""
         return self.db_manager.delete_documents("attendance", filter_dict)
     
+    @log_function_call
+    def update_attendance(self, attendance_id: str, attendance_data: Dict) -> int:
+        """Update attendance record by attendance ID"""
+        try:
+            log_info(f"Updating attendance: {attendance_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("ATTENDANCE_UPDATE_START", {"attendance_id": attendance_id})
+            
+            # Check if attendance record exists
+            existing = self.db_manager.find_documents("attendance", {"_id": self.db_manager.string_to_objectid(attendance_id)})
+            
+            if not existing:
+                error_msg = f"Attendance record {attendance_id} not found"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("ATTENDANCE_UPDATE_FAILED", {"attendance_id": attendance_id, "reason": "not_found"})
+                return 0
+            
+            # Update the attendance record
+            result = self.db_manager.update_document("attendance", {"_id": self.db_manager.string_to_objectid(attendance_id)}, attendance_data)
+            
+            if result > 0:
+                log_info(f"Attendance updated successfully: {attendance_id}", "DATA_SERVICE")
+                dashboard_logger.log_user_activity("ATTENDANCE_UPDATE_SUCCESS", {"attendance_id": attendance_id, "updated_count": result})
+                dashboard_logger.log_data_operation("update_attendance", "attendance", result, True)
+            else:
+                log_error(Exception("Update operation failed"), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("ATTENDANCE_UPDATE_FAILED", {"attendance_id": attendance_id, "reason": "update_failed"})
+                dashboard_logger.log_data_operation("update_attendance", "attendance", 0, False)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_UPDATE_ATTENDANCE")
+            dashboard_logger.log_user_activity("ATTENDANCE_UPDATE_ERROR", {"attendance_id": attendance_id, "error": str(e)})
+            dashboard_logger.log_data_operation("update_attendance", "attendance", 0, False, e)
+            raise
+    
     # Stock operations
     def get_stock(self, filter_dict: Dict = None) -> pd.DataFrame:
         """Get stock as DataFrame"""
@@ -416,6 +452,47 @@ class HRDataService:
     def delete_purchase(self, filter_dict: Dict) -> int:
         """Delete purchase records"""
         return self.db_manager.delete_documents("purchases", filter_dict)
+    
+    @log_function_call
+    def update_purchase(self, purchase_id: str, purchase_data: Dict) -> int:
+        """Update purchase record by purchase ID"""
+        try:
+            log_info(f"Updating purchase: {purchase_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("PURCHASE_UPDATE_START", {"purchase_id": purchase_id})
+            
+            # Check if purchase record exists
+            existing = self.db_manager.find_documents("purchases", {"_id": self.db_manager.string_to_objectid(purchase_id)})
+            
+            if not existing:
+                error_msg = f"Purchase record {purchase_id} not found"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("PURCHASE_UPDATE_FAILED", {"purchase_id": purchase_id, "reason": "not_found"})
+                return 0
+            
+            # Update the purchase record
+            result = self.db_manager.update_document("purchases", {"_id": self.db_manager.string_to_objectid(purchase_id)}, purchase_data)
+            
+            if result > 0:
+                log_info(f"Purchase updated successfully: {purchase_id}", "DATA_SERVICE")
+                dashboard_logger.log_user_activity("PURCHASE_UPDATE_SUCCESS", {"purchase_id": purchase_id, "updated_count": result})
+                dashboard_logger.log_data_operation("update_purchase", "purchases", result, True)
+                
+                # Update stock after purchase modification if needed
+                if any(key in purchase_data for key in ['item_name', 'quantity', 'unit_price']):
+                    # You might want to implement stock adjustment logic here
+                    pass
+            else:
+                log_error(Exception("Update operation failed"), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("PURCHASE_UPDATE_FAILED", {"purchase_id": purchase_id, "reason": "update_failed"})
+                dashboard_logger.log_data_operation("update_purchase", "purchases", 0, False)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_UPDATE_PURCHASE")
+            dashboard_logger.log_user_activity("PURCHASE_UPDATE_ERROR", {"purchase_id": purchase_id, "error": str(e)})
+            dashboard_logger.log_data_operation("update_purchase", "purchases", 0, False, e)
+            raise
     
     def _update_stock_after_purchase(self, purchase_data: Dict):
         """Update stock quantities after purchase"""
@@ -475,6 +552,47 @@ class HRDataService:
     def delete_sale(self, filter_dict: Dict) -> int:
         """Delete sale records"""
         return self.db_manager.delete_documents("sales", filter_dict)
+    
+    @log_function_call
+    def update_sale(self, sale_id: str, sale_data: Dict) -> int:
+        """Update sale record by sale ID"""
+        try:
+            log_info(f"Updating sale: {sale_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("SALE_UPDATE_START", {"sale_id": sale_id})
+            
+            # Check if sale record exists
+            existing = self.db_manager.find_documents("sales", {"_id": self.db_manager.string_to_objectid(sale_id)})
+            
+            if not existing:
+                error_msg = f"Sale record {sale_id} not found"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("SALE_UPDATE_FAILED", {"sale_id": sale_id, "reason": "not_found"})
+                return 0
+            
+            # Update the sale record
+            result = self.db_manager.update_document("sales", {"_id": self.db_manager.string_to_objectid(sale_id)}, sale_data)
+            
+            if result > 0:
+                log_info(f"Sale updated successfully: {sale_id}", "DATA_SERVICE")
+                dashboard_logger.log_user_activity("SALE_UPDATE_SUCCESS", {"sale_id": sale_id, "updated_count": result})
+                dashboard_logger.log_data_operation("update_sale", "sales", result, True)
+                
+                # Update stock after sale modification if needed
+                if any(key in sale_data for key in ['item_name', 'quantity']):
+                    # You might want to implement stock adjustment logic here
+                    pass
+            else:
+                log_error(Exception("Update operation failed"), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("SALE_UPDATE_FAILED", {"sale_id": sale_id, "reason": "update_failed"})
+                dashboard_logger.log_data_operation("update_sale", "sales", 0, False)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_UPDATE_SALE")
+            dashboard_logger.log_user_activity("SALE_UPDATE_ERROR", {"sale_id": sale_id, "error": str(e)})
+            dashboard_logger.log_data_operation("update_sale", "sales", 0, False, e)
+            raise
     
     def _update_stock_after_sale(self, sale_data: Dict):
         """Update stock quantities after sale"""

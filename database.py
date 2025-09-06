@@ -1,6 +1,7 @@
 import os
 from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError, ConnectionFailure
+from bson import ObjectId
 import pandas as pd
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -409,6 +410,18 @@ class MongoDBManager:
         except Exception as e:
             logger.error(f"Error converting {collection_name} to DataFrame: {e}")
             return pd.DataFrame()
+    
+    def string_to_objectid(self, id_string: str) -> ObjectId:
+        """Convert string ID to MongoDB ObjectId"""
+        try:
+            return ObjectId(id_string)
+        except Exception as e:
+            logger.error(f"Error converting string to ObjectId: {e}")
+            raise ValueError(f"Invalid ObjectId string: {id_string}")
+    
+    def objectid_to_string(self, object_id: ObjectId) -> str:
+        """Convert MongoDB ObjectId to string"""
+        return str(object_id)
 
 
 # Singleton instance
