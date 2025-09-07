@@ -557,6 +557,71 @@ class ModernDataPageGUI:
         
         # Clear message after 5 seconds
         self.parent.after(5000, lambda: self.reset_status())
+    
+    def show_success_message(self, message):
+        """Show success message with green color and checkmark"""
+        self.show_status_message(message, "success")
+        # Also show a popup for important success messages
+        self.show_success_popup(message)
+    
+    def show_error_message(self, message):
+        """Show error message with red color and X mark"""
+        self.show_status_message(message, "error")
+    
+    def show_success_popup(self, message):
+        """Show green success popup message"""
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            
+            # Create a custom success popup
+            popup = tk.Toplevel()
+            popup.title("✅ Success!")
+            popup.geometry("400x300")
+            popup.resizable(False, False)
+            popup.configure(bg="#e8f5e8")  # Light green background
+            popup.grab_set()  # Make modal
+            
+            # Center the popup
+            popup.update_idletasks()
+            x = (popup.winfo_screenwidth() // 2) - (popup.winfo_width() // 2)
+            y = (popup.winfo_screenheight() // 2) - (popup.winfo_height() // 2)
+            popup.geometry(f"+{x}+{y}")
+            
+            # Main frame
+            main_frame = tk.Frame(popup, bg="#e8f5e8", padx=20, pady=20)
+            main_frame.pack(fill="both", expand=True)
+            
+            # Success icon
+            icon_label = tk.Label(main_frame, text="✅", font=("Arial", 24), bg="#e8f5e8", fg="#2e7d32")
+            icon_label.pack(pady=(0, 10))
+            
+            # Success title
+            title_label = tk.Label(main_frame, text="Success!", font=("Arial", 16, "bold"), bg="#e8f5e8", fg="#2e7d32")
+            title_label.pack(pady=(0, 10))
+            
+            # Message text
+            msg_label = tk.Label(main_frame, text=message, font=("Arial", 10), bg="#e8f5e8", fg="#1b5e20", 
+                               wraplength=350, justify="left")
+            msg_label.pack(pady=(0, 20))
+            
+            # OK button
+            ok_button = tk.Button(main_frame, text="OK", font=("Arial", 12, "bold"), 
+                                bg="#4caf50", fg="white", padx=30, pady=8,
+                                command=popup.destroy)
+            ok_button.pack()
+            
+            # Auto-close after 8 seconds
+            popup.after(8000, popup.destroy)
+            
+        except Exception as e:
+            print(f"Error showing success popup: {e}")
+            # Fallback to simple messagebox
+            try:
+                import tkinter.messagebox as msgbox
+                msgbox.showinfo("Success", message)
+            except:
+                pass
         
     def reset_status(self):
         """Reset status to default"""
@@ -952,8 +1017,8 @@ class ModernDataPageGUI:
         self.create_module_content(parent, "Attendance Tracking", "attendance")
         
     def create_sales_management_content(self, parent):
-        """Create sales management content in the frame"""
-        self.create_module_content(parent, "Sales Management", "sales")
+        """Create sales management content in the frame with orders and transactions"""
+        self.create_sales_orders_content(parent)
         
     def create_purchase_management_content(self, parent):
         """Create purchase management content in the frame"""
@@ -1664,47 +1729,2770 @@ class ModernDataPageGUI:
         # Data table
         self.create_data_table(data_panel, "stock")
     
-    def create_sales_form(self, form_panel, data_panel):
-        """Create modern sales form"""
+    def create_sales_orders_content(self, parent):
+        """Create comprehensive sales management with orders and transactions"""
+        # Main header with vibrant colors
+        header_frame = ctk.CTkFrame(parent, height=100, corner_radius=15, 
+                                   fg_color=("#e8f5e8", "#1a4d1a"))
+        header_frame.pack(fill="x", padx=20, pady=(20, 10))
+        header_frame.pack_propagate(False)
+        
+        # Header content
+        header_content = ctk.CTkFrame(header_frame, fg_color="transparent")
+        header_content.pack(expand=True, fill="both", padx=25, pady=20)
+        
+        # Title with green accent
+        title_label = ctk.CTkLabel(
+            header_content,
+            text="🛍️ Sales Management System",
+            font=ctk.CTkFont(size=28, weight="bold"),
+            text_color=("#2e7d32", "#66bb6a")
+        )
+        title_label.pack(anchor="w")
+        
+        subtitle_label = ctk.CTkLabel(
+            header_content,
+            text="Manage Orders • Track Payments • Monitor Transactions",
+            font=ctk.CTkFont(size=14),
+            text_color=("#388e3c", "#81c784")
+        )
+        subtitle_label.pack(anchor="w", pady=(5, 0))
+        
+        # Main control panel with action buttons
+        control_frame = ctk.CTkFrame(parent, height=80, corner_radius=12,
+                                   fg_color=("#f3e5f5", "#2d1b2e"))
+        control_frame.pack(fill="x", padx=20, pady=(0, 15))
+        control_frame.pack_propagate(False)
+        
+        button_container = ctk.CTkFrame(control_frame, fg_color="transparent")
+        button_container.pack(expand=True, pady=15)
+        
+        # Add New Order Button
+        add_order_btn = ctk.CTkButton(
+            button_container,
+            text="📝 Add New Order",
+            command=self.show_new_order_form,
+            width=160,
+            height=50,
+            corner_radius=15,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#4caf50", "#2e7d32"),
+            hover_color=("#45a049", "#1b5e20"),
+            text_color="white"
+        )
+        add_order_btn.pack(side="left", padx=(0, 15))
+        
+        # Manage Orders Button
+        manage_btn = ctk.CTkButton(
+            button_container,
+            text="📊 Manage Orders",
+            command=self.show_orders_management,
+            width=160,
+            height=50,
+            corner_radius=15,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#2196f3", "#1565c0"),
+            hover_color=("#1976d2", "#0d47a1"),
+            text_color="white"
+        )
+        manage_btn.pack(side="left", padx=(0, 15))
+        
+        # Payment Collection Button (NEW)
+        payment_btn = ctk.CTkButton(
+            button_container,
+            text="💰 Collect Payments",
+            command=self.show_payment_collection,
+            width=160,
+            height=50,
+            corner_radius=15,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#9c27b0", "#6a1b9a"),
+            hover_color=("#8e24aa", "#4a148c"),
+            text_color="white"
+        )
+        payment_btn.pack(side="left", padx=(0, 15))
+        
+        # Transactions History Button
+        transactions_btn = ctk.CTkButton(
+            button_container,
+            text="💳 Transaction History",
+            command=self.show_transactions_view,
+            width=160,
+            height=50,
+            corner_radius=15,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#ff9800", "#e65100"),
+            hover_color=("#f57c00", "#bf360c"),
+            text_color="white"
+        )
+        transactions_btn.pack(side="left")
+        
+        # Dynamic content area
+        self.sales_content_frame = ctk.CTkFrame(parent, corner_radius=12,
+                                               fg_color=("white", "gray17"))
+        self.sales_content_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        # Initialize with orders management view
+        self.current_sales_view = "orders"
+        self.show_orders_management()
+    
+    def show_new_order_form(self):
+        """Display COMPLETE TAKEOVER new order creation form"""
+        # COMPLETE TAKEOVER: Hide all existing sales tab content and navigation
+        self.clear_sales_content()
+        self.current_sales_view = "new_order"
+        
+        # Find the parent container (the entire data management area)
+        data_parent = self.sales_content_frame.master
+        
+        # Hide the existing sales tab structure (buttons + content frame)
+        for widget in data_parent.winfo_children():
+            widget.pack_forget()
+        
+        # Create COMPLETE takeover container - takes ENTIRE data management area
+        self.complete_takeover_container = ctk.CTkFrame(data_parent, corner_radius=0,
+                                                       fg_color=("white", "gray17"))
+        self.complete_takeover_container.pack(fill="both", expand=True)
+        
+        # Header with back button - minimal height
+        header_frame = ctk.CTkFrame(self.complete_takeover_container, height=60, corner_radius=0,
+                                   fg_color=("#4caf50", "#2e7d32"))
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        header_content = ctk.CTkFrame(header_frame, fg_color="transparent")
+        header_content.pack(fill="both", expand=True, padx=20, pady=15)
+        
+        # Back button and title on same line
+        ctk.CTkButton(
+            header_content,
+            text="← Back to Sales",
+            command=self.restore_sales_tab,
+            width=140,
+            height=30,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=("white", "gray25"),
+            text_color=("#2e7d32", "white"),
+            hover_color=("#f5f5f5", "gray35")
+        ).pack(side="left")
+        
+        ctk.CTkLabel(
+            header_content,
+            text="📝 Create New Order",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="white"
+        ).pack(side="left", padx=(30, 0))
+        
+        # Maximized form area - full remaining space
+        form_container = ctk.CTkFrame(self.complete_takeover_container, corner_radius=0,
+                                     fg_color=("white", "gray20"))
+        form_container.pack(fill="both", expand=True)
+        
+        # Large scrollable form
+        form_scroll = ctk.CTkScrollableFrame(form_container, corner_radius=0)
+        form_scroll.pack(fill="both", expand=True, padx=25, pady=25)
+        
+        # Initialize order form variables
+        self.order_vars = {}
+        
+        # Customer Information - Large fields
+        customer_grid = ctk.CTkFrame(form_scroll, fg_color="transparent")
+        customer_grid.pack(fill="x", pady=(0, 20))
+        customer_grid.grid_columnconfigure((0, 1), weight=1)
+        
+        self.create_large_field(customer_grid, "Customer Name", "customer_name", "text", 
+                               self.order_vars, placeholder="Enter customer full name", row=0, col=0)
+        self.create_large_field(customer_grid, "Phone Number", "customer_phone", "text", 
+                               self.order_vars, placeholder="e.g., +91 9876543210", row=0, col=1)
+        
+        self.create_large_field(form_scroll, "Customer Address", "customer_address", "text", 
+                               self.order_vars, placeholder="Enter delivery address (optional)", required=False, full_width=True)
+        
+        # Order Details - Large fields
+        order_grid = ctk.CTkFrame(form_scroll, fg_color="transparent")
+        order_grid.pack(fill="x", pady=(20, 20))
+        order_grid.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        self.create_large_field(order_grid, "Item Name", "item_name", "text", 
+                               self.order_vars, placeholder="Product/service name", row=0, col=0)
+        self.create_large_field(order_grid, "Quantity", "quantity", "number", 
+                               self.order_vars, placeholder="Qty", row=0, col=1)
+        self.create_large_field(order_grid, "Unit Price (₹)", "unit_price", "number", 
+                               self.order_vars, placeholder="Price per unit", row=0, col=2)
+        
+        # Payment Information - Large fields
+        payment_grid = ctk.CTkFrame(form_scroll, fg_color="transparent")
+        payment_grid.pack(fill="x", pady=(20, 20))
+        payment_grid.grid_columnconfigure((0, 1), weight=1)
+        
+        self.create_large_field(payment_grid, "Advance Payment (₹)", "advance_payment", "number", 
+                               self.order_vars, placeholder="Amount paid in advance (optional)", required=False, row=0, col=0)
+        self.create_large_field(payment_grid, "Due Date", "due_date", "date", 
+                               self.order_vars, placeholder=date.today().strftime("%Y-%m-%d"), row=0, col=1)
+        
+        # Payment method selection - Large
+        method_grid = ctk.CTkFrame(form_scroll, fg_color="transparent")
+        method_grid.pack(fill="x", pady=(20, 30))
+        method_grid.grid_columnconfigure((0, 1), weight=1)
+        
+        payment_method_options = ["Cash", "Card", "UPI", "Bank Transfer", "Cheque"]
+        self.create_large_combo(method_grid, "Payment Method", "payment_method", 
+                               payment_method_options, self.order_vars, row=0, col=0)
+        
+        # Auto-calculated display fields - Large
+        calc_grid = ctk.CTkFrame(form_scroll, fg_color="transparent")
+        calc_grid.pack(fill="x", pady=(30, 40))
+        calc_grid.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        # Total Amount (auto-calculated) - Larger display
+        total_frame = ctk.CTkFrame(calc_grid, fg_color="transparent")
+        total_frame.grid(row=0, column=0, padx=(0, 10), sticky="ew")
+        
+        ctk.CTkLabel(total_frame, text="Total Amount", 
+                    font=ctk.CTkFont(size=14, weight="bold"),
+                    text_color=("gray40", "gray70")).pack(anchor="w")
+        self.total_amount_display = ctk.CTkLabel(
+            total_frame, 
+            text="₹0.00", 
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=("#1976d2", "#64b5f6"),
+            height=50,
+            corner_radius=10,
+            fg_color=("white", "gray25")
+        )
+        self.total_amount_display.pack(fill="x", pady=(5, 0))
+        
+        # Due Amount (auto-calculated) - Larger display
+        due_frame = ctk.CTkFrame(calc_grid, fg_color="transparent")
+        due_frame.grid(row=0, column=1, padx=(5, 5), sticky="ew")
+        
+        ctk.CTkLabel(due_frame, text="Due Amount", 
+                    font=ctk.CTkFont(size=14, weight="bold"),
+                    text_color=("gray40", "gray70")).pack(anchor="w")
+        self.due_amount_display = ctk.CTkLabel(
+            due_frame, 
+            text="₹0.00", 
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=("#f44336", "#ef5350"),
+            height=50,
+            corner_radius=10,
+            fg_color=("white", "gray25")
+        )
+        self.due_amount_display.pack(fill="x", pady=(5, 0))
+        
+        # Order Status (auto-determined) - Larger display
+        status_frame = ctk.CTkFrame(calc_grid, fg_color="transparent")
+        status_frame.grid(row=0, column=2, padx=(10, 0), sticky="ew")
+        
+        ctk.CTkLabel(status_frame, text="Order Status", 
+                    font=ctk.CTkFont(size=14, weight="bold"),
+                    text_color=("gray40", "gray70")).pack(anchor="w")
+        self.order_status_display = ctk.CTkLabel(
+            status_frame, 
+            text="Incomplete", 
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=("#ff9800", "#ffb74d"),
+            height=50,
+            corner_radius=10,
+            fg_color=("white", "gray25")
+        )
+        self.order_status_display.pack(fill="x", pady=(5, 0))
+        
+        # Large action buttons
+        self.create_large_order_buttons(form_scroll)
+    
+    def create_minimal_section(self, parent, title):
+        """Create minimal section header"""
+        section_frame = ctk.CTkFrame(parent, fg_color="transparent", height=30)
+        section_frame.pack(fill="x", pady=(10, 8))
+        section_frame.pack_propagate(False)
+        
+        ctk.CTkLabel(
+            section_frame,
+            text=title,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            text_color=("#1976d2", "#64b5f6")
+        ).pack(anchor="w", pady=5)
+        
+        # Simple line divider
+        divider = ctk.CTkFrame(section_frame, height=1, fg_color=("gray70", "gray40"))
+        divider.pack(fill="x", pady=(2, 0))
+    
+    def create_simple_field(self, parent, label, key, field_type, vars_dict, placeholder="", required=True, row=0, col=0, full_width=False):
+        """Create simple form field"""
+        if full_width:
+            field_container = ctk.CTkFrame(parent, fg_color="transparent")
+            field_container.pack(fill="x", pady=8)
+        else:
+            field_container = ctk.CTkFrame(parent, fg_color="transparent")
+            field_container.grid(row=row, column=col, padx=8, pady=8, sticky="ew")
+        
+        # Label
+        label_text = f"{label}{'*' if required else ''}"
+        label_widget = ctk.CTkLabel(
+            field_container,
+            text=label_text,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=("gray20", "gray80")
+        )
+        label_widget.pack(anchor="w", pady=(0, 4))
+        
+        # Input field
+        vars_dict[key] = tk.StringVar()
+        
+        entry = ctk.CTkEntry(
+            field_container,
+            textvariable=vars_dict[key],
+            placeholder_text=placeholder,
+            height=35,
+            corner_radius=8,
+            border_width=1,
+            font=ctk.CTkFont(size=12)
+        )
+        entry.pack(fill="x")
+        
+        # Bind calculation for relevant fields
+        if key in ['quantity', 'unit_price', 'advance_payment']:
+            entry.bind('<KeyRelease>', self.calculate_order_totals)
+            entry.bind('<FocusOut>', self.calculate_order_totals)
+        
+        return entry
+    
+    def create_simple_combo(self, parent, label, key, options, vars_dict, required=True, row=0, col=0):
+        """Create simple combo box"""
+        field_container = ctk.CTkFrame(parent, fg_color="transparent")
+        field_container.grid(row=row, column=col, padx=8, pady=8, sticky="ew")
+        
+        # Label
+        label_text = f"{label}{'*' if required else ''}"
+        label_widget = ctk.CTkLabel(
+            field_container,
+            text=label_text,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=("gray20", "gray80")
+        )
+        label_widget.pack(anchor="w", pady=(0, 4))
+        
+        # Combo box
+        vars_dict[key] = tk.StringVar(value=options[0] if options else "")
+        combo = ctk.CTkComboBox(
+            field_container,
+            values=options,
+            variable=vars_dict[key],
+            height=35,
+            corner_radius=8,
+            border_width=1,
+            font=ctk.CTkFont(size=12)
+        )
+        combo.pack(fill="x")
+        
+        return combo
+    
+    def create_simple_order_buttons(self, parent):
+        """Create simple action buttons"""
+        button_frame = ctk.CTkFrame(parent, fg_color="transparent", height=60)
+        button_frame.pack(fill="x", pady=(30, 20))
+        button_frame.pack_propagate(False)
+        
+        buttons_container = ctk.CTkFrame(button_frame, fg_color="transparent")
+        buttons_container.pack(expand=True)
+        
+        # Create Order button
+        create_btn = ctk.CTkButton(
+            buttons_container,
+            text="💾 Create Order",
+            command=self.create_new_order,
+            width=150,
+            height=45,
+            corner_radius=12,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#4caf50", "#2e7d32"),
+            hover_color=("#45a049", "#1b5e20")
+        )
+        create_btn.pack(side="left", padx=(0, 15))
+        
+        # Clear Form button
+        clear_btn = ctk.CTkButton(
+            buttons_container,
+            text="🗑️ Clear Form",
+            command=self.clear_order_form,
+            width=130,
+            height=45,
+            corner_radius=12,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=("#ff9800", "#e65100"),
+            hover_color=("#f57c00", "#bf360c")
+        )
+        clear_btn.pack(side="left")
+    
+    def create_large_field(self, parent, label, key, field_type, vars_dict, placeholder="", required=True, row=0, col=0, full_width=False):
+        """Create large form field for full-tab experience"""
+        if full_width:
+            field_container = ctk.CTkFrame(parent, fg_color="transparent")
+            field_container.pack(fill="x", pady=12)
+        else:
+            field_container = ctk.CTkFrame(parent, fg_color="transparent")
+            field_container.grid(row=row, column=col, padx=12, pady=12, sticky="ew")
+        
+        # Large label
+        label_text = f"{label}{'*' if required else ''}"
+        label_widget = ctk.CTkLabel(
+            field_container,
+            text=label_text,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("gray20", "gray80")
+        )
+        label_widget.pack(anchor="w", pady=(0, 6))
+        
+        # Special handling for date fields
+        if field_type == "date":
+            return self.create_date_picker_field(field_container, key, vars_dict, placeholder)
+        
+        # Large input field for other types
+        vars_dict[key] = tk.StringVar()
+        
+        entry = ctk.CTkEntry(
+            field_container,
+            textvariable=vars_dict[key],
+            placeholder_text=placeholder,
+            height=45,
+            corner_radius=10,
+            border_width=2,
+            font=ctk.CTkFont(size=14)
+        )
+        entry.pack(fill="x")
+        
+        # Bind calculation for relevant fields
+        if key in ['quantity', 'unit_price', 'advance_payment']:
+            entry.bind('<KeyRelease>', self.calculate_order_totals)
+            entry.bind('<FocusOut>', self.calculate_order_totals)
+        
+        return entry
+    
+    def create_date_picker_field(self, parent, key, vars_dict, placeholder=""):
+        """Create date picker field with calendar popup"""
+        from datetime import date
+        
+        # Initialize variable
+        vars_dict[key] = tk.StringVar()
+        if placeholder:
+            vars_dict[key].set(placeholder)
+        else:
+            vars_dict[key].set(date.today().strftime("%Y-%m-%d"))
+        
+        # Container for entry and button
+        date_container = ctk.CTkFrame(parent, fg_color="transparent")
+        date_container.pack(fill="x")
+        date_container.grid_columnconfigure(0, weight=1)
+        
+        # Date entry field
+        date_entry = ctk.CTkEntry(
+            date_container,
+            textvariable=vars_dict[key],
+            placeholder_text="YYYY-MM-DD",
+            height=45,
+            corner_radius=10,
+            border_width=2,
+            font=ctk.CTkFont(size=14)
+        )
+        date_entry.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+        
+        # Calendar button
+        calendar_btn = ctk.CTkButton(
+            date_container,
+            text="📅",
+            width=45,
+            height=45,
+            corner_radius=10,
+            font=ctk.CTkFont(size=16),
+            command=lambda: self.show_calendar_popup(vars_dict[key])
+        )
+        calendar_btn.grid(row=0, column=1)
+        
+        return date_entry
+    
+    def show_calendar_popup(self, date_var):
+        """Show calendar popup for date selection"""
+        try:
+            from tkcalendar import Calendar
+            import tkinter as tk
+            from datetime import datetime
+            
+            # Create popup window
+            popup = tk.Toplevel()
+            popup.title("Select Date")
+            popup.geometry("300x280")
+            popup.resizable(False, False)
+            popup.grab_set()  # Make window modal
+            
+            # Center the popup
+            popup.update_idletasks()
+            x = (popup.winfo_screenwidth() // 2) - (popup.winfo_width() // 2)
+            y = (popup.winfo_screenheight() // 2) - (popup.winfo_height() // 2)
+            popup.geometry(f"+{x}+{y}")
+            
+            # Get current date from entry or use today
+            try:
+                current_date = datetime.strptime(date_var.get(), "%Y-%m-%d").date()
+            except:
+                current_date = datetime.today().date()
+            
+            # Create calendar widget
+            cal = Calendar(popup, 
+                          selectmode='day',
+                          year=current_date.year, 
+                          month=current_date.month, 
+                          day=current_date.day,
+                          date_pattern="yyyy-mm-dd")
+            cal.pack(padx=10, pady=10)
+            
+            # Button frame
+            btn_frame = tk.Frame(popup)
+            btn_frame.pack(pady=10)
+            
+            def select_date():
+                selected = cal.get_date()
+                date_var.set(selected)
+                popup.destroy()
+            
+            def cancel():
+                popup.destroy()
+            
+            # Buttons
+            tk.Button(btn_frame, text="Select", command=select_date, 
+                     bg="#4caf50", fg="white", font=("Arial", 10, "bold"),
+                     padx=20, pady=5).pack(side="left", padx=5)
+            tk.Button(btn_frame, text="Cancel", command=cancel,
+                     bg="#f44336", fg="white", font=("Arial", 10, "bold"),
+                     padx=20, pady=5).pack(side="left", padx=5)
+            
+        except ImportError:
+            # Fallback if tkcalendar is not available
+            self.show_status_message("Calendar widget not available. Please enter date manually (YYYY-MM-DD)", "warning")
+    
+    def create_large_combo(self, parent, label, key, options, vars_dict, required=True, row=0, col=0):
+        """Create large combo box for full-tab experience"""
+        field_container = ctk.CTkFrame(parent, fg_color="transparent")
+        field_container.grid(row=row, column=col, padx=12, pady=12, sticky="ew")
+        
+        # Large label
+        label_text = f"{label}{'*' if required else ''}"
+        label_widget = ctk.CTkLabel(
+            field_container,
+            text=label_text,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("gray20", "gray80")
+        )
+        label_widget.pack(anchor="w", pady=(0, 6))
+        
+        # Large combo box
+        vars_dict[key] = tk.StringVar(value=options[0] if options else "")
+        combo = ctk.CTkComboBox(
+            field_container,
+            values=options,
+            variable=vars_dict[key],
+            height=45,
+            corner_radius=10,
+            border_width=2,
+            font=ctk.CTkFont(size=14)
+        )
+        combo.pack(fill="x")
+        
+        return combo
+    
+    def create_large_order_buttons(self, parent):
+        """Create large action buttons for full-tab experience"""
+        button_frame = ctk.CTkFrame(parent, fg_color="transparent", height=80)
+        button_frame.pack(fill="x", pady=(40, 30))
+        button_frame.pack_propagate(False)
+        
+        buttons_container = ctk.CTkFrame(button_frame, fg_color="transparent")
+        buttons_container.pack(expand=True)
+        
+        # Create Order button - Large
+        create_btn = ctk.CTkButton(
+            buttons_container,
+            text="💾 Create Order",
+            command=self.create_new_order,
+            width=180,
+            height=55,
+            corner_radius=15,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=("#4caf50", "#2e7d32"),
+            hover_color=("#45a049", "#1b5e20")
+        )
+        create_btn.pack(side="left", padx=(0, 20))
+        
+        # Clear Form button - Large
+        clear_btn = ctk.CTkButton(
+            buttons_container,
+            text="🗑️ Clear Form",
+            command=self.clear_order_form,
+            width=150,
+            height=55,
+            corner_radius=15,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=("#ff9800", "#e65100"),
+            hover_color=("#f57c00", "#bf360c")
+        )
+        clear_btn.pack(side="left")
+    
+    def create_compact_form_section(self, parent, title):
+        """Create a compact form section header"""
+        section_frame = ctk.CTkFrame(parent, fg_color="transparent", height=35)
+        section_frame.pack(fill="x", pady=(15, 5))
+        section_frame.pack_propagate(False)
+        
+        ctk.CTkLabel(
+            section_frame,
+            text=title,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=self.colors['primary']
+        ).pack(anchor="w", pady=8)
+        
+        # Divider line
+        divider = ctk.CTkFrame(section_frame, height=1, fg_color=("gray80", "gray30"))
+        divider.pack(fill="x", pady=(2, 0))
+    
+    def create_compact_field(self, parent, label, key, field_type, vars_dict, placeholder="", required=True, row=0, col=0, full_width=False):
+        """Create compact form field for better space utilization"""
+        if full_width:
+            field_container = ctk.CTkFrame(parent, fg_color="transparent")
+            field_container.pack(fill="x", pady=5)
+        else:
+            field_container = ctk.CTkFrame(parent, fg_color="transparent")
+            field_container.grid(row=row, column=col, padx=5, pady=5, sticky="ew")
+        
+        # Compact label
+        label_widget = ctk.CTkLabel(
+            field_container,
+            text=f"{label}{'*' if required else ''}",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=("gray10", "gray90")
+        )
+        label_widget.pack(anchor="w", pady=(0, 3))
+        
+        # Input field
+        vars_dict[key] = tk.StringVar()
+        
+        entry = ctk.CTkEntry(
+            field_container,
+            textvariable=vars_dict[key],
+            placeholder_text=placeholder,
+            height=32,
+            corner_radius=6,
+            border_width=1,
+            font=ctk.CTkFont(size=11)
+        )
+        entry.pack(fill="x")
+        
+        # Bind events for real-time calculation
+        if key in ['quantity', 'unit_price', 'advance_payment']:
+            entry.bind('<KeyRelease>', self.calculate_order_totals)
+        
+        return entry
+    
+    def create_compact_combo(self, parent, label, key, options, vars_dict, required=True, row=0, col=0):
+        """Create compact combo box"""
+        field_container = ctk.CTkFrame(parent, fg_color="transparent")
+        field_container.grid(row=row, column=col, padx=5, pady=5, sticky="ew")
+        
+        # Label
+        label_widget = ctk.CTkLabel(
+            field_container,
+            text=f"{label}{'*' if required else ''}",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=("gray10", "gray90")
+        )
+        label_widget.pack(anchor="w", pady=(0, 3))
+        
+        # Combo box
+        vars_dict[key] = tk.StringVar(value=options[0] if options else "")
+        combo = ctk.CTkComboBox(
+            field_container,
+            values=options,
+            variable=vars_dict[key],
+            height=32,
+            corner_radius=6,
+            border_width=1,
+            font=ctk.CTkFont(size=11),
+            dropdown_font=ctk.CTkFont(size=10)
+        )
+        combo.pack(fill="x")
+        
+        return combo
+    
+    def create_compact_order_form_buttons(self, parent):
+        """Create compact form buttons"""
+        button_container = ctk.CTkFrame(parent, fg_color="transparent", height=60)
+        button_container.pack(fill="x", pady=(20, 10))
+        button_container.pack_propagate(False)
+        
+        button_frame = ctk.CTkFrame(button_container, fg_color="transparent")
+        button_frame.pack(expand=True)
+        
+        # Create Order button
+        create_btn = ctk.CTkButton(
+            button_frame,
+            text="💾 Create Order",
+            command=self.create_new_order,
+            width=120,
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#4caf50", "#2e7d32"),
+            hover_color=("#45a049", "#1b5e20")
+        )
+        create_btn.pack(side="left", padx=(0, 10))
+        
+        # Clear Form button
+        clear_btn = ctk.CTkButton(
+            button_frame,
+            text="🗑️ Clear",
+            command=self.clear_order_form,
+            width=100,
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#ff9800", "#e65100"),
+            hover_color=("#f57c00", "#bf360c")
+        )
+        clear_btn.pack(side="left", padx=(0, 10))
+        
+        # Back button
+        back_btn = ctk.CTkButton(
+            button_frame,
+            text="↩️ Back",
+            command=self.show_orders_management,
+            width=100,
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#607d8b", "#37474f"),
+            hover_color=("#546e7a", "#263238")
+        )
+        back_btn.pack(side="left")
+    
+    def create_order_summary_panel(self, parent):
+        """Create order summary panel on the right side"""
+        # Header
+        summary_header = ctk.CTkFrame(parent, height=40, corner_radius=8,
+                                     fg_color=("#e8f5e8", "#1a4d1a"))
+        summary_header.pack(fill="x", padx=10, pady=(15, 10))
+        summary_header.pack_propagate(False)
+        
+        ctk.CTkLabel(
+            summary_header,
+            text="📊 Order Summary",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#2e7d32", "#66bb6a")
+        ).pack(pady=10)
+        
+        # Summary content
+        self.summary_content = ctk.CTkFrame(parent, fg_color="transparent")
+        self.summary_content.pack(fill="both", expand=True, padx=10, pady=(0, 15))
+        
+        # Initialize summary display
+        self.update_order_summary()
+    
+    def calculate_order_totals(self, event=None):
+        """Calculate order totals and auto-determine status in real-time"""
+        try:
+            quantity = float(self.order_vars.get('quantity', tk.StringVar()).get() or 0)
+            unit_price = float(self.order_vars.get('unit_price', tk.StringVar()).get() or 0)
+            advance = float(self.order_vars.get('advance_payment', tk.StringVar()).get() or 0)
+            
+            total_amount = quantity * unit_price
+            due_amount = max(0, total_amount - advance)  # Ensure due amount is not negative
+            
+            # Auto-determine order status based on payment
+            if due_amount <= 0 and total_amount > 0:
+                order_status = "Complete"
+                status_color = ("#4caf50", "#81c784")  # Green
+            else:
+                order_status = "Incomplete"
+                status_color = ("#ff9800", "#ffb74d")  # Orange
+            
+            # Update display fields
+            if hasattr(self, 'total_amount_display'):
+                self.total_amount_display.configure(text=f"₹{total_amount:.2f}")
+            
+            if hasattr(self, 'due_amount_display'):
+                self.due_amount_display.configure(text=f"₹{due_amount:.2f}")
+            
+            if hasattr(self, 'order_status_display'):
+                self.order_status_display.configure(text=order_status, text_color=status_color)
+            
+        except ValueError:
+            # Reset displays if invalid input
+            if hasattr(self, 'total_amount_display'):
+                self.total_amount_display.configure(text="₹0.00")
+            if hasattr(self, 'due_amount_display'):
+                self.due_amount_display.configure(text="₹0.00")
+            if hasattr(self, 'order_status_display'):
+                self.order_status_display.configure(text="Incomplete", text_color=("#ff9800", "#ffb74d"))
+            
+        except (ValueError, AttributeError):
+            self.update_order_summary()
+    
+    def update_order_summary(self, total=0, advance=0, due=0):
+        """Update the order summary panel"""
+        # Clear existing content
+        for widget in self.summary_content.winfo_children():
+            widget.destroy()
+        
+        # Summary items
+        summary_items = [
+            ("Total Amount", f"₹{total:.2f}", "#2196f3"),
+            ("Advance Payment", f"₹{advance:.2f}", "#4caf50"),
+            ("Due Amount", f"₹{due:.2f}", "#ff9800" if due > 0 else "#4caf50")
+        ]
+        
+        for label, value, color in summary_items:
+            item_frame = ctk.CTkFrame(self.summary_content, corner_radius=8,
+                                    fg_color=("white", "gray30"))
+            item_frame.pack(fill="x", pady=5)
+            
+            ctk.CTkLabel(item_frame, text=label, font=ctk.CTkFont(size=11)).pack(pady=(8, 2))
+            ctk.CTkLabel(item_frame, text=value, font=ctk.CTkFont(size=14, weight="bold"),
+                        text_color=color).pack(pady=(0, 8))
+    
+    def create_order_form_buttons(self, parent):
+        """Create enhanced form buttons for order creation"""
+        button_container = ctk.CTkFrame(parent, fg_color="transparent", height=80)
+        button_container.pack(fill="x", pady=(30, 20))
+        button_container.pack_propagate(False)
+        
+        button_frame = ctk.CTkFrame(button_container, fg_color="transparent")
+        button_frame.pack(expand=True)
+        
+        # Create Order button
+        create_btn = ctk.CTkButton(
+            button_frame,
+            text="💾 Create Order",
+            command=self.create_new_order,
+            width=160,
+            height=50,
+            corner_radius=15,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            fg_color=("#4caf50", "#2e7d32"),
+            hover_color=("#45a049", "#1b5e20")
+        )
+        create_btn.pack(side="left", padx=(0, 15))
+        
+        # Clear Form button
+        clear_btn = ctk.CTkButton(
+            button_frame,
+            text="🗑️ Clear Form",
+            command=self.clear_order_form,
+            width=160,
+            height=50,
+            corner_radius=15,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            fg_color=("#ff9800", "#e65100"),
+            hover_color=("#f57c00", "#bf360c")
+        )
+        clear_btn.pack(side="left", padx=(0, 15))
+        
+        # Back to Orders button
+        back_btn = ctk.CTkButton(
+            button_frame,
+            text="↩️ Back to Orders",
+            command=self.show_orders_management,
+            width=160,
+            height=50,
+            corner_radius=15,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            fg_color=("#607d8b", "#37474f"),
+            hover_color=("#546e7a", "#263238")
+        )
+        back_btn.pack(side="left")
+    
+    def show_orders_management(self):
+        """Display orders management interface"""
+        self.clear_sales_content()
+        self.current_sales_view = "orders"
+        
+        # Create two-section layout: Orders table and order details
+        main_container = ctk.CTkFrame(self.sales_content_frame, fg_color="transparent")
+        main_container.pack(fill="both", expand=True, padx=15, pady=15)
+        
+        # Orders table section (top)
+        orders_section = ctk.CTkFrame(main_container, corner_radius=12, height=400,
+                                     fg_color=("#f8f9fa", "gray19"))
+        orders_section.pack(fill="x", pady=(0, 15))
+        orders_section.pack_propagate(False)
+        
+        # Orders header
+        orders_header = ctk.CTkFrame(orders_section, height=60, corner_radius=10,
+                                   fg_color=("#2196f3", "#1565c0"))
+        orders_header.pack(fill="x", padx=15, pady=(15, 10))
+        orders_header.pack_propagate(False)
+        
+        header_content = ctk.CTkFrame(orders_header, fg_color="transparent")
+        header_content.pack(expand=True, fill="both", padx=20, pady=15)
+        
+        ctk.CTkLabel(
+            header_content,
+            text="📋 Active Orders",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="white"
+        ).pack(side="left")
+        
+        # Refresh button
+        refresh_btn = ctk.CTkButton(
+            header_content,
+            text="🔄 Refresh",
+            command=self.refresh_orders_table,
+            width=100,
+            height=35,
+            corner_radius=8,
+            fg_color=("white", "gray25"),
+            text_color=("#2196f3", "white"),
+            hover_color=("#f5f5f5", "gray30")
+        )
+        refresh_btn.pack(side="right")
+        
+        # Orders table
+        self.create_orders_table(orders_section)
+        
+        # Order details and transactions section (bottom)
+        details_section = ctk.CTkFrame(main_container, corner_radius=12,
+                                      fg_color=("#fff3e0", "gray19"))
+        details_section.pack(fill="both", expand=True)
+        
+        # Create tabbed interface for order details and transactions
+        self.create_order_details_tabs(details_section)
+    
+    def create_orders_table(self, parent):
+        """Create enhanced orders table with full width"""
+        # Table container
+        table_container = ctk.CTkFrame(parent, fg_color="transparent")
+        table_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Create treeview for orders
+        import tkinter as tk
+        from tkinter import ttk
+        
+        # Style configuration for better appearance
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("Treeview.Heading", font=('Arial', 11, 'bold'))
+        style.configure("Treeview", font=('Arial', 10))
+        
+        # Create treeview with scrollbars
+        tree_frame = tk.Frame(table_container, bg="#f8f9fa")
+        tree_frame.pack(fill="both", expand=True)
+        
+        columns = ("Order ID", "Customer", "Phone", "Item", "Quantity", "Total Amount", 
+                  "Advance Paid", "Due Amount", "Status", "Due Date")
+        
+        self.orders_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=12)
+        
+        # Configure column widths for full width utilization
+        column_widths = {"Order ID": 100, "Customer": 150, "Phone": 120, "Item": 200, 
+                        "Quantity": 80, "Total Amount": 120, "Advance Paid": 120, 
+                        "Due Amount": 120, "Status": 100, "Due Date": 100}
+        
+        for col in columns:
+            self.orders_tree.heading(col, text=col)
+            self.orders_tree.column(col, width=column_widths.get(col, 100), minwidth=80)
+        
+        # Scrollbars
+        v_scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.orders_tree.yview)
+        h_scrollbar = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.orders_tree.xview)
+        self.orders_tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        
+        # Pack treeview and scrollbars
+        self.orders_tree.pack(side="left", fill="both", expand=True)
+        v_scrollbar.pack(side="right", fill="y")
+        h_scrollbar.pack(side="bottom", fill="x")
+        
+        # Bind selection event
+        self.orders_tree.bind("<<TreeviewSelect>>", self.on_order_selection)
+        
+        # Load orders data
+        self.refresh_orders_table()
+    
+    def create_order_details_tabs(self, parent):
+        """Create tabbed interface for order details and payment tracking"""
+        # Tab header
+        tab_header = ctk.CTkFrame(parent, height=50, corner_radius=10,
+                                 fg_color=("#e1f5fe", "gray25"))
+        tab_header.pack(fill="x", padx=15, pady=(15, 5))
+        tab_header.pack_propagate(False)
+        
+        tab_buttons_frame = ctk.CTkFrame(tab_header, fg_color="transparent")
+        tab_buttons_frame.pack(expand=True, pady=10)
+        
+        # Order Details Tab
+        self.details_tab_btn = ctk.CTkButton(
+            tab_buttons_frame,
+            text="📄 Order Details",
+            command=lambda: self.switch_details_tab("details"),
+            width=150,
+            height=35,
+            corner_radius=8,
+            fg_color=("#2196f3", "#1565c0"),
+            hover_color=("#1976d2", "#0d47a1")
+        )
+        self.details_tab_btn.pack(side="left", padx=(0, 10))
+        
+        # Payments Tab
+        self.payments_tab_btn = ctk.CTkButton(
+            tab_buttons_frame,
+            text="💳 Payments",
+            command=lambda: self.switch_details_tab("payments"),
+            width=150,
+            height=35,
+            corner_radius=8,
+            fg_color=("#ff9800", "#e65100"),
+            hover_color=("#f57c00", "#bf360c")
+        )
+        self.payments_tab_btn.pack(side="left")
+        
+        # Tab content area
+        self.details_content_frame = ctk.CTkFrame(parent, corner_radius=10,
+                                                 fg_color=("white", "gray20"))
+        self.details_content_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Initialize with details tab
+        self.current_details_tab = "details"
+        self.switch_details_tab("details")
+    
+    def switch_details_tab(self, tab_name):
+        """Switch between order details and payments tabs"""
+        self.current_details_tab = tab_name
+        
+        # Clear current content
+        for widget in self.details_content_frame.winfo_children():
+            widget.destroy()
+        
+        if tab_name == "details":
+            self.show_order_details_tab()
+            # Update button colors
+            self.details_tab_btn.configure(fg_color=("#2196f3", "#1565c0"))
+            self.payments_tab_btn.configure(fg_color=("gray70", "gray40"))
+        else:
+            self.show_payments_tab()
+            # Update button colors
+            self.details_tab_btn.configure(fg_color=("gray70", "gray40"))
+            self.payments_tab_btn.configure(fg_color=("#ff9800", "#e65100"))
+    
+    def show_order_details_tab(self):
+        """Show selected order details"""
+        if not hasattr(self, 'selected_order_id') or not self.selected_order_id:
+            # No order selected message
+            message_frame = ctk.CTkFrame(self.details_content_frame, fg_color="transparent")
+            message_frame.pack(expand=True, fill="both")
+            
+            ctk.CTkLabel(
+                message_frame,
+                text="📋 Select an order from the table above to view details",
+                font=ctk.CTkFont(size=16),
+                text_color=("gray50", "gray60")
+            ).pack(expand=True)
+            return
+        
+        # Order details content
+        details_scroll = ctk.CTkScrollableFrame(self.details_content_frame)
+        details_scroll.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Get order data
+        order_data = self.get_order_by_id(self.selected_order_id)
+        if not order_data:
+            return
+        
+        # Order Information Section
+        self.create_info_section(details_scroll, "📋 Order Information", [
+            ("Order ID", order_data.get('order_id', 'N/A')),
+            ("Order Status", order_data.get('order_status', 'N/A')),
+            ("Order Date", order_data.get('order_date', 'N/A')),
+            ("Due Date", order_data.get('due_date', 'N/A'))
+        ])
+        
+        # Customer Information Section
+        self.create_info_section(details_scroll, "👤 Customer Information", [
+            ("Customer Name", order_data.get('customer_name', 'N/A')),
+            ("Phone Number", order_data.get('customer_phone', 'N/A')),
+            ("Address", order_data.get('customer_address', 'N/A'))
+        ])
+        
+        # Product Information Section
+        self.create_info_section(details_scroll, "🛍️ Product Information", [
+            ("Item Name", order_data.get('item_name', 'N/A')),
+            ("Quantity", str(order_data.get('quantity', 0))),
+            ("Unit Price", f"₹{order_data.get('unit_price', 0):.2f}"),
+            ("Total Amount", f"₹{order_data.get('total_amount', 0):.2f}")
+        ])
+        
+        # Payment Information Section
+        advance = order_data.get('advance_payment', 0)
+        total = order_data.get('total_amount', 0)
+        due = total - advance
+        
+        self.create_info_section(details_scroll, "💰 Payment Information", [
+            ("Total Amount", f"₹{total:.2f}"),
+            ("Advance Paid", f"₹{advance:.2f}"),
+            ("Due Amount", f"₹{due:.2f}"),
+            ("Payment Method", order_data.get('payment_method', 'N/A'))
+        ])
+        
+        # Action buttons
+        self.create_order_action_buttons(details_scroll, order_data)
+    
+    def create_info_section(self, parent, title, data_pairs):
+        """Create an information section with title and data pairs"""
+        # Section header
+        section_frame = ctk.CTkFrame(parent, corner_radius=10, 
+                                   fg_color=("#f5f5f5", "gray25"))
+        section_frame.pack(fill="x", pady=(0, 15))
+        
+        # Title
+        title_frame = ctk.CTkFrame(section_frame, height=45, corner_radius=8,
+                                  fg_color=("#e3f2fd", "#1a237e"))
+        title_frame.pack(fill="x", padx=10, pady=(10, 5))
+        title_frame.pack_propagate(False)
+        
+        ctk.CTkLabel(
+            title_frame,
+            text=title,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#1976d2", "#64b5f6")
+        ).pack(pady=12)
+        
+        # Data grid
+        data_frame = ctk.CTkFrame(section_frame, fg_color="transparent")
+        data_frame.pack(fill="x", padx=15, pady=(0, 15))
+        
+        for i, (label, value) in enumerate(data_pairs):
+            row_frame = ctk.CTkFrame(data_frame, height=35, corner_radius=5,
+                                   fg_color=("white", "gray30"))
+            row_frame.pack(fill="x", pady=2)
+            row_frame.pack_propagate(False)
+            
+            # Configure grid
+            row_frame.grid_columnconfigure(1, weight=1)
+            
+            # Label
+            ctk.CTkLabel(
+                row_frame,
+                text=f"{label}:",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                width=150,
+                anchor="w"
+            ).grid(row=0, column=0, padx=(15, 10), pady=8, sticky="w")
+            
+            # Value
+            ctk.CTkLabel(
+                row_frame,
+                text=str(value),
+                font=ctk.CTkFont(size=12),
+                anchor="w"
+            ).grid(row=0, column=1, padx=(0, 15), pady=8, sticky="w")
+    
+    def create_order_action_buttons(self, parent, order_data):
+        """Create action buttons for order management"""
+        button_frame = ctk.CTkFrame(parent, fg_color="transparent", height=60)
+        button_frame.pack(fill="x", pady=(20, 0))
+        button_frame.pack_propagate(False)
+        
+        buttons_container = ctk.CTkFrame(button_frame, fg_color="transparent")
+        buttons_container.pack(expand=True, pady=15)
+        
+        # Edit Order button
+        edit_btn = ctk.CTkButton(
+            buttons_container,
+            text="✏️ Edit Order",
+            command=lambda: self.edit_order(order_data),
+            width=130,
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#2196f3", "#1565c0"),
+            hover_color=("#1976d2", "#0d47a1")
+        )
+        edit_btn.pack(side="left", padx=(0, 10))
+        
+        # Update Status button
+        status_btn = ctk.CTkButton(
+            buttons_container,
+            text="📊 Update Status",
+            command=lambda: self.update_order_status(order_data),
+            width=130,
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#ff9800", "#e65100"),
+            hover_color=("#f57c00", "#bf360c")
+        )
+        status_btn.pack(side="left", padx=(0, 10))
+        
+        # Delete Order button
+        delete_btn = ctk.CTkButton(
+            buttons_container,
+            text="🗑️ Delete",
+            command=lambda: self.delete_order(order_data),
+            width=130,
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#f44336", "#c62828"),
+            hover_color=("#d32f2f", "#b71c1c")
+        )
+        delete_btn.pack(side="left")
+    
+    def show_payments_tab(self):
+        """Show payments and transactions for selected order"""
+        if not hasattr(self, 'selected_order_id') or not self.selected_order_id:
+            # No order selected message
+            message_frame = ctk.CTkFrame(self.details_content_frame, fg_color="transparent")
+            message_frame.pack(expand=True, fill="both")
+            
+            ctk.CTkLabel(
+                message_frame,
+                text="💳 Select an order to view payment history",
+                font=ctk.CTkFont(size=16),
+                text_color=("gray50", "gray60")
+            ).pack(expand=True)
+            return
+        
+        # Payments content
+        payments_container = ctk.CTkFrame(self.details_content_frame, fg_color="transparent")
+        payments_container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Payment summary section
+        summary_frame = ctk.CTkFrame(payments_container, height=120, corner_radius=10,
+                                   fg_color=("#e8f5e8", "gray25"))
+        summary_frame.pack(fill="x", pady=(0, 15))
+        summary_frame.pack_propagate(False)
+        
+        self.create_payment_summary(summary_frame)
+        
+        # Add payment section
+        add_payment_frame = ctk.CTkFrame(payments_container, height=80, corner_radius=10,
+                                       fg_color=("#fff3e0", "gray25"))
+        add_payment_frame.pack(fill="x", pady=(0, 15))
+        add_payment_frame.pack_propagate(False)
+        
+        self.create_add_payment_section(add_payment_frame)
+        
+        # Transactions table
+        transactions_frame = ctk.CTkFrame(payments_container, corner_radius=10,
+                                        fg_color=("#f8f9fa", "gray25"))
+        transactions_frame.pack(fill="both", expand=True)
+        
+        self.create_transactions_table(transactions_frame)
+    
+    def create_payment_summary(self, parent):
+        """Create payment summary display"""
+        order_data = self.get_order_by_id(self.selected_order_id)
+        if not order_data:
+            return
+        
+        total_amount = order_data.get('total_amount', 0)
+        advance_payment = order_data.get('advance_payment', 0)
+        due_amount = total_amount - advance_payment
+        
+        summary_content = ctk.CTkFrame(parent, fg_color="transparent")
+        summary_content.pack(expand=True, fill="both", padx=20, pady=15)
+        
+        # Title
+        ctk.CTkLabel(
+            summary_content,
+            text="💰 Payment Summary",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=("#2e7d32", "#66bb6a")
+        ).pack(anchor="w", pady=(0, 10))
+        
+        # Payment info grid
+        info_grid = ctk.CTkFrame(summary_content, fg_color="transparent")
+        info_grid.pack(fill="x")
+        
+        # Configure grid columns
+        info_grid.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        # Total Amount
+        total_frame = ctk.CTkFrame(info_grid, corner_radius=8, fg_color=("white", "gray30"))
+        total_frame.grid(row=0, column=0, padx=(0, 10), sticky="ew")
+        
+        ctk.CTkLabel(total_frame, text="Total Amount", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(8, 2))
+        ctk.CTkLabel(total_frame, text=f"₹{total_amount:.2f}", font=ctk.CTkFont(size=14, weight="bold"), 
+                    text_color=("#1976d2", "#64b5f6")).pack(pady=(0, 8))
+        
+        # Paid Amount
+        paid_frame = ctk.CTkFrame(info_grid, corner_radius=8, fg_color=("white", "gray30"))
+        paid_frame.grid(row=0, column=1, padx=(5, 5), sticky="ew")
+        
+        ctk.CTkLabel(paid_frame, text="Paid Amount", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(8, 2))
+        ctk.CTkLabel(paid_frame, text=f"₹{advance_payment:.2f}", font=ctk.CTkFont(size=14, weight="bold"),
+                    text_color=("#4caf50", "#81c784")).pack(pady=(0, 8))
+        
+        # Due Amount
+        due_frame = ctk.CTkFrame(info_grid, corner_radius=8, fg_color=("white", "gray30"))
+        due_frame.grid(row=0, column=2, padx=(10, 0), sticky="ew")
+        
+        ctk.CTkLabel(due_frame, text="Due Amount", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(8, 2))
+        due_color = ("#f44336", "#ef5350") if due_amount > 0 else ("#4caf50", "#81c784")
+        ctk.CTkLabel(due_frame, text=f"₹{due_amount:.2f}", font=ctk.CTkFont(size=14, weight="bold"),
+                    text_color=due_color).pack(pady=(0, 8))
+    
+    def create_add_payment_section(self, parent):
+        """Create add payment interface"""
+        content = ctk.CTkFrame(parent, fg_color="transparent")
+        content.pack(expand=True, fill="both", padx=20, pady=15)
+        
+        # Title and form in horizontal layout
+        form_container = ctk.CTkFrame(content, fg_color="transparent")
+        form_container.pack(fill="x")
+        
+        # Title
+        ctk.CTkLabel(
+            form_container,
+            text="💳 Add Payment",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#ff9800", "#ffb74d")
+        ).pack(side="left", padx=(0, 20))
+        
+        # Payment amount entry
+        self.payment_amount_var = tk.StringVar()
+        amount_entry = ctk.CTkEntry(
+            form_container,
+            textvariable=self.payment_amount_var,
+            placeholder_text="Enter amount",
+            width=120,
+            height=35,
+            corner_radius=8
+        )
+        amount_entry.pack(side="left", padx=(0, 10))
+        
+        # Payment method combo
+        self.payment_method_var = tk.StringVar(value="Cash")
+        method_combo = ctk.CTkComboBox(
+            form_container,
+            values=["Cash", "Card", "UPI", "Bank Transfer", "Cheque"],
+            variable=self.payment_method_var,
+            width=120,
+            height=35,
+            corner_radius=8
+        )
+        method_combo.pack(side="left", padx=(0, 10))
+        
+        # Add payment button
+        add_btn = ctk.CTkButton(
+            form_container,
+            text="➕ Add Payment",
+            command=self.add_payment_transaction,
+            width=120,
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=("#4caf50", "#2e7d32"),
+            hover_color=("#45a049", "#1b5e20")
+        )
+        add_btn.pack(side="left")
+    
+    def create_transactions_table(self, parent):
+        """Create transactions history table"""
+        # Header
+        header_frame = ctk.CTkFrame(parent, height=50, corner_radius=8,
+                                  fg_color=("#ff9800", "#e65100"))
+        header_frame.pack(fill="x", padx=15, pady=(15, 10))
+        header_frame.pack_propagate(False)
+        
+        ctk.CTkLabel(
+            header_frame,
+            text="📊 Transaction History",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="white"
+        ).pack(pady=15)
+        
+        # Table container
+        table_container = ctk.CTkFrame(parent, fg_color="transparent")
+        table_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Create treeview for transactions
+        import tkinter as tk
+        from tkinter import ttk
+        
+        tree_frame = tk.Frame(table_container, bg="#f8f9fa")
+        tree_frame.pack(fill="both", expand=True)
+        
+        trans_columns = ("Transaction ID", "Date", "Amount", "Payment Method", "Notes")
+        
+        self.transactions_tree = ttk.Treeview(tree_frame, columns=trans_columns, show="headings", height=8)
+        
+        # Configure columns
+        col_widths = {"Transaction ID": 150, "Date": 120, "Amount": 100, "Payment Method": 120, "Notes": 200}
+        for col in trans_columns:
+            self.transactions_tree.heading(col, text=col)
+            self.transactions_tree.column(col, width=col_widths.get(col, 100))
+        
+        # Scrollbar
+        trans_scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.transactions_tree.yview)
+        self.transactions_tree.configure(yscrollcommand=trans_scrollbar.set)
+        
+        self.transactions_tree.pack(side="left", fill="both", expand=True)
+        trans_scrollbar.pack(side="right", fill="y")
+        
+        # Load transactions
+        self.refresh_transactions_table()
+    
+    def show_transactions_view(self):
+        """Display all transactions history view"""
+        self.clear_sales_content()
+        self.current_sales_view = "transactions"
+        
+        # Transactions view container
+        trans_container = ctk.CTkFrame(self.sales_content_frame, corner_radius=12,
+                                      fg_color=("#fafafa", "gray19"))
+        trans_container.pack(fill="both", expand=True, padx=25, pady=25)
+        
+        # Header
+        header_frame = ctk.CTkFrame(trans_container, height=80, corner_radius=12,
+                                   fg_color=("#e1f5fe", "#1a237e"))
+        header_frame.pack(fill="x", padx=20, pady=(20, 15))
+        header_frame.pack_propagate(False)
+        
+        header_content = ctk.CTkFrame(header_frame, fg_color="transparent")
+        header_content.pack(expand=True, fill="both", padx=25, pady=20)
+        
+        ctk.CTkLabel(
+            header_content,
+            text="📊 Complete Transaction History",
+            font=ctk.CTkFont(size=22, weight="bold"),
+            text_color=("#1976d2", "#64b5f6")
+        ).pack(side="left")
+        
+        # Back button
+        back_btn = ctk.CTkButton(
+            header_content,
+            text="↩️ Back to Orders",
+            command=self.show_orders_management,
+            width=140,
+            height=40,
+            corner_radius=10,
+            fg_color=("white", "gray25"),
+            text_color=("#1976d2", "white"),
+            hover_color=("#f5f5f5", "gray30")
+        )
+        back_btn.pack(side="right")
+        
+        # All transactions table
+        self.create_all_transactions_table(trans_container)
+    
+    def create_all_transactions_table(self, parent):
+        """Create comprehensive transactions table"""
+        table_container = ctk.CTkFrame(parent, fg_color="transparent")
+        table_container.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        # Create treeview
+        import tkinter as tk
+        from tkinter import ttk
+        
+        tree_frame = tk.Frame(table_container, bg="#fafafa")
+        tree_frame.pack(fill="both", expand=True)
+        
+        all_trans_columns = ("Transaction ID", "Order ID", "Customer", "Date", "Amount", 
+                            "Payment Method", "Order Status", "Notes")
+        
+        self.all_transactions_tree = ttk.Treeview(tree_frame, columns=all_trans_columns, 
+                                                 show="headings", height=15)
+        
+        # Configure columns with proper widths
+        col_widths = {"Transaction ID": 130, "Order ID": 100, "Customer": 150, "Date": 100, 
+                     "Amount": 100, "Payment Method": 120, "Order Status": 100, "Notes": 150}
+        
+        for col in all_trans_columns:
+            self.all_transactions_tree.heading(col, text=col)
+            self.all_transactions_tree.column(col, width=col_widths.get(col, 100))
+        
+        # Scrollbars
+        v_scroll = ttk.Scrollbar(tree_frame, orient="vertical", command=self.all_transactions_tree.yview)
+        h_scroll = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.all_transactions_tree.xview)
+        self.all_transactions_tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+        
+        self.all_transactions_tree.pack(side="left", fill="both", expand=True)
+        v_scroll.pack(side="right", fill="y")
+        h_scroll.pack(side="bottom", fill="x")
+        
+        # Add transaction actions frame
+        actions_frame = ctk.CTkFrame(table_container, height=50, corner_radius=8)
+        actions_frame.pack(fill="x", pady=(10, 0))
+        actions_frame.pack_propagate(False)
+        
+        # Delete transaction button
+        delete_btn = ctk.CTkButton(
+            actions_frame,
+            text="🗑️ Delete Selected Transaction",
+            command=self.delete_selected_transaction,
+            width=200,
+            height=35,
+            corner_radius=8,
+            fg_color=("#d32f2f", "#b71c1c"),
+            hover_color=("#c62828", "#a71c1c"),
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        delete_btn.pack(side="left", padx=20, pady=8)
+        
+        # Refresh button
+        refresh_btn = ctk.CTkButton(
+            actions_frame,
+            text="🔄 Refresh",
+            command=self.refresh_all_transactions_table,
+            width=120,
+            height=35,
+            corner_radius=8,
+            fg_color=("#1976d2", "#0d47a1"),
+            hover_color=("#1565c0", "#0d47a1"),
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        refresh_btn.pack(side="left", padx=(10, 20), pady=8)
+        
+        # Load all transactions
+        self.refresh_all_transactions_table()
+    
+    def show_payment_collection(self):
+        """Display COMPLETE TAKEOVER payment collection interface"""
+        # COMPLETE TAKEOVER: Hide all existing sales tab content and navigation
+        self.clear_sales_content()
+        self.current_sales_view = "payment_collection"
+        
+        # Find the parent container (the entire data management area)
+        data_parent = self.sales_content_frame.master
+        
+        # Hide the existing sales tab structure (buttons + content frame)
+        for widget in data_parent.winfo_children():
+            widget.pack_forget()
+        
+        # Create COMPLETE takeover container - takes ENTIRE data management area
+        self.complete_takeover_container = ctk.CTkFrame(data_parent, corner_radius=0,
+                                                       fg_color=("white", "gray17"))
+        self.complete_takeover_container.pack(fill="both", expand=True)
+        
+        # Header with back button - minimal height
+        header_frame = ctk.CTkFrame(self.complete_takeover_container, height=60, corner_radius=0,
+                                   fg_color=("#9c27b0", "#6a1b9a"))
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        header_content = ctk.CTkFrame(header_frame, fg_color="transparent")
+        header_content.pack(fill="both", expand=True, padx=20, pady=15)
+        
+        # Back button and title on same line
+        ctk.CTkButton(
+            header_content,
+            text="← Back to Sales",
+            command=self.restore_sales_tab,
+            width=140,
+            height=30,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=("white", "gray25"),
+            text_color=("#9c27b0", "white"),
+            hover_color=("#f5f5f5", "gray35")
+        ).pack(side="left")
+        
+        ctk.CTkLabel(
+            header_content,
+            text="💰 Collect Payments",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="white"
+        ).pack(side="left", padx=(30, 0))
+        
+        # Main content area - full remaining space
+        main_container = ctk.CTkFrame(self.complete_takeover_container, corner_radius=0,
+                                     fg_color=("white", "gray20"))
+        main_container.pack(fill="both", expand=True)
+        
+        # Content layout: Left form (65%), Right order details (35%)
+        content_frame = ctk.CTkFrame(main_container, fg_color="transparent")
+        content_frame.pack(fill="both", expand=True, padx=25, pady=25)
+        
+        # Left panel - Payment form - larger
+        left_panel = ctk.CTkFrame(content_frame, corner_radius=10, fg_color=("white", "gray25"))
+        left_panel.pack(side="left", fill="both", expand=True, padx=(0, 15))
+        
+        # Right panel - Order details - smaller but still functional
+        right_panel = ctk.CTkFrame(content_frame, width=400, corner_radius=10, fg_color=("white", "gray25"))
+        right_panel.pack(side="right", fill="y", padx=(15, 0))
+        right_panel.pack_propagate(False)
+        
+        # Create large payment form and order details
+        self.create_large_payment_form(left_panel)
+        self.create_large_order_details(right_panel)
+    
+    def restore_sales_tab(self):
+        """Restore the original sales tab structure"""
+        # Find the parent container
+        data_parent = self.sales_content_frame.master
+        
+        # Remove the complete takeover container
+        if hasattr(self, 'complete_takeover_container'):
+            self.complete_takeover_container.destroy()
+            delattr(self, 'complete_takeover_container')
+        
+        # Restore the original sales tab structure
+        self.create_sales_management_content(data_parent)
+    
+    def create_large_payment_form(self, parent):
+        """Create large payment form with simple dropdown creation"""
+        # Title
+        ctk.CTkLabel(
+            parent,
+            text="💳 Payment Collection",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=("#9c27b0", "#e1bee7")
+        ).pack(pady=(20, 15))
+        
+        # Form container
+        form_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        form_frame.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        # Customer selection - simple direct creation
+        ctk.CTkLabel(
+            form_frame,
+            text="Customer with Due Payments:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#333333", "#cccccc")
+        ).pack(anchor="w", pady=(0, 5))
+        
+        self.customer_dropdown = ctk.CTkComboBox(
+            form_frame,
+            values=["Loading customers..."],
+            height=45,
+            corner_radius=8,
+            font=ctk.CTkFont(size=14),
+            dropdown_font=ctk.CTkFont(size=13),
+            command=self.on_customer_selection
+        )
+        self.customer_dropdown.pack(fill="x", pady=(0, 15))
+        
+        # Order selection - simple direct creation
+        ctk.CTkLabel(
+            form_frame,
+            text="Order with Due Payment:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#333333", "#cccccc")
+        ).pack(anchor="w", pady=(0, 5))
+        
+        self.order_dropdown = ctk.CTkComboBox(
+            form_frame,
+            values=["Select customer first..."],
+            height=45,
+            corner_radius=8,
+            font=ctk.CTkFont(size=14),
+            dropdown_font=ctk.CTkFont(size=13),
+            command=self.on_order_selection_for_payment
+        )
+        self.order_dropdown.pack(fill="x", pady=(0, 15))
+        
+        # Payment details section
+        payment_section = ctk.CTkFrame(form_frame, fg_color=("gray95", "gray30"), corner_radius=8)
+        payment_section.pack(fill="x", pady=(10, 15))
+        
+        ctk.CTkLabel(
+            payment_section,
+            text="💰 Payment Details",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#9c27b0", "#e1bee7")
+        ).pack(pady=(15, 10))
+        
+        # Amount and method in same row
+        amount_row = ctk.CTkFrame(payment_section, fg_color="transparent")
+        amount_row.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Left: Amount
+        amount_left = ctk.CTkFrame(amount_row, fg_color="transparent")
+        amount_left.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        
+        ctk.CTkLabel(
+            amount_left,
+            text="Payment Amount (₹):",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#333333", "#cccccc")
+        ).pack(anchor="w", pady=(0, 5))
+        
+        self.payment_amount_entry = ctk.CTkEntry(
+            amount_left,
+            placeholder_text="Enter payment amount",
+            height=45,
+            corner_radius=8,
+            font=ctk.CTkFont(size=14)
+        )
+        self.payment_amount_entry.pack(fill="x")
+        
+        # Right: Method
+        method_right = ctk.CTkFrame(amount_row, fg_color="transparent")
+        method_right.pack(side="right", fill="both", expand=True, padx=(10, 0))
+        
+        ctk.CTkLabel(
+            method_right,
+            text="Payment Method:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#333333", "#cccccc")
+        ).pack(anchor="w", pady=(0, 5))
+        
+        self.payment_method_combo = ctk.CTkComboBox(
+            method_right,
+            values=["Cash", "Card", "UPI", "Bank Transfer", "Cheque"],
+            height=45,
+            corner_radius=8,
+            font=ctk.CTkFont(size=14)
+        )
+        self.payment_method_combo.pack(fill="x")
+        self.payment_method_combo.set("Cash")
+        
+        # Notes field (full width)
+        ctk.CTkLabel(
+            payment_section,
+            text="Notes (Optional):",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#333333", "#cccccc")
+        ).pack(anchor="w", padx=15, pady=(0, 5))
+        
+        self.payment_notes_entry = ctk.CTkEntry(
+            payment_section,
+            placeholder_text="Additional notes about this payment...",
+            height=45,
+            corner_radius=8,
+            font=ctk.CTkFont(size=14)
+        )
+        self.payment_notes_entry.pack(fill="x", padx=15, pady=(0, 15))
+        
+        # Action buttons
+        self.create_large_payment_buttons(form_frame)
+        
+        # Load initial data
+        self.load_due_orders_data()
+    
+    def create_large_payment_buttons(self, parent):
+        """Create large payment action buttons"""
+        button_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        button_frame.pack(fill="x", pady=(20, 0))
+        
+        # Button row
+        button_row = ctk.CTkFrame(button_frame, fg_color="transparent")
+        button_row.pack(fill="x")
+        
+        # Collect Payment button (primary action)
+        ctk.CTkButton(
+            button_row,
+            text="💰 Collect Payment",
+            command=self.collect_payment_for_order,
+            height=55,
+            corner_radius=10,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=("#4caf50", "#2e7d32"),
+            hover_color=("#45a049", "#1b5e20"),
+            text_color="white"
+        ).pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        # Clear Form button (secondary action) 
+        ctk.CTkButton(
+            button_row,
+            text="🗑️ Clear Form",
+            command=self.clear_payment_form,
+            height=55,
+            corner_radius=10,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=("#ff9800", "#e65100"),
+            hover_color=("#f57c00", "#bf360c"),
+            text_color="white"
+        ).pack(side="right", fill="x", expand=True, padx=(10, 0))
+    
+    def create_large_order_details(self, parent):
+        """Create large order details panel"""
+        # Title
+        ctk.CTkLabel(
+            parent,
+            text="📋 Order Information",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=("#9c27b0", "#e1bee7")
+        ).pack(pady=(20, 15))
+        
+        # Details content - scrollable for long orders
+        self.payment_details_content = ctk.CTkScrollableFrame(
+            parent, 
+            corner_radius=8,
+            fg_color=("white", "gray25")
+        )
+        self.payment_details_content.pack(fill="both", expand=True, padx=20, pady=(0, 20))
+        
+        # Initialize with empty state
+        self.update_large_order_details(None)
+    
+    def update_large_order_details(self, order_data):
+        """Update order details panel with large formatting"""
+        # Clear existing content
+        for widget in self.payment_details_content.winfo_children():
+            widget.destroy()
+        
+        if not order_data:
+            # Empty state
+            ctk.CTkLabel(
+                self.payment_details_content,
+                text="📋\n\nSelect an order to view\ndetailed information",
+                font=ctk.CTkFont(size=14),
+                text_color=("gray50", "gray40"),
+                justify="center"
+            ).pack(expand=True, pady=50)
+            return
+        
+        # Order header
+        header_frame = ctk.CTkFrame(self.payment_details_content, fg_color=("gray95", "gray30"), corner_radius=8)
+        header_frame.pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkLabel(
+            header_frame,
+            text=f"Order #{order_data.get('order_id', 'N/A')}",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=("#9c27b0", "#e1bee7")
+        ).pack(pady=10)
+        
+        # Customer info
+        info_frame = ctk.CTkFrame(self.payment_details_content, fg_color="transparent")
+        info_frame.pack(fill="x", pady=(0, 10))
+        
+        # Customer
+        ctk.CTkLabel(
+            info_frame,
+            text="Customer:",
+            font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(anchor="w")
+        ctk.CTkLabel(
+            info_frame,
+            text=order_data.get('customer_name', 'N/A'),
+            font=ctk.CTkFont(size=14),
+            text_color=("#2196f3", "#90caf9")
+        ).pack(anchor="w", pady=(0, 8))
+        
+        # Order date
+        ctk.CTkLabel(
+            info_frame,
+            text="Date:",
+            font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(anchor="w")
+        ctk.CTkLabel(
+            info_frame,
+            text=order_data.get('order_date', 'N/A'),
+            font=ctk.CTkFont(size=14)
+        ).pack(anchor="w", pady=(0, 8))
+        
+        # Financial summary
+        financial_frame = ctk.CTkFrame(self.payment_details_content, fg_color=("gray95", "gray30"), corner_radius=8)
+        financial_frame.pack(fill="x", pady=(10, 15))
+        
+        ctk.CTkLabel(
+            financial_frame,
+            text="💰 Financial Summary",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("#4caf50", "#81c784")
+        ).pack(pady=(10, 5))
+        
+        # Financial details
+        total_amount = order_data.get('total_amount', 0)
+        paid_amount = order_data.get('paid_amount', 0)
+        due_amount = order_data.get('due_amount', 0)
+        
+        financial_details = ctk.CTkFrame(financial_frame, fg_color="transparent")
+        financial_details.pack(fill="x", padx=15, pady=(0, 10))
+        
+        for label, value, color in [
+            ("Total Amount:", f"₹{total_amount:.2f}", "#2196f3"),
+            ("Paid Amount:", f"₹{paid_amount:.2f}", "#4caf50"),
+            ("Due Amount:", f"₹{due_amount:.2f}", "#f44336" if due_amount > 0 else "#4caf50")
+        ]:
+            row = ctk.CTkFrame(financial_details, fg_color="transparent")
+            row.pack(fill="x", pady=2)
+            
+            ctk.CTkLabel(
+                row,
+                text=label,
+                font=ctk.CTkFont(size=12, weight="bold")
+            ).pack(side="left")
+            
+            ctk.CTkLabel(
+                row,
+                text=value,
+                font=ctk.CTkFont(size=13, weight="bold"),
+                text_color=(color, color)
+            ).pack(side="right")
+        
+        # Items if available
+        items = order_data.get('items', [])
+        if items:
+            items_frame = ctk.CTkFrame(self.payment_details_content, fg_color="transparent")
+            items_frame.pack(fill="x", pady=(0, 10))
+            
+            ctk.CTkLabel(
+                items_frame,
+                text="📦 Order Items",
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=("#ff9800", "#ffb74d")
+            ).pack(anchor="w", pady=(0, 5))
+            
+            for item in items[:3]:  # Show first 3 items
+                item_text = f"• {item.get('name', 'Unknown')} x{item.get('quantity', 1)}"
+                ctk.CTkLabel(
+                    items_frame,
+                    text=item_text,
+                    font=ctk.CTkFont(size=12)
+                ).pack(anchor="w", padx=10)
+            
+            if len(items) > 3:
+                ctk.CTkLabel(
+                    items_frame,
+                    text=f"... and {len(items) - 3} more items",
+                    font=ctk.CTkFont(size=12),
+                    text_color=("gray50", "gray40")
+                ).pack(anchor="w", padx=10, pady=(2, 0))
+    
+    def load_due_orders_data(self):
+        """Load only customers and orders with due payments > 0"""
+        try:
+            from data_service import DataService
+            data_service = DataService()
+            
+            # Get all orders with due amounts > 0
+            all_orders = data_service.get_all_orders()
+            due_orders = [order for order in all_orders if order.get('due_amount', 0) > 0]
+            
+            if not due_orders:
+                # No due orders found
+                self.customer_dropdown.configure(values=["No customers with due payments"])
+                self.customer_dropdown.set("No customers with due payments")
+                self.order_dropdown.configure(values=["No orders available"])
+                self.order_dropdown.set("No orders available")
+                self.due_orders = []
+                return
+            
+            # Extract unique customers with due payments
+            customers = list(set([order.get('customer_name', '') for order in due_orders if order.get('customer_name')]))
+            customers.sort()
+            
+            # Update customer dropdown
+            customer_options = ["Select customer..."] + customers
+            self.customer_dropdown.configure(values=customer_options)
+            self.customer_dropdown.set("Select customer...")
+            
+            # Store due orders for quick access
+            self.due_orders = due_orders
+            
+        except Exception as e:
+            print(f"Error loading due orders data: {e}")
+            self.due_orders = []
+            self.customer_dropdown.configure(values=["Error loading customers"])
+            self.customer_dropdown.set("Error loading customers")
+    
+    def on_customer_selection(self, customer_name):
+        """Handle customer selection - show only orders with due payments"""
+        if customer_name in ["Select customer...", "No customers with due payments", "Error loading customers"]:
+            self.order_dropdown.configure(values=["Select customer first..."])
+            self.order_dropdown.set("Select customer first...")
+            self.update_simplified_order_details(None)
+            return
+        
+        # Filter orders for selected customer with due amounts > 0
+        customer_orders = [order for order in self.due_orders 
+                          if order.get('customer_name') == customer_name and order.get('due_amount', 0) > 0]
+        
+        if not customer_orders:
+            self.order_dropdown.configure(values=["No due orders for this customer"])
+            self.order_dropdown.set("No due orders for this customer")
+            self.update_simplified_order_details(None)
+            return
+        
+        # Create order options with order ID, item name, and due amount
+        order_options = ["Select order..."]
+        for order in customer_orders:
+            order_id = order.get('order_id', 'N/A')
+            item_name = order.get('item_name', 'N/A')
+            due_amount = order.get('due_amount', 0)
+            option = f"{order_id} - {item_name} (Due: ₹{due_amount:.2f})"
+            order_options.append(option)
+        
+        # Update order dropdown
+        self.order_dropdown.configure(values=order_options)
+        self.order_dropdown.set("Select order...")
+        self.update_simplified_order_details(None)
+    
+    def on_order_selection_for_payment(self, order_option):
+        """Handle order selection and update details panel"""
+        if order_option in ["Select order...", "Select customer first...", "No due orders for this customer", "No orders available"]:
+            self.update_large_order_details(None)
+            return
+        
+        # Extract order ID from option
+        order_id = order_option.split(" - ")[0]
+        
+        # Find the selected order
+        selected_order = None
+        for order in self.due_orders:
+            if order.get('order_id') == order_id:
+                selected_order = order
+                break
+        
+        # Update details panel
+        self.update_large_order_details(selected_order)
+        
+        # Store selected order for payment processing
+        self.selected_payment_order = selected_order
+        
+        # Auto-populate max payment amount (due amount)
+        if selected_order:
+            due_amount = selected_order.get('due_amount', 0)
+            self.payment_amount_entry.delete(0, 'end')
+            self.payment_amount_entry.insert(0, str(due_amount))
+    
+    def update_maximized_order_details(self, order_data):
+        """Update the maximized order details panel"""
+        # Clear existing content
+        for widget in self.payment_details_content.winfo_children():
+            widget.destroy()
+        
+        if not order_data:
+            # Show empty state
+            empty_frame = ctk.CTkFrame(self.payment_details_content, fg_color="transparent")
+            empty_frame.pack(expand=True, fill="both")
+            
+            ctk.CTkLabel(
+                empty_frame,
+                text="📋\n\nSelect an order to view\npayment details",
+                font=ctk.CTkFont(size=16),
+                text_color=("gray50", "gray60"),
+                justify="center"
+            ).pack(expand=True)
+            return
+        
+        # Order summary - prominent
+        summary_frame = ctk.CTkFrame(self.payment_details_content, corner_radius=8,
+                                   fg_color=("#e3f2fd", "gray25"))
+        summary_frame.pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkLabel(summary_frame, text=f"Order: {order_data.get('order_id', 'N/A')}", 
+                    font=ctk.CTkFont(size=15, weight="bold")).pack(pady=(12, 3))
+        ctk.CTkLabel(summary_frame, text=f"Item: {order_data.get('item_name', 'N/A')}", 
+                    font=ctk.CTkFont(size=13)).pack(pady=2)
+        ctk.CTkLabel(summary_frame, text=f"Customer: {order_data.get('customer_name', 'N/A')}", 
+                    font=ctk.CTkFont(size=13)).pack(pady=(2, 12))
+        
+        # Payment status - larger display
+        total_amount = order_data.get('total_amount', 0)
+        advance_payment = order_data.get('advance_payment', 0)
+        due_amount = order_data.get('due_amount', 0)
+        due_date = order_data.get('due_date', '')
+        
+        # Payment amounts - bigger cards
+        payment_frame = ctk.CTkFrame(self.payment_details_content, corner_radius=8,
+                                   fg_color=("#fff8e1", "gray25"))
+        payment_frame.pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkLabel(payment_frame, text="💰 Payment Status", 
+                    font=ctk.CTkFont(size=14, weight="bold"),
+                    text_color=("#f57c00", "#ffb74d")).pack(pady=(12, 8))
+        
+        # Payment amounts in grid - larger
+        amounts_grid = ctk.CTkFrame(payment_frame, fg_color="transparent")
+        amounts_grid.pack(padx=12, pady=(0, 12))
+        amounts_grid.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        # Total
+        total_frame = ctk.CTkFrame(amounts_grid, corner_radius=8, fg_color=("white", "gray30"))
+        total_frame.grid(row=0, column=0, padx=3, sticky="ew")
+        ctk.CTkLabel(total_frame, text="Total", font=ctk.CTkFont(size=11)).pack(pady=(8, 2))
+        ctk.CTkLabel(total_frame, text=f"₹{total_amount:.2f}", font=ctk.CTkFont(size=15, weight="bold"),
+                    text_color=("#1976d2", "#64b5f6")).pack(pady=(0, 8))
+        
+        # Paid
+        paid_frame = ctk.CTkFrame(amounts_grid, corner_radius=8, fg_color=("white", "gray30"))
+        paid_frame.grid(row=0, column=1, padx=3, sticky="ew")
+        ctk.CTkLabel(paid_frame, text="Paid", font=ctk.CTkFont(size=11)).pack(pady=(8, 2))
+        ctk.CTkLabel(paid_frame, text=f"₹{advance_payment:.2f}", font=ctk.CTkFont(size=15, weight="bold"),
+                    text_color=("#4caf50", "#81c784")).pack(pady=(0, 8))
+        
+        # Due
+        due_frame = ctk.CTkFrame(amounts_grid, corner_radius=8, fg_color=("white", "gray30"))
+        due_frame.grid(row=0, column=2, padx=3, sticky="ew")
+        ctk.CTkLabel(due_frame, text="Due", font=ctk.CTkFont(size=11)).pack(pady=(8, 2))
+        ctk.CTkLabel(due_frame, text=f"₹{due_amount:.2f}", font=ctk.CTkFont(size=15, weight="bold"),
+                    text_color=("#f44336", "#ef5350")).pack(pady=(0, 8))
+        
+        # Due date status with color coding
+        days_left = self.calculate_days_until_due(due_date)
+        due_status, due_color = self.get_due_status_color(days_left)
+        
+        due_date_frame = ctk.CTkFrame(self.payment_details_content, corner_radius=8,
+                                     fg_color=due_color[1])
+        due_date_frame.pack(fill="x")
+        
+        ctk.CTkLabel(
+            due_date_frame,
+            text=f"📅 Due: {due_date}",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=due_color[0]
+        ).pack(pady=(12, 3))
+        
+        ctk.CTkLabel(
+            due_date_frame,
+            text=due_status,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=due_color[0]
+        ).pack(pady=(0, 12))
+    
+    def create_payment_collection_form(self, parent):
+        """Create the payment collection form with dropdowns"""
         # Form header
-        form_header = ctk.CTkFrame(form_panel, height=60, corner_radius=8)
+        form_header = ctk.CTkFrame(parent, height=45, corner_radius=8,
+                                  fg_color=("#e8f5e8", "#1a4d1a"))
         form_header.pack(fill="x", padx=15, pady=(15, 10))
         form_header.pack_propagate(False)
         
         ctk.CTkLabel(
             form_header,
-            text="💰 Sales Record",
-            font=ctk.CTkFont(size=18, weight="bold")
-        ).pack(pady=15)
+            text="💳 Collect Payment for Existing Order",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=("#2e7d32", "#66bb6a")
+        ).pack(pady=12)
         
-        # Scrollable form area
-        form_scroll = ctk.CTkScrollableFrame(form_panel)
-        form_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        # Form content
+        form_content = ctk.CTkFrame(parent, fg_color="transparent")
+        form_content.pack(fill="both", expand=True, padx=15, pady=(0, 15))
         
-        # Configure improved scroll speed
-        self.configure_scroll_speed(form_scroll)
+        # Customer selection section
+        customer_section = ctk.CTkFrame(form_content, corner_radius=8, fg_color=("#fff3e0", "gray30"))
+        customer_section.pack(fill="x", pady=(0, 15))
         
-        # Form fields
-        self.sales_vars = {}
-        fields = [
-            ("Item Name", "item_name", "text"),
-            ("Quantity Sold", "quantity", "number"),
-            ("Sale Price (₹)", "price_per_unit", "number"),
-            ("Customer Name", "customer", "text"),
-            ("Sale Date", "date", "date")
-        ]
+        ctk.CTkLabel(
+            customer_section,
+            text="👤 Select Customer",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=("#e65100", "#ffb74d")
+        ).pack(anchor="w", padx=15, pady=(10, 5))
         
-        for label, key, field_type in fields:
-            if field_type == "date":
-                self.create_form_field(form_scroll, label, key, "text", self.sales_vars, placeholder=date.today().strftime("%Y-%m-%d"))
+        # Customer dropdown
+        self.payment_customer_var = tk.StringVar()
+        self.customer_dropdown = ctk.CTkComboBox(
+            customer_section,
+            variable=self.payment_customer_var,
+            values=["Select Customer..."],
+            command=self.on_customer_selection,
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12),
+            dropdown_font=ctk.CTkFont(size=11)
+        )
+        self.customer_dropdown.pack(fill="x", padx=15, pady=(0, 10))
+        
+        # Order selection section
+        order_section = ctk.CTkFrame(form_content, corner_radius=8, fg_color=("#e3f2fd", "gray30"))
+        order_section.pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkLabel(
+            order_section,
+            text="📋 Select Order",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=("#1565c0", "#64b5f6")
+        ).pack(anchor="w", padx=15, pady=(10, 5))
+        
+        # Order dropdown
+        self.payment_order_var = tk.StringVar()
+        self.order_dropdown = ctk.CTkComboBox(
+            order_section,
+            variable=self.payment_order_var,
+            values=["Select Order..."],
+            command=self.on_order_selection_for_payment,
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12),
+            dropdown_font=ctk.CTkFont(size=11)
+        )
+        self.order_dropdown.pack(fill="x", padx=15, pady=(0, 10))
+        
+        # Payment details section
+        payment_section = ctk.CTkFrame(form_content, corner_radius=8, fg_color=("#f1f8e9", "gray30"))
+        payment_section.pack(fill="x", pady=(0, 15))
+        
+        ctk.CTkLabel(
+            payment_section,
+            text="💰 Payment Details",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=("#2e7d32", "#81c784")
+        ).pack(anchor="w", padx=15, pady=(10, 5))
+        
+        # Payment amount and method in grid
+        payment_grid = ctk.CTkFrame(payment_section, fg_color="transparent")
+        payment_grid.pack(fill="x", padx=15, pady=(0, 10))
+        payment_grid.grid_columnconfigure((0, 1), weight=1)
+        
+        # Payment amount
+        amount_frame = ctk.CTkFrame(payment_grid, fg_color="transparent")
+        amount_frame.grid(row=0, column=0, padx=(0, 8), sticky="ew")
+        
+        ctk.CTkLabel(amount_frame, text="Amount (₹)*", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", pady=(0, 3))
+        self.payment_collection_amount_var = tk.StringVar()
+        self.payment_amount_entry = ctk.CTkEntry(
+            amount_frame,
+            textvariable=self.payment_collection_amount_var,
+            placeholder_text="Enter amount",
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12)
+        )
+        self.payment_amount_entry.pack(fill="x")
+        
+        # Payment method
+        method_frame = ctk.CTkFrame(payment_grid, fg_color="transparent")
+        method_frame.grid(row=0, column=1, padx=(8, 0), sticky="ew")
+        
+        ctk.CTkLabel(method_frame, text="Payment Method*", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", pady=(0, 3))
+        self.payment_collection_method_var = tk.StringVar(value="Cash")
+        method_combo = ctk.CTkComboBox(
+            method_frame,
+            values=["Cash", "Card", "UPI", "Bank Transfer", "Cheque"],
+            variable=self.payment_collection_method_var,
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12)
+        )
+        method_combo.pack(fill="x")
+        
+        # Notes
+        notes_frame = ctk.CTkFrame(payment_section, fg_color="transparent")
+        notes_frame.pack(fill="x", padx=15, pady=(5, 0))
+        
+        ctk.CTkLabel(notes_frame, text="Notes (Optional)", font=ctk.CTkFont(size=11, weight="bold")).pack(anchor="w", pady=(0, 3))
+        self.payment_notes_var = tk.StringVar()
+        notes_entry = ctk.CTkEntry(
+            notes_frame,
+            textvariable=self.payment_notes_var,
+            placeholder_text="Additional notes...",
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12)
+        )
+        notes_entry.pack(fill="x")
+        
+        # Action buttons
+        button_frame = ctk.CTkFrame(form_content, fg_color="transparent", height=50)
+        button_frame.pack(fill="x", pady=(20, 0))
+        button_frame.pack_propagate(False)
+        
+        buttons_container = ctk.CTkFrame(button_frame, fg_color="transparent")
+        buttons_container.pack(expand=True)
+        
+        # Collect Payment button
+        collect_btn = ctk.CTkButton(
+            buttons_container,
+            text="💰 Collect Payment",
+            command=self.collect_payment_for_order,
+            width=150,
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#4caf50", "#2e7d32"),
+            hover_color=("#45a049", "#1b5e20")
+        )
+        collect_btn.pack(side="left", padx=(0, 10))
+        
+        # Clear Form button
+        clear_btn = ctk.CTkButton(
+            buttons_container,
+            text="🗑️ Clear",
+            command=self.clear_payment_form,
+            width=100,
+            height=40,
+            corner_radius=10,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#ff9800", "#e65100"),
+            hover_color=("#f57c00", "#bf360c")
+        )
+        clear_btn.pack(side="left")
+        
+        # Load initial data
+        self.load_due_orders_data()
+    
+    def create_payment_order_details(self, parent):
+        """Create order details panel for payment collection"""
+        # Header
+        details_header = ctk.CTkFrame(parent, height=45, corner_radius=8,
+                                     fg_color=("#e1f5fe", "#0d47a1"))
+        details_header.pack(fill="x", padx=15, pady=(15, 10))
+        details_header.pack_propagate(False)
+        
+        ctk.CTkLabel(
+            details_header,
+            text="📊 Order Details",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=("#1976d2", "#90caf9")
+        ).pack(pady=12)
+        
+        # Details content
+        self.payment_details_content = ctk.CTkScrollableFrame(parent, corner_radius=8)
+        self.payment_details_content.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Initialize with empty state
+        self.update_payment_order_details(None)
+    
+    def load_due_orders_data(self):
+        """Load customers and orders with due payments"""
+        try:
+            from data_service import DataService
+            data_service = DataService()
+            
+            # Get all orders with due amounts > 0
+            all_orders = data_service.get_all_orders()
+            due_orders = [order for order in all_orders if order.get('due_amount', 0) > 0]
+            
+            # Extract unique customers
+            customers = list(set([order.get('customer_name', '') for order in due_orders if order.get('customer_name')]))
+            customers.sort()
+            
+            # Update customer dropdown
+            customer_options = ["Select Customer..."] + customers
+            self.customer_dropdown.configure(values=customer_options)
+            self.customer_dropdown.set("Select Customer...")
+            
+            # Store due orders for quick access
+            self.due_orders = due_orders
+            
+        except Exception as e:
+            print(f"Error loading due orders data: {e}")
+            self.due_orders = []
+    
+    def on_customer_selection(self, customer_name):
+        """Handle customer selection and update order dropdown"""
+        if customer_name == "Select Customer...":
+            self.order_dropdown.configure(values=["Select Order..."])
+            self.order_dropdown.set("Select Order...")
+            self.update_payment_order_details(None)
+            return
+        
+        # Filter orders for selected customer
+        customer_orders = [order for order in self.due_orders if order.get('customer_name') == customer_name]
+        
+        # Create order options with order ID and item name
+        order_options = ["Select Order..."]
+        for order in customer_orders:
+            order_id = order.get('order_id', 'N/A')
+            item_name = order.get('item_name', 'N/A')
+            due_amount = order.get('due_amount', 0)
+            option = f"{order_id} - {item_name} (Due: ₹{due_amount:.2f})"
+            order_options.append(option)
+        
+        # Update order dropdown
+        self.order_dropdown.configure(values=order_options)
+        self.order_dropdown.set("Select Order...")
+        self.update_payment_order_details(None)
+    
+    def on_order_selection_for_payment(self, order_option):
+        """Handle order selection and update details panel"""
+        if order_option == "Select Order...":
+            self.update_payment_order_details(None)
+            return
+        
+        # Extract order ID from option
+        order_id = order_option.split(" - ")[0]
+        
+        # Find the selected order
+        selected_order = None
+        for order in self.due_orders:
+            if order.get('order_id') == order_id:
+                selected_order = order
+                break
+        
+        # Update details panel
+        self.update_payment_order_details(selected_order)
+        
+        # Store selected order for payment processing
+        self.selected_payment_order = selected_order
+    
+    def update_payment_order_details(self, order_data):
+        """Update the order details panel"""
+        # Clear existing content
+        for widget in self.payment_details_content.winfo_children():
+            widget.destroy()
+        
+        if not order_data:
+            # Show empty state
+            empty_frame = ctk.CTkFrame(self.payment_details_content, fg_color="transparent")
+            empty_frame.pack(expand=True, fill="both")
+            
+            ctk.CTkLabel(
+                empty_frame,
+                text="📋 Select an order to view details",
+                font=ctk.CTkFont(size=14),
+                text_color=("gray50", "gray60")
+            ).pack(expand=True)
+            return
+        
+        # Order information
+        self.create_payment_info_section(self.payment_details_content, "📋 Order Information", [
+            ("Order ID", order_data.get('order_id', 'N/A')),
+            ("Order Date", order_data.get('order_date', 'N/A')),
+            ("Order Status", order_data.get('order_status', 'N/A'))
+        ])
+        
+        # Customer information
+        self.create_payment_info_section(self.payment_details_content, "👤 Customer Information", [
+            ("Customer Name", order_data.get('customer_name', 'N/A')),
+            ("Phone Number", order_data.get('customer_phone', 'N/A'))
+        ])
+        
+        # Product information
+        self.create_payment_info_section(self.payment_details_content, "🛍️ Product Information", [
+            ("Item Name", order_data.get('item_name', 'N/A')),
+            ("Quantity", str(order_data.get('quantity', 0))),
+            ("Unit Price", f"₹{order_data.get('unit_price', 0):.2f}")
+        ])
+        
+        # Payment status with color coding
+        total_amount = order_data.get('total_amount', 0)
+        advance_payment = order_data.get('advance_payment', 0)
+        due_amount = order_data.get('due_amount', 0)
+        due_date = order_data.get('due_date', '')
+        
+        # Calculate days until due date
+        days_left = self.calculate_days_until_due(due_date)
+        due_status, due_color = self.get_due_status_color(days_left)
+        
+        # Payment status section
+        payment_frame = ctk.CTkFrame(self.payment_details_content, corner_radius=8,
+                                   fg_color=("#fff8e1", "gray25"))
+        payment_frame.pack(fill="x", pady=(0, 10))
+        
+        # Section title
+        ctk.CTkLabel(
+            payment_frame,
+            text="💰 Payment Status",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            text_color=("#f57c00", "#ffb74d")
+        ).pack(anchor="w", padx=15, pady=(10, 5))
+        
+        # Payment grid
+        payment_grid = ctk.CTkFrame(payment_frame, fg_color="transparent")
+        payment_grid.pack(fill="x", padx=15, pady=(0, 10))
+        payment_grid.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        # Total amount
+        total_frame = ctk.CTkFrame(payment_grid, corner_radius=6, fg_color=("white", "gray30"))
+        total_frame.grid(row=0, column=0, padx=(0, 5), sticky="ew")
+        ctk.CTkLabel(total_frame, text="Total", font=ctk.CTkFont(size=10)).pack(pady=(5, 0))
+        ctk.CTkLabel(total_frame, text=f"₹{total_amount:.2f}", font=ctk.CTkFont(size=12, weight="bold"),
+                    text_color=("#1976d2", "#64b5f6")).pack(pady=(0, 5))
+        
+        # Paid amount
+        paid_frame = ctk.CTkFrame(payment_grid, corner_radius=6, fg_color=("white", "gray30"))
+        paid_frame.grid(row=0, column=1, padx=(2.5, 2.5), sticky="ew")
+        ctk.CTkLabel(paid_frame, text="Paid", font=ctk.CTkFont(size=10)).pack(pady=(5, 0))
+        ctk.CTkLabel(paid_frame, text=f"₹{advance_payment:.2f}", font=ctk.CTkFont(size=12, weight="bold"),
+                    text_color=("#4caf50", "#81c784")).pack(pady=(0, 5))
+        
+        # Due amount
+        due_frame = ctk.CTkFrame(payment_grid, corner_radius=6, fg_color=("white", "gray30"))
+        due_frame.grid(row=0, column=2, padx=(5, 0), sticky="ew")
+        ctk.CTkLabel(due_frame, text="Due", font=ctk.CTkFont(size=10)).pack(pady=(5, 0))
+        ctk.CTkLabel(due_frame, text=f"₹{due_amount:.2f}", font=ctk.CTkFont(size=12, weight="bold"),
+                    text_color=("#f44336", "#ef5350")).pack(pady=(0, 5))
+        
+        # Due date status with change button
+        due_date_frame = ctk.CTkFrame(self.payment_details_content, corner_radius=8,
+                                     fg_color=due_color[1])
+        due_date_frame.pack(fill="x", pady=(0, 10))
+        
+        # Due date info and button container
+        due_date_container = ctk.CTkFrame(due_date_frame, fg_color="transparent")
+        due_date_container.pack(fill="x", padx=15, pady=10)
+        
+        # Due date info (left side)
+        due_info_frame = ctk.CTkFrame(due_date_container, fg_color="transparent")
+        due_info_frame.pack(side="left", fill="x", expand=True)
+        
+        ctk.CTkLabel(
+            due_info_frame,
+            text=f"📅 Due Date: {due_date}",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=due_color[0]
+        ).pack(anchor="w")
+        
+        ctk.CTkLabel(
+            due_info_frame,
+            text=due_status,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=due_color[0]
+        ).pack(anchor="w")
+        
+        # Change due date button (right side)
+        change_date_btn = ctk.CTkButton(
+            due_date_container,
+            text="📅 Change Due Date",
+            command=lambda: self.change_order_due_date(order_data),
+            width=140,
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=("#ff9800", "#f57c00"),
+            hover_color=("#f57c00", "#ef6c00"),
+            text_color="white"
+        )
+        change_date_btn.pack(side="right", padx=(10, 0))
+    
+    def create_payment_info_section(self, parent, title, data_pairs):
+        """Create an information section for payment details"""
+        section_frame = ctk.CTkFrame(parent, corner_radius=8, fg_color=("#f5f5f5", "gray25"))
+        section_frame.pack(fill="x", pady=(0, 10))
+        
+        # Title
+        ctk.CTkLabel(
+            section_frame,
+            text=title,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=("#424242", "#e0e0e0")
+        ).pack(anchor="w", padx=15, pady=(8, 5))
+        
+        # Data pairs
+        for label, value in data_pairs:
+            row_frame = ctk.CTkFrame(section_frame, height=25, corner_radius=4,
+                                   fg_color=("white", "gray30"))
+            row_frame.pack(fill="x", padx=15, pady=1)
+            row_frame.pack_propagate(False)
+            
+            row_frame.grid_columnconfigure(1, weight=1)
+            
+            ctk.CTkLabel(
+                row_frame,
+                text=f"{label}:",
+                font=ctk.CTkFont(size=10, weight="bold"),
+                width=100
+            ).grid(row=0, column=0, padx=(10, 5), pady=5, sticky="w")
+            
+            ctk.CTkLabel(
+                row_frame,
+                text=str(value),
+                font=ctk.CTkFont(size=10),
+                anchor="w"
+            ).grid(row=0, column=1, padx=(0, 10), pady=5, sticky="w")
+    
+    def calculate_days_until_due(self, due_date_str):
+        """Calculate days until due date"""
+        try:
+            due_date_obj = datetime.strptime(due_date_str, "%Y-%m-%d").date()
+            today = date.today()
+            delta = (due_date_obj - today).days
+            return delta
+        except:
+            return 0
+    
+    def get_due_status_color(self, days_left):
+        """Get status text and color based on days left"""
+        if days_left < 0:
+            return (f"⚠️ OVERDUE by {abs(days_left)} days", ("#d32f2f", "#ffebee"))
+        elif days_left == 0:
+            return ("🔥 DUE TODAY", ("#f57c00", "#fff3e0"))
+        elif days_left <= 3:
+            return (f"⚡ {days_left} days left", ("#ff9800", "#fff8e1"))
+        elif days_left <= 7:
+            return (f"⏰ {days_left} days left", ("#fbc02d", "#fffde7"))
+        else:
+            return (f"✅ {days_left} days left", ("#388e3c", "#e8f5e9"))
+    
+    def collect_payment_for_order(self):
+        """Process payment collection for selected order"""
+        print(f"\n=== COLLECT PAYMENT DEBUG START ===")
+        try:
+            # Validate inputs
+            if not hasattr(self, 'selected_payment_order') or not self.selected_payment_order:
+                print("ERROR: No order selected")
+                self.show_status_message("Please select an order first", "warning")
+                return
+            
+            amount_str = self.payment_amount_entry.get().strip()
+            print(f"Raw amount from entry field: '{amount_str}'")
+            
+            if not amount_str:
+                print("ERROR: No amount entered")
+                self.show_status_message("Please enter payment amount", "warning")
+                return
+            
+            try:
+                amount = float(amount_str)
+                print(f"Converted amount to float: {amount} (type: {type(amount)})")
+            except ValueError as e:
+                print(f"ERROR: Cannot convert amount to float: {e}")
+                self.show_status_message("Please enter a valid numeric amount", "warning")
+                return
+            
+            if amount <= 0:
+                print(f"ERROR: Amount <= 0: {amount}")
+                self.show_status_message("Payment amount must be greater than 0", "warning")
+                return
+            
+            order = self.selected_payment_order
+            due_amount = order.get('due_amount', 0)
+            print(f"Order due amount: {due_amount}")
+            
+            if amount > due_amount:
+                print(f"ERROR: Payment amount {amount} exceeds due amount {due_amount}")
+                self.show_status_message("Payment amount cannot exceed due amount", "warning")
+                return
+            
+            # Get payment method and notes
+            payment_method = self.payment_method_combo.get()
+            notes = self.payment_notes_entry.get().strip()
+            print(f"Payment method: {payment_method}")
+            print(f"Notes: '{notes}'")
+            
+            # Create transaction with correct field structure
+            transaction_data = {
+                'transaction_id': self.generate_transaction_id(),
+                'order_id': order.get('order_id'),
+                'customer_name': order.get('customer_name'),
+                'item_name': order.get('item_name'),
+                'transaction_type': 'Payment',
+                'amount': amount,  # This should be the float value
+                'payment_method': payment_method,
+                'transaction_date': date.today().strftime("%Y-%m-%d"),
+                'transaction_time': datetime.now().strftime("%H:%M:%S"),
+                'notes': notes or f'Payment collection via {payment_method}',
+                'status': 'Completed'
+            }
+            
+            print(f"Transaction data to save:")
+            for key, value in transaction_data.items():
+                print(f"  {key}: {value} (type: {type(value)})")
+            
+            # CRITICAL DEBUG: Verify amount is still correct before saving
+            print(f"CRITICAL CHECK - Amount before saving: {transaction_data['amount']} (type: {type(transaction_data['amount'])})")
+            
+            # Save transaction to database
+            from data_service import DataService
+            data_service = DataService()
+            print(f"About to call data_service.add_transaction()...")
+            result = data_service.add_transaction(transaction_data)
+            print(f"Transaction save result: {result}")
+            
+            # Check if transaction was saved successfully (result should be document ID string)
+            if result and isinstance(result, str):
+                print(f"Transaction saved successfully with ID: {result}")
+                
+                # IMPORTANT: For payment collection, we should ONLY reduce due amount, not increase advance
+                # Get fresh order data to avoid stale data issues
+                fresh_order = data_service.get_order_by_id(order.get('order_id'))
+                if fresh_order:
+                    current_advance = fresh_order.get('advance_payment', 0)  # Keep advance as is
+                    current_total = fresh_order.get('total_amount', 0)
+                    current_due = fresh_order.get('due_amount', 0)
+                else:
+                    current_advance = order.get('advance_payment', 0)  # Keep advance as is
+                    current_total = order.get('total_amount', 0)
+                    current_due = order.get('due_amount', 0)
+                
+                # Calculate new amounts - ONLY reduce due amount, don't touch advance
+                new_due = max(0, current_due - amount)  # Reduce due by payment amount
+                # Keep advance payment unchanged for existing orders
+                new_advance = current_advance
+                
+                # Auto-determine order status based on remaining due amount
+                order_status = "Complete" if new_due <= 0 else "Incomplete"
+                
+                # Debug information
+                print(f"Order payment calculation (CORRECT LOGIC):")
+                print(f"  Order ID: {order.get('order_id')}")
+                print(f"  Payment amount: {amount}")
+                print(f"  Current advance (unchanged): {current_advance}")
+                print(f"  Current due before payment: {current_due}")
+                print(f"  Current total: {current_total}")
+                print(f"  New due after payment: {new_due}")
+                print(f"  New advance (unchanged): {new_advance}")
+                print(f"  New status: {order_status}")
+                
+                update_data = {
+                    'advance_payment': new_advance,  # Keep advance unchanged
+                    'due_amount': new_due,           # Only reduce due amount
+                    'order_status': order_status
+                }
+                
+                print(f"About to update order with data: {update_data}")
+                update_result = data_service.update_order(order.get('order_id'), update_data)
+                print(f"Order update result: {update_result}")
+                
+                # Check if order update was successful (update_result should be number of modified documents)
+                if update_result and update_result > 0:
+                    # Enhanced success message with payment details
+                    success_msg = f"💰 Payment Collected Successfully!\n\n"
+                    success_msg += f"Transaction ID: {transaction_data['transaction_id']}\n"
+                    success_msg += f"Order ID: {order.get('order_id')}\n"
+                    success_msg += f"Customer: {order.get('customer_name')}\n"
+                    success_msg += f"Payment Amount: ₹{amount:.2f}\n"
+                    success_msg += f"Payment Method: {payment_method}\n"
+                    success_msg += f"Remaining Due: ₹{new_due:.2f}\n"
+                    success_msg += f"Order Status: {order_status}"
+                    
+                    print(f"Success message: {success_msg}")
+                    self.show_success_message(success_msg)
+                    
+                    # Clear form and reload data to refresh everything
+                    self.clear_payment_form()
+                    
+                    # Force refresh all relevant data displays
+                    self.load_due_orders_data()
+                    
+                    # Force refresh the selected order details to show updated amounts
+                    self.refresh_order_details_display()
+                    
+                    # Force refresh the main orders table
+                    if hasattr(self, 'refresh_orders_table'):
+                        self.refresh_orders_table()
+                    
+                    print("All views refreshed successfully")
+                else:
+                    print("ERROR: Failed to update order")
+                    self.show_error_message("Transaction recorded but failed to update order. Please contact support.")
             else:
-                self.create_form_field(form_scroll, label, key, field_type, self.sales_vars)
+                print(f"ERROR: Failed to save transaction: {result}")
+                self.show_error_message(f"Failed to record payment: {result}")
+                
+        except ValueError as e:
+            print(f"ValueError: {e}")
+            self.show_status_message("Please enter a valid numeric amount", "warning")
+        except Exception as e:
+            print(f"Exception in collect_payment_for_order: {e}")
+            import traceback
+            traceback.print_exc()
+            self.show_status_message(f"Error processing payment: {str(e)}", "error")
         
-        # Form buttons
-        self.create_form_buttons(form_scroll, "sales")
-        
-        # Data table
-        self.create_data_table(data_panel, "sales")
+        print(f"=== COLLECT PAYMENT DEBUG END ===\n")
+    
+    def clear_payment_form(self):
+        """Clear payment collection form"""
+        try:
+            # Reset dropdowns
+            self.customer_dropdown.set("Select customer...")
+            self.order_dropdown.set("Select customer first...")
+            
+            # Clear form fields
+            self.payment_amount_entry.delete(0, 'end')
+            self.payment_method_combo.set("Cash")
+            self.payment_notes_entry.delete(0, 'end')
+            
+            # Clear selected order
+            if hasattr(self, 'selected_payment_order'):
+                delattr(self, 'selected_payment_order')
+            
+            # Update order details panel
+            self.update_large_order_details(None)
+            
+            # Reload data to refresh dropdowns
+            self.load_due_orders_data()
+            
+        except Exception as e:
+            print(f"Error clearing payment form: {e}")
+    
+    def clear_sales_content(self):
+        """Clear the sales content frame"""
+        for widget in self.sales_content_frame.winfo_children():
+            widget.destroy()
     
     def create_purchases_form(self, form_panel, data_panel):
         """Create modern purchases form"""
@@ -2391,15 +5179,801 @@ class ModernDataPageGUI:
             salary_str = str(values[6]).replace("₹", "").replace(",", "")
             self.emp_vars["salary"].set(salary_str)
             
-            self.edit_mode = True
+            # Store for editing
+            employee_id = str(values[0])
             self.editing_employee_id = employee_id
-            self.edit_module_type = "employees"
+            self.editing_mongo_id = mongo_id
             
-            # Disable employee ID and join date fields during edit
-            self.disable_employee_fields(['employee_id', 'join_date'])
+            # Change button text to indicate editing mode
+            if hasattr(self, 'employees_add_btn'):
+                self.employees_add_btn.configure(text="💾 Update Employee")
             
-            self.show_edit_buttons("employees")
             self.show_status_message(f"Editing employee: {values[1]} ({employee_id}). Employee ID and Join Date are locked for security.", "info")
+                
+    # ====== ORDERS AND TRANSACTIONS IMPLEMENTATION ======
+    
+    def create_new_order(self):
+        """Create a new order from form data"""
+        try:
+            # Validate required fields
+            required_fields = ['customer_name', 'customer_phone', 'item_name', 'quantity', 'unit_price']
+            for field in required_fields:
+                if not self.order_vars[field].get().strip():
+                    self.show_status_message(f"Please enter {field.replace('_', ' ').title()}", "warning")
+                    return
+            
+            # Calculate amounts and auto-determine status
+            quantity = int(self.order_vars['quantity'].get())
+            unit_price = float(self.order_vars['unit_price'].get())
+            total_amount = quantity * unit_price
+            advance_payment = float(self.order_vars['advance_payment'].get()) if self.order_vars['advance_payment'].get() else 0.0
+            due_amount = max(0, total_amount - advance_payment)
+            
+            # Auto-determine order status based on payment
+            order_status = "Complete" if due_amount <= 0 and total_amount > 0 else "Incomplete"
+            
+            # Generate order ID
+            order_id = self.generate_order_id()
+            
+            # Prepare order data
+            order_data = {
+                'order_id': order_id,
+                'customer_name': self.order_vars['customer_name'].get().strip(),
+                'customer_phone': self.order_vars['customer_phone'].get().strip(),
+                'customer_address': self.order_vars['customer_address'].get().strip(),
+                'item_name': self.order_vars['item_name'].get().strip(),
+                'quantity': quantity,
+                'unit_price': unit_price,
+                'total_amount': total_amount,
+                'advance_payment': advance_payment,
+                'due_amount': due_amount,
+                'order_status': order_status,  # Auto-determined status
+                'payment_method': self.order_vars['payment_method'].get(),
+                'due_date': self.order_vars['due_date'].get(),
+                'order_date': date.today().strftime("%Y-%m-%d"),
+                'created_date': datetime.now().isoformat()
+            }
+            
+            # Save to database
+            from data_service import DataService
+            data_service = DataService()
+            result = data_service.add_order(order_data)
+            
+            if result:
+                # Create initial transaction if advance payment exists
+                if advance_payment > 0:
+                    self.create_initial_transaction(order_id, advance_payment, self.order_vars['payment_method'].get())
+                
+                # Enhanced success message with order details
+                success_msg = f"✅ Order Created Successfully!\n\n"
+                success_msg += f"Order ID: {order_id}\n"
+                success_msg += f"Customer: {self.order_vars['customer_name'].get().strip()}\n"
+                success_msg += f"Item: {self.order_vars['item_name'].get().strip()}\n"
+                success_msg += f"Total Amount: ₹{total_amount:.2f}\n"
+                success_msg += f"Status: {order_status}"
+                
+                self.show_success_message(success_msg)
+                self.clear_order_form()
+                # Switch to orders management view
+                self.show_orders_management()
+            else:
+                self.show_status_message("Failed to create order", "error")
+                
+        except ValueError as e:
+            self.show_status_message("Please enter valid numeric values for quantity and price", "warning")
+        except Exception as e:
+            self.show_status_message(f"Failed to create order: {str(e)}", "error")
+    
+    def generate_order_id(self):
+        """Generate unique order ID"""
+        import random
+        import string
+        timestamp = datetime.now().strftime("%Y%m%d")
+        random_part = ''.join(random.choices(string.digits, k=4))
+        return f"ORD{timestamp}{random_part}"
+    
+    def create_initial_transaction(self, order_id, amount, payment_method):
+        """Create initial transaction for advance payment"""
+        try:
+            transaction_data = {
+                'transaction_id': self.generate_transaction_id(),
+                'order_id': order_id,
+                'payment_amount': amount,
+                'payment_date': date.today().strftime("%Y-%m-%d"),
+                'payment_method': payment_method,
+                'transaction_type': 'advance_payment',
+                'notes': 'Initial advance payment',
+                'created_date': datetime.now().isoformat()
+            }
+            
+            from data_service import DataService
+            data_service = DataService()
+            data_service.add_transaction(transaction_data)
+            
+        except Exception as e:
+            print(f"Error creating initial transaction: {e}")
+    
+    def generate_transaction_id(self):
+        """Generate unique transaction ID"""
+        import random
+        import string
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        random_part = ''.join(random.choices(string.digits, k=3))
+        return f"TXN{timestamp}{random_part}"
+    
+    def clear_order_form(self):
+        """Clear all order form fields"""
+        try:
+            for var in self.order_vars.values():
+                var.set("")
+            
+            # Reset dropdowns to default values
+            if 'order_status' in self.order_vars:
+                self.order_vars['order_status'].set("Pending")
+            if 'payment_method' in self.order_vars:
+                self.order_vars['payment_method'].set("Cash")
+            if 'due_date' in self.order_vars:
+                self.order_vars['due_date'].set(date.today().strftime("%Y-%m-%d"))
+                
+        except Exception as e:
+            print(f"Error clearing order form: {e}")
+    
+    def refresh_orders_table(self):
+        """Refresh the orders table with latest data"""
+        try:
+            # Clear existing data
+            for item in self.orders_tree.get_children():
+                self.orders_tree.delete(item)
+            
+            # Get orders from database
+            from data_service import DataService
+            data_service = DataService()
+            orders = data_service.get_all_orders()
+            
+            # Populate table
+            for order in orders:
+                order_id = order.get('order_id', 'N/A')
+                customer = order.get('customer_name', 'N/A')
+                phone = order.get('customer_phone', 'N/A')
+                item = order.get('item_name', 'N/A')
+                quantity = order.get('quantity', 0)
+                total_amount = order.get('total_amount', 0)
+                advance_paid = order.get('advance_payment', 0)
+                due_amount = order.get('due_amount', 0)
+                status = order.get('order_status', 'N/A')
+                due_date = order.get('due_date', 'N/A')
+                
+                # Insert with MongoDB ID as tag
+                mongo_id = str(order.get('_id', ''))
+                self.orders_tree.insert("", "end", values=(
+                    order_id, customer, phone, item, quantity,
+                    f"₹{total_amount:.2f}", f"₹{advance_paid:.2f}", f"₹{due_amount:.2f}",
+                    status, due_date
+                ), tags=(mongo_id,))
+                
+        except Exception as e:
+            self.show_status_message(f"Error loading orders: {str(e)}", "error")
+    
+    def on_order_selection(self, event):
+        """Handle order selection in the table"""
+        try:
+            selection = self.orders_tree.selection()
+            if selection:
+                item = self.orders_tree.item(selection[0])
+                values = item['values']
+                tags = self.orders_tree.item(selection[0], 'tags')
+                
+                # Store selected order info
+                self.selected_order_id = values[0]  # Order ID
+                self.selected_mongo_id = tags[0] if tags else None
+                
+                # Refresh the details view if currently showing details
+                if hasattr(self, 'current_details_tab'):
+                    self.switch_details_tab(self.current_details_tab)
+                    
+        except Exception as e:
+            print(f"Error handling order selection: {e}")
+    
+    def get_order_by_id(self, order_id):
+        """Get order data by order ID"""
+        try:
+            from data_service import DataService
+            data_service = DataService()
+            return data_service.get_order_by_id(order_id)
+        except Exception as e:
+            print(f"Error getting order data: {e}")
+            return None
+    
+    def add_payment_transaction(self):
+        """Add a new payment transaction for selected order"""
+        try:
+            if not hasattr(self, 'selected_order_id') or not self.selected_order_id:
+                self.show_status_message("Please select an order first", "warning")
+                return
+            
+            amount_str = self.payment_amount_var.get().strip()
+            if not amount_str:
+                self.show_status_message("Please enter payment amount", "warning")
+                return
+            
+            amount = float(amount_str)
+            if amount <= 0:
+                self.show_status_message("Payment amount must be greater than 0", "warning")
+                return
+            
+            # Create transaction data
+            transaction_data = {
+                'transaction_id': self.generate_transaction_id(),
+                'order_id': self.selected_order_id,
+                'payment_amount': amount,
+                'payment_date': date.today().strftime("%Y-%m-%d"),
+                'payment_method': self.payment_method_var.get(),
+                'transaction_type': 'payment',
+                'notes': f'Payment via {self.payment_method_var.get()}',
+                'created_date': datetime.now().isoformat()
+            }
+            
+            # Save transaction
+            from data_service import DataService
+            data_service = DataService()
+            result = data_service.add_transaction(transaction_data)
+            
+            if result:
+                # Update order's advance payment amount
+                order_data = self.get_order_by_id(self.selected_order_id)
+                if order_data:
+                    new_advance = order_data.get('advance_payment', 0) + amount
+                    new_due = order_data.get('total_amount', 0) - new_advance
+                    
+                    update_data = {
+                        'advance_payment': new_advance,
+                        'due_amount': new_due
+                    }
+                    
+                    # Update payment status if fully paid
+                    if new_due <= 0:
+                        update_data['order_status'] = 'Paid'
+                    
+                    data_service.update_order(self.selected_order_id, update_data)
+                
+                self.show_status_message(f"Payment of ₹{amount:.2f} added successfully!", "success")
+                
+                # Clear form and refresh
+                self.payment_amount_var.set("")
+                self.payment_method_var.set("Cash")
+                self.refresh_orders_table()
+                self.refresh_transactions_table()
+                
+                # Refresh payment summary if in payments tab
+                if hasattr(self, 'current_details_tab') and self.current_details_tab == "payments":
+                    self.switch_details_tab("payments")
+                    
+            else:
+                self.show_status_message("Failed to add payment", "error")
+                
+        except ValueError:
+            self.show_status_message("Please enter a valid numeric amount", "warning")
+        except Exception as e:
+            self.show_status_message(f"Error adding payment: {str(e)}", "error")
+    
+    def refresh_transactions_table(self):
+        """Refresh transactions table for selected order"""
+        try:
+            if not hasattr(self, 'transactions_tree'):
+                return
+                
+            # Clear existing data
+            for item in self.transactions_tree.get_children():
+                self.transactions_tree.delete(item)
+            
+            if not hasattr(self, 'selected_order_id') or not self.selected_order_id:
+                return
+            
+            # Get transactions for selected order
+            from data_service import DataService
+            data_service = DataService()
+            transactions = data_service.get_transactions_by_order(self.selected_order_id)
+            
+            # Populate table
+            for transaction in transactions:
+                trans_id = transaction.get('transaction_id', 'N/A')
+                trans_date = transaction.get('payment_date', 'N/A')
+                amount = transaction.get('payment_amount', 0)
+                method = transaction.get('payment_method', 'N/A')
+                notes = transaction.get('notes', 'N/A')
+                
+                self.transactions_tree.insert("", "end", values=(
+                    trans_id, trans_date, f"₹{amount:.2f}", method, notes
+                ))
+                
+        except Exception as e:
+            print(f"Error refreshing transactions: {e}")
+    
+    def refresh_all_transactions_table(self):
+        """Refresh all transactions table"""
+        try:
+            if not hasattr(self, 'all_transactions_tree'):
+                return
+                
+            # Clear existing data
+            for item in self.all_transactions_tree.get_children():
+                self.all_transactions_tree.delete(item)
+            
+            # Get all transactions
+            from data_service import DataService
+            data_service = DataService()
+            transactions = data_service.get_all_transactions_with_orders()
+            
+            # Populate table
+            for transaction in transactions:
+                trans_id = transaction.get('transaction_id', 'N/A')
+                order_id = transaction.get('order_id', 'N/A')
+                customer = transaction.get('customer_name', 'N/A')
+                trans_date = transaction.get('transaction_date', transaction.get('payment_date', 'N/A'))
+                # Fix amount field - use 'amount' not 'payment_amount'
+                amount = transaction.get('amount', 0)
+                method = transaction.get('payment_method', 'N/A')
+                order_status = transaction.get('order_status', 'N/A')
+                notes = transaction.get('notes', 'N/A')
+                
+                self.all_transactions_tree.insert("", "end", values=(
+                    trans_id, order_id, customer, trans_date, f"₹{amount:.2f}",
+                    method, order_status, notes
+                ))
+                
+        except Exception as e:
+            print(f"Error refreshing all transactions: {e}")
+    
+    def delete_selected_transaction(self):
+        """Delete the selected transaction"""
+        try:
+            # Get selected item
+            selected_item = self.all_transactions_tree.selection()
+            if not selected_item:
+                self.show_error_message("Please select a transaction to delete")
+                return
+            
+            # Get transaction details
+            values = self.all_transactions_tree.item(selected_item[0])['values']
+            if not values:
+                self.show_error_message("Unable to get transaction details")
+                return
+            
+            transaction_id = values[0]  # Transaction ID is first column
+            customer_name = values[2]   # Customer name is third column
+            amount = values[4]          # Amount is fifth column
+            
+            # Confirmation dialog
+            import tkinter as tk
+            from tkinter import messagebox
+            
+            confirm = messagebox.askyesno(
+                "Confirm Deletion",
+                f"Are you sure you want to delete this transaction?\n\n"
+                f"Transaction ID: {transaction_id}\n"
+                f"Customer: {customer_name}\n"
+                f"Amount: {amount}\n\n"
+                f"⚠️ This action cannot be undone!"
+            )
+            
+            if not confirm:
+                return
+            
+            # Delete from database
+            from data_service import DataService
+            data_service = DataService()
+            result = data_service.delete_transaction(transaction_id)
+            
+            if result.get('success'):
+                self.show_success_message(f"Transaction {transaction_id} deleted successfully!")
+                self.refresh_all_transactions_table()
+                
+                # Also refresh orders if needed
+                if hasattr(self, 'load_orders_data'):
+                    self.load_orders_data()
+                if hasattr(self, 'load_due_orders_data'):
+                    self.load_due_orders_data()
+            else:
+                self.show_error_message(f"Failed to delete transaction: {result.get('message', 'Unknown error')}")
+                
+        except Exception as e:
+            self.show_error_message(f"Error deleting transaction: {str(e)}")
+            print(f"Error in delete_selected_transaction: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def refresh_order_details_display(self):
+        """Refresh the order details display in payment collection page"""
+        try:
+            if hasattr(self, 'selected_payment_order') and self.selected_payment_order:
+                # Reload the order from database to get updated amounts
+                from data_service import DataService
+                data_service = DataService()
+                updated_order = data_service.get_order_by_id(self.selected_payment_order['order_id'])
+                
+                if updated_order:
+                    self.selected_payment_order = updated_order
+                    # Refresh the order details panel
+                    self.update_order_details_panel()
+                    
+        except Exception as e:
+            print(f"Error refreshing order details: {e}")
+    
+    def update_order_details_panel(self):
+        """Update the order details panel with current order data"""
+        try:
+            if hasattr(self, 'selected_payment_order') and self.selected_payment_order:
+                order = self.selected_payment_order
+                
+                # Update the order information displayed
+                if hasattr(self, 'order_details_frame'):
+                    # Clear existing details
+                    for widget in self.order_details_frame.winfo_children():
+                        widget.destroy()
+                    
+                    # Recreate the order details section
+                    self.create_order_details_section(self.order_details_frame, order)
+                    
+        except Exception as e:
+            print(f"Error updating order details panel: {e}")
+    
+    def change_order_due_date(self, order_data):
+        """Open dialog to change order due date"""
+        try:
+            import tkinter as tk
+            from tkinter import messagebox, ttk
+            from datetime import datetime, date
+            
+            # Create dialog window
+            dialog = tk.Toplevel()
+            dialog.title("📅 Change Due Date")
+            dialog.geometry("450x350")
+            dialog.resizable(False, False)
+            dialog.configure(bg="#f0f8ff")
+            dialog.grab_set()  # Make modal
+            
+            # Center the dialog
+            dialog.update_idletasks()
+            x = (dialog.winfo_screenwidth() // 2) - (dialog.winfo_width() // 2)
+            y = (dialog.winfo_screenheight() // 2) - (dialog.winfo_height() // 2)
+            dialog.geometry(f"+{x}+{y}")
+            
+            # Header
+            header_frame = tk.Frame(dialog, bg="#e3f2fd", height=60)
+            header_frame.pack(fill="x")
+            header_frame.pack_propagate(False)
+            
+            tk.Label(
+                header_frame,
+                text="📅 Change Due Date",
+                font=("Arial", 16, "bold"),
+                bg="#e3f2fd",
+                fg="#1565c0"
+            ).pack(pady=15)
+            
+            # Content frame
+            content_frame = tk.Frame(dialog, bg="#f0f8ff", padx=30, pady=20)
+            content_frame.pack(fill="both", expand=True)
+            
+            # Current order info
+            info_frame = tk.LabelFrame(content_frame, text="Order Information", font=("Arial", 12, "bold"), 
+                                     bg="#f0f8ff", fg="#333", padx=15, pady=10)
+            info_frame.pack(fill="x", pady=(0, 20))
+            
+            tk.Label(info_frame, text=f"Order ID: {order_data.get('order_id', 'N/A')}", 
+                    font=("Arial", 11), bg="#f0f8ff").pack(anchor="w", pady=2)
+            tk.Label(info_frame, text=f"Customer: {order_data.get('customer_name', 'N/A')}", 
+                    font=("Arial", 11), bg="#f0f8ff").pack(anchor="w", pady=2)
+            tk.Label(info_frame, text=f"Current Due Date: {order_data.get('due_date', 'N/A')}", 
+                    font=("Arial", 11, "bold"), bg="#f0f8ff", fg="#d32f2f").pack(anchor="w", pady=2)
+            
+            # New due date selection
+            date_frame = tk.LabelFrame(content_frame, text="New Due Date", font=("Arial", 12, "bold"), 
+                                     bg="#f0f8ff", fg="#333", padx=15, pady=10)
+            date_frame.pack(fill="x", pady=(0, 20))
+            
+            # Initialize variables
+            cal = None
+            date_var = tk.StringVar()
+            
+            # Try to use calendar widget, with enhanced fallback
+            try:
+                from tkcalendar import Calendar
+                import datetime as dt
+                
+                # Create calendar with full date selection
+                cal = Calendar(
+                    date_frame,
+                    selectmode='day',
+                    date_pattern='yyyy-mm-dd',
+                    mindate=dt.date.today(),  # Can't select past dates
+                    font=("Arial", 9),
+                    background="#1976d2",
+                    foreground="white",
+                    bordercolor="#1976d2",
+                    headersbackground="#0d47a1", 
+                    headersforeground="white",
+                    selectbackground="#4caf50",
+                    selectforeground="white",
+                    weekendbackground="#ffeb3b",
+                    weekendforeground="black"
+                )
+                cal.pack(pady=10, padx=10)
+                
+                # Instructions for calendar
+                tk.Label(
+                    date_frame, 
+                    text="📅 Click on a date to select it",
+                    font=("Arial", 10, "italic"), 
+                    bg="#f0f8ff", 
+                    fg="#666"
+                ).pack(pady=(5, 0))
+                
+            except ImportError:
+                # Enhanced fallback with date picker using dropdowns
+                tk.Label(date_frame, text="📅 Select New Due Date:", 
+                        font=("Arial", 11, "bold"), bg="#f0f8ff").pack(anchor="w", pady=(0, 10))
+                
+                # Date selection frame
+                date_select_frame = tk.Frame(date_frame, bg="#f0f8ff")
+                date_select_frame.pack(anchor="w", pady=(0, 10))
+                
+                # Get current date for defaults
+                from datetime import date, timedelta
+                today = date.today()
+                min_date = today + timedelta(days=1)  # Tomorrow as minimum
+                
+                # Year dropdown
+                tk.Label(date_select_frame, text="Year:", bg="#f0f8ff").grid(row=0, column=0, padx=(0, 5))
+                year_var = tk.StringVar(value=str(min_date.year))
+                year_combo = ttk.Combobox(date_select_frame, textvariable=year_var, width=8, state="readonly")
+                year_combo['values'] = [str(y) for y in range(today.year, today.year + 5)]
+                year_combo.grid(row=0, column=1, padx=(0, 15))
+                
+                # Month dropdown
+                tk.Label(date_select_frame, text="Month:", bg="#f0f8ff").grid(row=0, column=2, padx=(0, 5))
+                month_var = tk.StringVar(value=f"{min_date.month:02d}")
+                month_combo = ttk.Combobox(date_select_frame, textvariable=month_var, width=8, state="readonly")
+                month_combo['values'] = [f"{m:02d}" for m in range(1, 13)]
+                month_combo.grid(row=0, column=3, padx=(0, 15))
+                
+                # Day dropdown
+                tk.Label(date_select_frame, text="Day:", bg="#f0f8ff").grid(row=0, column=4, padx=(0, 5))
+                day_var = tk.StringVar(value=f"{min_date.day:02d}")
+                day_combo = ttk.Combobox(date_select_frame, textvariable=day_var, width=8, state="readonly")
+                day_combo['values'] = [f"{d:02d}" for d in range(1, 32)]
+                day_combo.grid(row=0, column=5)
+                
+                # Function to construct date from dropdowns
+                def get_manual_date():
+                    return f"{year_var.get()}-{month_var.get()}-{day_var.get()}"
+                
+                # Override the date variable to use dropdown values
+                date_var.get = get_manual_date
+            
+            # Buttons frame
+            button_frame = tk.Frame(content_frame, bg="#f0f8ff")
+            button_frame.pack(fill="x", pady=(10, 0))
+            
+            def save_new_date():
+                try:
+                    new_date = None
+                    
+                    if cal:
+                        # Using calendar widget
+                        new_date = cal.get_date()
+                        print(f"Date from calendar: {new_date}")
+                    else:
+                        # Using manual entry
+                        new_date = date_var.get().strip()
+                        print(f"Date from manual entry: {new_date}")
+                    
+                    if not new_date:
+                        messagebox.showerror("Error", "Please select or enter a date")
+                        return
+                    
+                    # Validate date format and ensure it's not in the past
+                    try:
+                        new_date_obj = datetime.strptime(str(new_date), "%Y-%m-%d").date()
+                        if new_date_obj < date.today():
+                            messagebox.showerror("Error", "Due date cannot be in the past")
+                            return
+                        new_date = new_date_obj.strftime("%Y-%m-%d")
+                    except ValueError:
+                        messagebox.showerror("Error", "Please enter a valid date in YYYY-MM-DD format")
+                        return
+                    
+                    print(f"Final validated date: {new_date}")
+                    
+                    # Update order in database
+                    from data_service import DataService
+                    data_service = DataService()
+                    
+                    update_data = {'due_date': new_date}
+                    result = data_service.update_order(order_data.get('order_id'), update_data)
+                    print(f"Database update result: {result}")
+                    
+                    if result and result > 0:
+                        # Update the order data
+                        order_data['due_date'] = new_date
+                        if hasattr(self, 'selected_payment_order'):
+                            self.selected_payment_order['due_date'] = new_date
+                        
+                        # Refresh the display
+                        self.update_payment_order_details(self.selected_payment_order if hasattr(self, 'selected_payment_order') else order_data)
+                        
+                        # Show success message
+                        self.show_success_message(f"✅ Due date updated to {new_date} successfully!")
+                        dialog.destroy()
+                    else:
+                        messagebox.showerror("Error", "Failed to update due date in database")
+                        
+                except Exception as e:
+                    print(f"Error in save_new_date: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    messagebox.showerror("Error", f"Error updating due date: {str(e)}")
+            
+            def cancel():
+                dialog.destroy()
+            
+            # Save button
+            save_btn = tk.Button(
+                button_frame,
+                text="💾 Save New Date",
+                command=save_new_date,
+                font=("Arial", 11, "bold"),
+                bg="#4caf50",
+                fg="white",
+                padx=20,
+                pady=8,
+                cursor="hand2"
+            )
+            save_btn.pack(side="left", padx=(0, 10))
+            
+            # Cancel button
+            cancel_btn = tk.Button(
+                button_frame,
+                text="❌ Cancel",
+                command=cancel,
+                font=("Arial", 11, "bold"),
+                bg="#f44336",
+                fg="white",
+                padx=20,
+                pady=8,
+                cursor="hand2"
+            )
+            cancel_btn.pack(side="left")
+            
+        except Exception as e:
+            self.show_error_message(f"Error opening change due date dialog: {str(e)}")
+            print(f"Error in change_order_due_date: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def edit_order(self, order_data):
+        """Edit selected order"""
+        try:
+            # Switch to new order form
+            self.show_new_order_form()
+            
+            # Populate form with existing data
+            self.order_vars['customer_name'].set(order_data.get('customer_name', ''))
+            self.order_vars['customer_phone'].set(order_data.get('customer_phone', ''))
+            self.order_vars['customer_address'].set(order_data.get('customer_address', ''))
+            self.order_vars['item_name'].set(order_data.get('item_name', ''))
+            self.order_vars['quantity'].set(str(order_data.get('quantity', '')))
+            self.order_vars['unit_price'].set(str(order_data.get('unit_price', '')))
+            self.order_vars['advance_payment'].set(str(order_data.get('advance_payment', '')))
+            self.order_vars['order_status'].set(order_data.get('order_status', 'Pending'))
+            self.order_vars['payment_method'].set(order_data.get('payment_method', 'Cash'))
+            self.order_vars['due_date'].set(order_data.get('due_date', ''))
+            
+            # Store editing state
+            self.editing_order_id = order_data.get('order_id')
+            self.editing_order_mongo_id = self.selected_mongo_id
+            
+            self.show_status_message("Order loaded for editing", "info")
+            
+        except Exception as e:
+            self.show_status_message(f"Error loading order for editing: {str(e)}", "error")
+    
+    def update_order_status(self, order_data):
+        """Update order status with a popup dialog"""
+        try:
+            import tkinter as tk
+            from tkinter import simpledialog
+            
+            current_status = order_data.get('order_status', 'Pending')
+            status_options = ["Pending", "Processing", "Ready", "Delivered", "Cancelled", "Paid"]
+            
+            # Create status selection dialog
+            dialog = tk.Toplevel()
+            dialog.title("Update Order Status")
+            dialog.geometry("300x200")
+            dialog.resizable(False, False)
+            dialog.grab_set()
+            
+            # Center the dialog
+            dialog.update_idletasks()
+            x = (dialog.winfo_screenwidth() // 2) - (300 // 2)
+            y = (dialog.winfo_screenheight() // 2) - (200 // 2)
+            dialog.geometry(f'300x200+{x}+{y}')
+            
+            tk.Label(dialog, text=f"Current Status: {current_status}", font=('Arial', 12, 'bold')).pack(pady=20)
+            tk.Label(dialog, text="Select New Status:", font=('Arial', 10)).pack(pady=(0, 10))
+            
+            selected_status = tk.StringVar(value=current_status)
+            
+            for status in status_options:
+                tk.Radiobutton(dialog, text=status, variable=selected_status, value=status).pack(anchor='w', padx=50)
+            
+            def update_status():
+                new_status = selected_status.get()
+                if new_status != current_status:
+                    from data_service import DataService
+                    data_service = DataService()
+                    result = data_service.update_order(order_data.get('order_id'), {'order_status': new_status})
+                    
+                    if result:
+                        self.show_status_message(f"Order status updated to {new_status}", "success")
+                        self.refresh_orders_table()
+                        # Refresh current view
+                        if hasattr(self, 'current_details_tab'):
+                            self.switch_details_tab(self.current_details_tab)
+                    else:
+                        self.show_status_message("Failed to update order status", "error")
+                
+                dialog.destroy()
+            
+            button_frame = tk.Frame(dialog)
+            button_frame.pack(side='bottom', pady=20)
+            
+            tk.Button(button_frame, text="Update", command=update_status, bg='#4CAF50', fg='white', width=10).pack(side='left', padx=5)
+            tk.Button(button_frame, text="Cancel", command=dialog.destroy, bg='#f44336', fg='white', width=10).pack(side='left', padx=5)
+            
+        except Exception as e:
+            self.show_status_message(f"Error updating order status: {str(e)}", "error")
+    
+    def delete_order(self, order_data):
+        """Delete selected order with confirmation"""
+        try:
+            import tkinter as tk
+            from tkinter import messagebox
+            
+            order_id = order_data.get('order_id')
+            customer_name = order_data.get('customer_name')
+            
+            # Confirm deletion
+            result = messagebox.askyesno(
+                "Confirm Deletion",
+                f"Are you sure you want to delete order {order_id} for {customer_name}?\n\nThis action cannot be undone.",
+                icon='warning'
+            )
+            
+            if result:
+                from data_service import DataService
+                data_service = DataService()
+                
+                # Delete related transactions first
+                data_service.delete_transactions_by_order(order_id)
+                
+                # Delete the order
+                delete_result = data_service.delete_order(order_id)
+                
+                if delete_result:
+                    self.show_status_message(f"Order {order_id} deleted successfully", "success")
+                    self.refresh_orders_table()
+                    
+                    # Clear selection and details
+                    if hasattr(self, 'selected_order_id'):
+                        self.selected_order_id = None
+                    self.switch_details_tab(self.current_details_tab)
+                else:
+                    self.show_status_message("Failed to delete order", "error")
+                    
+        except Exception as e:
+            self.show_status_message(f"Error deleting order: {str(e)}", "error")
     
     def edit_attendance_data(self, values, mongo_id):
         """Edit attendance specific data"""

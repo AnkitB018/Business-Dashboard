@@ -173,7 +173,7 @@ class MongoDBManager:
                 }
             }
             
-            # Sales collection schema
+            # Sales collection schema (legacy - kept for compatibility)
             sales_schema = {
                 "bsonType": "object",
                 "required": ["date", "item_name", "quantity", "unit_price"],
@@ -191,13 +191,55 @@ class MongoDBManager:
                 }
             }
             
+            # Orders collection schema (new system)
+            orders_schema = {
+                "bsonType": "object",
+                "required": ["order_id", "customer_name", "item_name", "quantity", "unit_price"],
+                "properties": {
+                    "order_id": {"bsonType": "string"},
+                    "customer_name": {"bsonType": "string"},
+                    "customer_phone": {"bsonType": "string"},
+                    "customer_address": {"bsonType": "string"},
+                    "item_name": {"bsonType": "string"},
+                    "quantity": {"bsonType": "number"},
+                    "unit_price": {"bsonType": "number"},
+                    "total_amount": {"bsonType": "number"},
+                    "advance_payment": {"bsonType": "number"},
+                    "due_amount": {"bsonType": "number"},
+                    "order_status": {"enum": ["Pending", "Processing", "Ready", "Delivered", "Cancelled", "Paid"]},
+                    "payment_method": {"enum": ["Cash", "Card", "UPI", "Bank Transfer", "Cheque"]},
+                    "order_date": {"bsonType": "string"},
+                    "due_date": {"bsonType": "string"},
+                    "created_date": {"bsonType": "string"},
+                    "updated_date": {"bsonType": "string"}
+                }
+            }
+            
+            # Transactions collection schema (new system)
+            transactions_schema = {
+                "bsonType": "object",
+                "required": ["transaction_id", "order_id", "payment_amount", "payment_date"],
+                "properties": {
+                    "transaction_id": {"bsonType": "string"},
+                    "order_id": {"bsonType": "string"},
+                    "payment_amount": {"bsonType": "number"},
+                    "payment_date": {"bsonType": "string"},
+                    "payment_method": {"enum": ["Cash", "Card", "UPI", "Bank Transfer", "Cheque"]},
+                    "transaction_type": {"enum": ["advance_payment", "payment", "refund"]},
+                    "notes": {"bsonType": "string"},
+                    "created_date": {"bsonType": "string"}
+                }
+            }
+            
             # Create collections with schemas
             collections_config = {
                 "employees": employees_schema,
                 "attendance": attendance_schema,
                 "stock": stock_schema,
                 "purchases": purchases_schema,
-                "sales": sales_schema
+                "sales": sales_schema,
+                "orders": orders_schema,
+                "transactions": transactions_schema
             }
             
             for collection_name, schema in collections_config.items():
@@ -237,10 +279,23 @@ class MongoDBManager:
             self.db.purchases.create_index("date")
             self.db.purchases.create_index("item_name")
             
-            # Sales indexes
+            # Sales indexes (legacy)
             self.db.sales.create_index("date")
             self.db.sales.create_index("item_name")
             self.db.sales.create_index("customer_phone")
+            
+            # Orders indexes (new system)
+            self.db.orders.create_index("order_id", unique=True)
+            self.db.orders.create_index("customer_phone")
+            self.db.orders.create_index("order_date")
+            self.db.orders.create_index("order_status")
+            self.db.orders.create_index("due_date")
+            
+            # Transactions indexes (new system)
+            self.db.transactions.create_index("transaction_id", unique=True)
+            self.db.transactions.create_index("order_id")
+            self.db.transactions.create_index("payment_date")
+            self.db.transactions.create_index("payment_method")
             
             logger.info("Indexes created successfully")
             
@@ -384,6 +439,39 @@ class MongoDBManager:
         except Exception as e:
             logger.error(f"Error deleting documents from {collection_name}: {e}")
             return 0
+    
+    def delete_document(self, collection_name: str, filter_dict: Dict) -> bool:
+        """
+        Delete a single document from specified collection
+        
+        Args:
+            collection_name: Name of the collection
+            filter_dict: Filter criteria
+            
+        Returns:
+            bool: True if document was deleted, False otherwise
+        """
+        try:
+            if self.db is None:
+                logger.error("Database connection not established")
+                return False
+                
+            result = self.db[collection_name].delete_one(filter_dict)
+            if result.deleted_count > 0:
+                logger.info(f"Deleted 1 document from {collection_name}")
+                return True
+            else:
+                logger.warning(f"No document found to delete from {collection_name}")
+                return False
+        except Exception as e:
+            logger.error(f"Error deleting document from {collection_name}: {e}")
+            return False
+    
+    def delete_many_documents(self, collection_name: str, filter_dict: Dict) -> int:
+        """
+        Alias for delete_documents method for consistency
+        """
+        return self.delete_documents(collection_name, filter_dict)
     
     def get_collection_as_dataframe(self, collection_name: str, filter_dict: Dict = None) -> pd.DataFrame:
         """

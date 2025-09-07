@@ -627,3 +627,205 @@ def get_hr_service() -> HRDataService:
     if hr_service is None:
         hr_service = HRDataService()
     return hr_service
+
+class DataService:
+    """Enhanced DataService with Orders and Transactions support"""
+    
+    def __init__(self):
+        self.db_manager = get_db_manager()
+        self.hr_service = get_hr_service()
+    
+    # ====== ORDERS MANAGEMENT ======
+    
+    def add_order(self, order_data):
+        """Add a new order to the database"""
+        try:
+            # Ensure order_date is set
+            if 'order_date' not in order_data:
+                order_data['order_date'] = date.today().strftime("%Y-%m-%d")
+            
+            # Add created timestamp
+            order_data['created_date'] = datetime.now().isoformat()
+            
+            result = self.db_manager.insert_document("orders", order_data)
+            return result
+        except Exception as e:
+            logger.error(f"Failed to add order: {str(e)}")
+            return None
+    
+    def get_all_orders(self):
+        """Get all orders from database"""
+        try:
+            orders = self.db_manager.find_documents("orders", {})
+            # Sort by created date, newest first
+            orders.sort(key=lambda x: x.get('created_date', ''), reverse=True)
+            return orders
+        except Exception as e:
+            logger.error(f"Failed to get orders: {str(e)}")
+            return []
+    
+    def get_order_by_id(self, order_id):
+        """Get specific order by order ID"""
+        try:
+            order = self.db_manager.find_documents("orders", {"order_id": order_id})
+            return order[0] if order else None
+        except Exception as e:
+            logger.error(f"Failed to get order {order_id}: {str(e)}")
+            return None
+    
+    def update_order(self, order_id, update_data):
+        """Update order data"""
+        try:
+            # Add updated timestamp
+            update_data['updated_date'] = datetime.now().isoformat()
+            
+            result = self.db_manager.update_document("orders", {"order_id": order_id}, update_data)
+            return result
+        except Exception as e:
+            logger.error(f"Failed to update order {order_id}: {str(e)}")
+            return None
+    
+    def delete_order(self, order_id):
+        """Delete order by order ID"""
+        try:
+            result = self.db_manager.delete_document("orders", {"order_id": order_id})
+            return result
+        except Exception as e:
+            logger.error(f"Failed to delete order {order_id}: {str(e)}")
+            return None
+    
+    # ====== TRANSACTIONS MANAGEMENT ======
+    
+    def add_transaction(self, transaction_data):
+        """Add a new transaction to the database"""
+        try:
+            # Ensure payment_date is set
+            if 'payment_date' not in transaction_data:
+                transaction_data['payment_date'] = date.today().strftime("%Y-%m-%d")
+            
+            # Add created timestamp
+            transaction_data['created_date'] = datetime.now().isoformat()
+            
+            result = self.db_manager.insert_document("transactions", transaction_data)
+            return result
+        except Exception as e:
+            logger.error(f"Failed to add transaction: {str(e)}")
+            return None
+    
+    def get_transactions_by_order(self, order_id):
+        """Get all transactions for a specific order"""
+        try:
+            transactions = self.db_manager.find_documents("transactions", {"order_id": order_id})
+            # Sort by payment date
+            transactions.sort(key=lambda x: x.get('payment_date', ''), reverse=True)
+            return transactions
+        except Exception as e:
+            logger.error(f"Failed to get transactions for order {order_id}: {str(e)}")
+            return []
+    
+    def get_all_transactions_with_orders(self):
+        """Get all transactions with order information - OPTIMIZED"""
+        try:
+            # Get all transactions and orders in bulk
+            transactions = self.db_manager.find_documents("transactions", {})
+            all_orders = self.db_manager.find_documents("orders", {})
+            
+            # Create a lookup dictionary for orders by order_id for O(1) access
+            orders_dict = {order.get('order_id'): order for order in all_orders}
+            
+            # Enrich transactions with order information
+            enriched_transactions = []
+            for transaction in transactions:
+                order_id = transaction.get('order_id')
+                if order_id and order_id in orders_dict:
+                    order = orders_dict[order_id]
+                    # Merge transaction and order data
+                    enriched_transaction = transaction.copy()
+                    enriched_transaction['customer_name'] = order.get('customer_name', 'N/A')
+                    enriched_transaction['order_status'] = order.get('order_status', 'N/A')
+                    enriched_transactions.append(enriched_transaction)
+                else:
+                    # Include transactions without orders but mark them
+                    enriched_transaction = transaction.copy()
+                    enriched_transaction['customer_name'] = 'Unknown'
+                    enriched_transaction['order_status'] = 'N/A'
+                    enriched_transactions.append(enriched_transaction)
+            
+            # Sort by creation timestamp (newest first), fallback to payment_date if created_date not available
+            enriched_transactions.sort(key=lambda x: x.get('created_date', x.get('payment_date', '')), reverse=True)
+            return enriched_transactions
+        except Exception as e:
+            logger.error(f"Failed to get transactions with orders: {str(e)}")
+            return []
+    
+    def delete_transaction(self, transaction_id):
+        """Delete a transaction by ID"""
+        try:
+            result = self.db_manager.delete_document("transactions", {"transaction_id": transaction_id})
+            if result and result.deleted_count > 0:
+                logger.info(f"Transaction {transaction_id} deleted successfully")
+                return {"success": True, "message": "Transaction deleted successfully"}
+            else:
+                logger.warning(f"Transaction {transaction_id} not found for deletion")
+                return {"success": False, "message": "Transaction not found"}
+        except Exception as e:
+            logger.error(f"Failed to delete transaction {transaction_id}: {str(e)}")
+            return {"success": False, "message": f"Error deleting transaction: {str(e)}"}
+    
+    def delete_transactions_by_order(self, order_id):
+        """Delete all transactions for a specific order"""
+        try:
+            result = self.db_manager.delete_many_documents("transactions", {"order_id": order_id})
+            return result
+        except Exception as e:
+            logger.error(f"Failed to delete transactions for order {order_id}: {str(e)}")
+            return None
+    
+    # ====== LEGACY SALES METHODS (for backward compatibility) ======
+    
+    def add_sale(self, sale_data):
+        """Legacy method - redirects to add_order for compatibility"""
+        # Convert legacy sale format to order format
+        order_data = {
+            'order_id': f"ORD{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            'customer_name': sale_data.get('customer', 'Walk-in Customer'),
+            'customer_phone': '',
+            'customer_address': '',
+            'item_name': sale_data.get('item_name', ''),
+            'quantity': sale_data.get('quantity', 0),
+            'unit_price': sale_data.get('price_per_unit', 0),
+            'total_amount': sale_data.get('quantity', 0) * sale_data.get('price_per_unit', 0),
+            'advance_payment': sale_data.get('quantity', 0) * sale_data.get('price_per_unit', 0),  # Full payment
+            'due_amount': 0,
+            'order_status': 'Delivered',
+            'payment_method': 'Cash',
+            'due_date': sale_data.get('date', date.today().strftime("%Y-%m-%d")),
+            'order_date': sale_data.get('date', date.today().strftime("%Y-%m-%d"))
+        }
+        
+        return self.add_order(order_data)
+    
+    def get_sales(self, query=None):
+        """Legacy method - returns orders as sales for compatibility"""
+        try:
+            if query is None:
+                query = {}
+            orders = self.db_manager.find_documents("orders", query)
+            
+            # Convert orders to legacy sales format
+            sales = []
+            for order in orders:
+                sale = {
+                    'item_name': order.get('item_name', ''),
+                    'quantity': order.get('quantity', 0),
+                    'price_per_unit': order.get('unit_price', 0),
+                    'customer': order.get('customer_name', ''),
+                    'date': order.get('order_date', ''),
+                    '_id': order.get('_id')
+                }
+                sales.append(sale)
+            
+            return sales
+        except Exception as e:
+            logger.error(f"Failed to get sales: {str(e)}")
+            return []
