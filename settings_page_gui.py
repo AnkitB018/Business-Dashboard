@@ -131,6 +131,8 @@ class SettingsPageGUI:
         # Show selected tab frame
         if tab_id == "database":
             self.db_frame.pack(fill="both", expand=True, padx=20, pady=20)
+            # Refresh storage display when database tab is shown
+            self.parent.after(100, self.update_storage_display)  # Small delay to ensure UI is ready
         elif tab_id == "appearance":
             self.appearance_frame.pack(fill="both", expand=True, padx=20, pady=20)
         elif tab_id == "data":
@@ -298,6 +300,53 @@ class SettingsPageGUI:
                      command=self.build_connection_string, state="disabled")
         self.build_string_button.pack(anchor="w", padx=10, pady=10)
         
+        # Storage Usage Section
+        storage_frame = ctk.CTkFrame(main_container)
+        storage_frame.pack(fill="x", padx=20, pady=15)
+        
+        ctk.CTkLabel(storage_frame, text="💾 Database Storage Usage", 
+                    font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(15, 10))
+        
+        # Storage info container
+        storage_info_frame = ctk.CTkFrame(storage_frame)
+        storage_info_frame.pack(fill="x", padx=10, pady=10)
+        
+        # Storage progress bar with label
+        storage_label_frame = ctk.CTkFrame(storage_info_frame, fg_color="transparent")
+        storage_label_frame.pack(fill="x", padx=10, pady=10)
+        
+        self.storage_usage_label = ctk.CTkLabel(
+            storage_label_frame,
+            text="Loading storage information...",
+            font=ctk.CTkFont(size=14)
+        )
+        self.storage_usage_label.pack(anchor="w")
+        
+        # Progress bar
+        self.storage_progress_bar = ctk.CTkProgressBar(
+            storage_info_frame,
+            width=400,
+            height=20,
+            corner_radius=10
+        )
+        self.storage_progress_bar.pack(fill="x", padx=10, pady=(5, 15))
+        self.storage_progress_bar.set(0)
+        
+        # Detailed storage info
+        self.storage_details_frame = ctk.CTkFrame(storage_info_frame)
+        self.storage_details_frame.pack(fill="x", padx=10, pady=(0, 15))
+        
+        # Storage details will be populated by update_storage_display method
+        
+        # Refresh storage button
+        refresh_storage_button = ctk.CTkButton(
+            storage_frame,
+            text="🔄 Refresh Storage Info",
+            command=self.update_storage_display,
+            width=200
+        )
+        refresh_storage_button.pack(pady=10)
+        
         # Action buttons
         button_frame = ctk.CTkFrame(main_container)
         button_frame.pack(fill="x", pady=20)
@@ -321,6 +370,9 @@ class SettingsPageGUI:
         
         # Load current settings on startup
         self.load_current_settings()
+        
+        # Update storage display on startup
+        self.update_storage_display()
         
     def setup_appearance_settings_content(self):
         """Setup appearance settings tab content"""
@@ -538,8 +590,6 @@ class SettingsPageGUI:
                      command=lambda: self.export_data_to_excel("employees")).pack(side="left", padx=5)
         ctk.CTkButton(backup_button_frame, text="Export Attendance", 
                      command=lambda: self.export_data_to_excel("attendance")).pack(side="left", padx=5)
-        ctk.CTkButton(backup_button_frame, text="Export Stock", 
-                     command=lambda: self.export_data_to_excel("stock")).pack(side="left", padx=5)
         ctk.CTkButton(backup_button_frame, text="Export Sales", 
                      command=lambda: self.export_data_to_excel("sales")).pack(side="left", padx=5)
         ctk.CTkButton(backup_button_frame, text="Export Purchases", 
@@ -567,8 +617,6 @@ class SettingsPageGUI:
                      command=lambda: self.import_data_from_excel("employees")).pack(side="left", padx=5)
         ctk.CTkButton(import_button_frame, text="Import Attendance", 
                      command=lambda: self.import_data_from_excel("attendance")).pack(side="left", padx=5)
-        ctk.CTkButton(import_button_frame, text="Import Stock", 
-                     command=lambda: self.import_data_from_excel("stock")).pack(side="left", padx=5)
         ctk.CTkButton(import_button_frame, text="Import Sales", 
                      command=lambda: self.import_data_from_excel("sales")).pack(side="left", padx=5)
         ctk.CTkButton(import_button_frame, text="Import Purchases", 
@@ -592,9 +640,6 @@ class SettingsPageGUI:
                      fg_color="red", hover_color="dark red").pack(side="left", padx=5)
         ctk.CTkButton(reset_button_frame, text="Clear Attendance", 
                      command=lambda: self.clear_collection("attendance"),
-                     fg_color="red", hover_color="dark red").pack(side="left", padx=5)
-        ctk.CTkButton(reset_button_frame, text="Clear Stock", 
-                     command=lambda: self.clear_collection("stock"),
                      fg_color="red", hover_color="dark red").pack(side="left", padx=5)
         
         # Complete reset button
@@ -804,6 +849,92 @@ Last Updated: August 2025"""
         except Exception as e:
             self.db_status_label.configure(text=f"❌ Error loading settings: {str(e)}", text_color="red")
             logger.error(f"Error loading settings: {e}")
+    
+    def update_storage_display(self):
+        """Update the storage usage display in settings"""
+        try:
+            if self.data_service:
+                storage_info = self.data_service.get_storage_usage()
+                
+                usage_percentage = storage_info.get('usage_percentage', 0)
+                total_size_mb = storage_info.get('total_size_mb', 0)
+                data_size_mb = storage_info.get('data_size_mb', 0)
+                index_size_mb = storage_info.get('index_size_mb', 0)
+                limit_mb = storage_info.get('limit_mb', 512)
+                remaining_mb = storage_info.get('remaining_mb', 0)
+                is_atlas = storage_info.get('is_atlas', True)
+                database_name = storage_info.get('database_name', 'Unknown')
+                
+                # Update main label
+                if 'error' in storage_info:
+                    self.storage_usage_label.configure(
+                        text=f"❌ Error getting storage info: {storage_info['error']}",
+                        text_color="red"
+                    )
+                else:
+                    self.storage_usage_label.configure(
+                        text=f"Database: {database_name} - Storage Usage: {usage_percentage}% ({total_size_mb:.1f}MB / {limit_mb:.0f}MB)",
+                        text_color="black"
+                    )
+                
+                # Update progress bar
+                self.storage_progress_bar.set(usage_percentage / 100)
+                
+                # Set color based on usage
+                if usage_percentage > 80:
+                    color = "#EF4444"  # Red
+                elif usage_percentage > 60:
+                    color = "#F59E0B"  # Orange
+                else:
+                    color = "#10B981"  # Green
+                
+                self.storage_progress_bar.configure(progress_color=color)
+                
+                # Clear and update detailed storage info
+                for widget in self.storage_details_frame.winfo_children():
+                    widget.destroy()
+                
+                details = [
+                    f"📊 Data Size: {data_size_mb:.2f} MB",
+                    f"🗂️ Index Size: {index_size_mb:.2f} MB", 
+                    f"💾 Total Used: {total_size_mb:.2f} MB",
+                    f"📉 Remaining: {remaining_mb:.2f} MB",
+                    f"🌐 Atlas Free Tier: {'Yes' if is_atlas else 'No'}"
+                ]
+                
+                for i, detail in enumerate(details):
+                    label = ctk.CTkLabel(
+                        self.storage_details_frame,
+                        text=detail,
+                        font=ctk.CTkFont(size=12),
+                        anchor="w"
+                    )
+                    label.grid(row=i//2, column=i%2, sticky="w", padx=10, pady=5)
+                
+                # Add warning if usage is high
+                if usage_percentage > 80:
+                    warning_label = ctk.CTkLabel(
+                        self.storage_details_frame,
+                        text="⚠️ WARNING: Storage usage is high! Consider cleaning up data.",
+                        font=ctk.CTkFont(size=12, weight="bold"),
+                        text_color="red"
+                    )
+                    warning_label.grid(row=3, column=0, columnspan=2, sticky="w", padx=10, pady=10)
+            
+            else:
+                self.storage_usage_label.configure(
+                    text="❌ Data service not available",
+                    text_color="red"
+                )
+                self.storage_progress_bar.set(0)
+                
+        except Exception as e:
+            logger.error(f"Error updating storage display: {e}")
+            self.storage_usage_label.configure(
+                text=f"❌ Error: {str(e)}",
+                text_color="red"
+            )
+            self.storage_progress_bar.set(0)
     
     def toggle_edit_mode(self):
         """Toggle edit mode for database settings"""
@@ -1169,9 +1300,6 @@ DEBUG_MODE=True
             elif collection_name == "attendance":
                 data_df = self.data_service.get_attendance()
                 data = data_df.to_dict('records') if not data_df.empty else []
-            elif collection_name == "stock":
-                data_df = self.data_service.get_stock()
-                data = data_df.to_dict('records') if not data_df.empty else []
             elif collection_name == "sales":
                 data_df = self.data_service.get_sales()
                 data = data_df.to_dict('records') if not data_df.empty else []
@@ -1216,7 +1344,7 @@ DEBUG_MODE=True
                 backup_folder = os.path.join(directory, f"hr_backup_{timestamp}")
                 os.makedirs(backup_folder, exist_ok=True)
                 
-                collections = ["employees", "attendance", "stock", "sales", "purchases"]
+                collections = ["employees", "attendance", "sales", "purchases"]
                 
                 for collection in collections:
                     try:
@@ -1227,9 +1355,6 @@ DEBUG_MODE=True
                             data = data_df.to_dict('records') if not data_df.empty else []
                         elif collection == "attendance":
                             data_df = self.data_service.get_attendance()
-                            data = data_df.to_dict('records') if not data_df.empty else []
-                        elif collection == "stock":
-                            data_df = self.data_service.get_stock()
                             data = data_df.to_dict('records') if not data_df.empty else []
                         elif collection == "sales":
                             data_df = self.data_service.get_sales()
@@ -1286,9 +1411,6 @@ DEBUG_MODE=True
                         elif collection_name == "attendance":
                             if self.data_service.add_attendance(record):
                                 success_count += 1
-                        elif collection_name == "stock":
-                            if self.data_service.add_stock_item(record):
-                                success_count += 1
                         elif collection_name == "sales":
                             if self.data_service.add_sale(record):
                                 success_count += 1
@@ -1321,8 +1443,6 @@ DEBUG_MODE=True
                     result = self.data_service.db_manager.clear_collection("employees")
                 elif collection_name == "attendance":
                     result = self.data_service.db_manager.clear_collection("attendance")
-                elif collection_name == "stock":
-                    result = self.data_service.db_manager.clear_collection("stock")
                 elif collection_name == "sales":
                     result = self.data_service.db_manager.clear_collection("sales")
                 elif collection_name == "purchases":
@@ -1350,9 +1470,9 @@ DEBUG_MODE=True
                                   "⚠️ WARNING: This will delete ALL data in the database!\n\nAre you absolutely sure?"):
                 
                 if messagebox.askyesno("Final Confirmation", 
-                                      "This is your final warning!\n\nAll employees, attendance, stock, sales, and purchase data will be permanently deleted.\n\nContinue?"):
+                                      "This is your final warning!\n\nAll employees, attendance, sales, and purchase data will be permanently deleted.\n\nContinue?"):
                     
-                    collections = ["employees", "attendance", "stock", "sales", "purchases"]
+                    collections = ["employees", "attendance", "sales", "purchases"]
                     
                     for collection in collections:
                         try:
@@ -1379,8 +1499,6 @@ DEBUG_MODE=True
             employees_count = len(employees_df) if not employees_df.empty else 0
             attendance_df = self.data_service.get_attendance()
             attendance_count = len(attendance_df) if not attendance_df.empty else 0
-            stock_df = self.data_service.get_stock()
-            stock_count = len(stock_df) if not stock_df.empty else 0
             sales_df = self.data_service.get_sales()
             sales_count = len(sales_df) if not sales_df.empty else 0
             purchases_df = self.data_service.get_purchases()
@@ -1389,7 +1507,6 @@ DEBUG_MODE=True
             stats_text = f"""Database Statistics:
 • Employees: {employees_count} records
 • Attendance: {attendance_count} records  
-• Stock Items: {stock_count} items
 • Sales Records: {sales_count} transactions
 • Purchase Records: {purchases_count} transactions
 

@@ -31,7 +31,6 @@ class DataMigration:
             migration_mapping = {
                 "Employees": self._migrate_employees,
                 "Attendance": self._migrate_attendance,
-                "Stock": self._migrate_stock,
                 "Purchases": self._migrate_purchases,
                 "Sales": self._migrate_sales
             }
@@ -126,39 +125,6 @@ class DataMigration:
             return True
         except Exception as e:
             logger.error(f"Error migrating attendance: {e}")
-            return False
-    
-    def _migrate_stock(self, df: pd.DataFrame) -> bool:
-        """Migrate stock data"""
-        try:
-            for _, row in df.iterrows():
-                stock_doc = {
-                    "item_name": str(row.get("Item Name", "")),
-                    "category": str(row.get("Category", "")),
-                    "current_quantity": float(row.get("Current Quantity", 0)) if pd.notna(row.get("Current Quantity")) else 0,
-                    "unit_cost_average": float(row.get("Unit Cost on Average", 0)) if pd.notna(row.get("Unit Cost on Average")) else 0,
-                    "minimum_stock": 10  # Default minimum stock
-                }
-                
-                # Check if item already exists
-                existing = self.db_manager.find_documents(
-                    "stock", 
-                    {"item_name": stock_doc["item_name"]}
-                )
-                
-                if not existing:
-                    self.db_manager.insert_document("stock", stock_doc)
-                else:
-                    # Update existing stock
-                    self.db_manager.update_document(
-                        "stock",
-                        {"item_name": stock_doc["item_name"]},
-                        stock_doc
-                    )
-            
-            return True
-        except Exception as e:
-            logger.error(f"Error migrating stock: {e}")
             return False
     
     def _migrate_purchases(self, df: pd.DataFrame) -> bool:
@@ -417,35 +383,15 @@ class HRDataService:
             dashboard_logger.log_data_operation("update_attendance", "attendance", 0, False, e)
             raise
     
-    # Stock operations
-    def get_stock(self, filter_dict: Dict = None) -> pd.DataFrame:
-        """Get stock as DataFrame"""
-        return self.db_manager.get_collection_as_dataframe("stock", filter_dict)
-    
-    def update_stock(self, item_name: str, update_data: Dict) -> int:
-        """Update stock data"""
-        return self.db_manager.update_document("stock", {"item_name": item_name}, update_data)
-    
-    def add_stock_item(self, stock_data: Dict) -> str:
-        """Add new stock item"""
-        return self.db_manager.insert_document("stock", stock_data)
-    
-    def delete_stock_item(self, item_name: str) -> int:
-        """Delete stock item"""
-        return self.db_manager.delete_documents("stock", {"item_name": item_name})
-    
     # Purchase operations
     def get_purchases(self, filter_dict: Dict = None) -> pd.DataFrame:
         """Get purchases as DataFrame"""
         return self.db_manager.get_collection_as_dataframe("purchases", filter_dict)
     
     def add_purchase(self, purchase_data: Dict) -> str:
-        """Add purchase and update stock"""
+        """Add purchase record"""
         # Add purchase record
         purchase_id = self.db_manager.insert_document("purchases", purchase_data)
-        
-        # Update stock
-        self._update_stock_after_purchase(purchase_data)
         
         return purchase_id
     
@@ -476,11 +422,6 @@ class HRDataService:
                 log_info(f"Purchase updated successfully: {purchase_id}", "DATA_SERVICE")
                 dashboard_logger.log_user_activity("PURCHASE_UPDATE_SUCCESS", {"purchase_id": purchase_id, "updated_count": result})
                 dashboard_logger.log_data_operation("update_purchase", "purchases", result, True)
-                
-                # Update stock after purchase modification if needed
-                if any(key in purchase_data for key in ['item_name', 'quantity', 'unit_price']):
-                    # You might want to implement stock adjustment logic here
-                    pass
             else:
                 log_error(Exception("Update operation failed"), "DATA_SERVICE")
                 dashboard_logger.log_user_activity("PURCHASE_UPDATE_FAILED", {"purchase_id": purchase_id, "reason": "update_failed"})
@@ -494,58 +435,15 @@ class HRDataService:
             dashboard_logger.log_data_operation("update_purchase", "purchases", 0, False, e)
             raise
     
-    def _update_stock_after_purchase(self, purchase_data: Dict):
-        """Update stock quantities after purchase"""
-        item_name = purchase_data["item_name"]
-        quantity = purchase_data["quantity"]
-        unit_price = purchase_data["unit_price"]
-        
-        # Check if item exists in stock
-        existing_stock = self.db_manager.find_documents("stock", {"item_name": item_name})
-        
-        if existing_stock:
-            # Update existing stock
-            current_stock = existing_stock[0]
-            old_qty = current_stock["current_quantity"]
-            old_cost = current_stock.get("unit_cost_average", unit_price)
-            
-            new_qty = old_qty + quantity
-            new_cost = ((old_qty * old_cost) + (quantity * unit_price)) / new_qty
-            
-            update_data = {
-                "current_quantity": new_qty,
-                "unit_cost_average": new_cost,
-                "total_value": new_qty * new_cost,
-                "last_updated": datetime.now()
-            }
-            
-            self.db_manager.update_document("stock", {"item_name": item_name}, update_data)
-        else:
-            # Create new stock entry
-            stock_data = {
-                "item_name": item_name,
-                "category": purchase_data.get("category", "General"),
-                "current_quantity": quantity,
-                "unit_cost_average": unit_price,
-                "supplier": purchase_data.get("supplier", "Unknown"),
-                "total_value": quantity * unit_price,
-                "last_updated": datetime.now()
-            }
-            
-            self.db_manager.insert_document("stock", stock_data)
-    
     # Sales operations
     def get_sales(self, filter_dict: Dict = None) -> pd.DataFrame:
         """Get sales as DataFrame"""
         return self.db_manager.get_collection_as_dataframe("sales", filter_dict)
     
     def add_sale(self, sale_data: Dict) -> str:
-        """Add sale and update stock"""
+        """Add sale record"""
         # Add sale record
         sale_id = self.db_manager.insert_document("sales", sale_data)
-        
-        # Update stock
-        self._update_stock_after_sale(sale_data)
         
         return sale_id
     
@@ -594,29 +492,62 @@ class HRDataService:
             dashboard_logger.log_data_operation("update_sale", "sales", 0, False, e)
             raise
     
-    def _update_stock_after_sale(self, sale_data: Dict):
-        """Update stock quantities after sale"""
-        item_name = sale_data["item_name"]
-        quantity = sale_data["quantity"]
-        
-        # Check if item exists in stock
-        existing_stock = self.db_manager.find_documents("stock", {"item_name": item_name})
-        
-        if existing_stock:
-            current_stock = existing_stock[0]
-            old_qty = current_stock["current_quantity"]
-            new_qty = max(0, old_qty - quantity)  # Prevent negative stock
-            
-            unit_cost = current_stock.get("unit_cost_average", 0)
-            
-            update_data = {
-                "current_quantity": new_qty,
-                "total_value": new_qty * unit_cost,
-                "last_updated": datetime.now()
-            }
-            
-            self.db_manager.update_document("stock", {"item_name": item_name}, update_data)
 
+    
+    # Database utilities
+    def get_storage_usage(self) -> Dict:
+        """Get MongoDB storage usage information"""
+        try:
+            database = self.db_manager.db
+            
+            # Get database stats
+            stats = database.command('dbStats')
+            
+            # Calculate usage
+            storage_size_mb = round(stats['storageSize'] / (1024*1024), 2)
+            data_size_mb = round(stats['dataSize'] / (1024*1024), 2) 
+            index_size_mb = round(stats['indexSize'] / (1024*1024), 2)
+            total_size_mb = round((stats['storageSize'] + stats['indexSize']) / (1024*1024), 2)
+            
+            # Check if this is Atlas (free tier has 512MB limit)
+            host_info = str(database.client.address)
+            is_atlas = 'mongodb.net' in host_info or 'atlas' in host_info.lower()
+            
+            if is_atlas:
+                limit_mb = 512.0
+                usage_percentage = min(100, round((total_size_mb / limit_mb) * 100, 1))
+                remaining_mb = max(0, limit_mb - total_size_mb)
+            else:
+                # Local MongoDB - assume large limit for display
+                limit_mb = 10000.0  # 10GB assumption for local
+                usage_percentage = min(100, round((total_size_mb / limit_mb) * 100, 1))
+                remaining_mb = limit_mb - total_size_mb
+            
+            return {
+                'storage_size_mb': storage_size_mb,
+                'data_size_mb': data_size_mb,
+                'index_size_mb': index_size_mb,
+                'total_size_mb': total_size_mb,
+                'limit_mb': limit_mb,
+                'usage_percentage': usage_percentage,
+                'remaining_mb': remaining_mb,
+                'is_atlas': is_atlas,
+                'database_name': database.name
+            }
+        except Exception as e:
+            logger.error(f"Error getting storage usage: {e}")
+            return {
+                'storage_size_mb': 0,
+                'data_size_mb': 0,
+                'index_size_mb': 0,
+                'total_size_mb': 0,
+                'limit_mb': 512,
+                'usage_percentage': 0,
+                'remaining_mb': 512,
+                'is_atlas': True,
+                'database_name': 'Unknown',
+                'error': str(e)
+            }
 
 # Singleton instance
 hr_service = None

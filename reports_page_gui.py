@@ -42,16 +42,14 @@ class ModernReportsPageGUI:
             'dark': '#1E293B',         # Dark gray
         }
         
-        # Attendance color mapping
+        # Attendance color mapping - Simplified color scheme
         self.attendance_colors = {
             'Present': '#10B981',      # Green
-            'Absent': '#EF4444',       # Red
-            'Late': '#F59E0B',         # Orange
-            'Half Day': '#84CC16',     # Light Green
-            'Leave': '#8B5CF6',        # Purple
-            'Overtime': '#06B6D4',     # Cyan
-            'Remote Work': '#EC4899',  # Pink
-            'Work from Home': '#EC4899'  # Pink (alias)
+            'Absent': '#EF4444',       # Red  
+            'Leave': '#F59E0B',        # Yellow/Orange
+            'Overtime': '#065F46',     # Dark Green
+            'Future': '#FFFFFF',       # White for future dates
+            'No Data': '#D1D5DB'       # Light Gray for no data
         }
         
         # Set matplotlib style
@@ -139,17 +137,23 @@ class ModernReportsPageGUI:
         self.tabview = ctk.CTkTabview(tab_container, corner_radius=8)
         self.tabview.pack(fill="both", expand=True, padx=15, pady=15)
         
+        # Bind tab change events manually since command parameter might not be supported
+        def on_tab_select(event=None):
+            self.on_tab_changed()
+        
+        # Use after_idle to check for tab changes
+        self.last_tab = None
+        self.parent.after(100, self.check_tab_changes)
+        
         # Add tabs
         self.tabview.add("📅 Attendance Calendar")
         self.tabview.add("👥 Employee Analytics") 
         self.tabview.add("💰 Financial Reports")
-        self.tabview.add("📦 Inventory Dashboard")
         
         # Create tab content
         self.create_attendance_tab()
         self.create_employee_tab()
         self.create_financial_tab()
-        self.create_inventory_tab()
         
         # Set default tab
         self.tabview.set("📅 Attendance Calendar")
@@ -164,6 +168,19 @@ class ModernReportsPageGUI:
         
         # Configure improved scroll speed
         self.configure_scroll_speed(main_container)
+        
+        # Generate Attendance Report button at the top
+        generate_btn = ctk.CTkButton(
+            main_container,
+            text="📅 Generate Attendance Report",
+            command=self.generate_attendance_reports,
+            height=50,
+            width=300,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=self.colors['primary'],
+            hover_color=self.darken_color(self.colors['primary'])
+        )
+        generate_btn.pack(pady=(10, 20))
         
         # Employee selection section
         selection_frame = ctk.CTkFrame(main_container, height=100, corner_radius=8)
@@ -314,31 +331,6 @@ class ModernReportsPageGUI:
         # Charts container
         self.financial_charts_frame = ctk.CTkFrame(container, corner_radius=8)
         self.financial_charts_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        
-    def create_inventory_tab(self):
-        """Create inventory dashboard tab"""
-        tab_frame = self.tabview.tab("📦 Inventory Dashboard")
-        
-        # Create scrollable container
-        container = ctk.CTkScrollableFrame(tab_frame, corner_radius=8)
-        container.pack(fill="both", expand=True, padx=10, pady=10)
-        
-        # Configure improved scroll speed
-        self.configure_scroll_speed(container)
-        
-        # Generate button
-        generate_btn = ctk.CTkButton(
-            container,
-            text="📦 Generate Inventory Reports",
-            command=self.generate_inventory_reports,
-            height=50,
-            font=ctk.CTkFont(size=14, weight="bold")
-        )
-        generate_btn.pack(pady=20)
-        
-        # Charts container
-        self.inventory_charts_frame = ctk.CTkFrame(container, corner_radius=8)
-        self.inventory_charts_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
     def get_employee_list(self):
         """Get list of employees for dropdown"""
@@ -614,26 +606,66 @@ class ModernReportsPageGUI:
                 else:
                     # Check attendance status for this day
                     day_date = date(year, month, day)
-                    status = attendance_lookup.get(day_date, "No Data")
+                    today = date.today()
+                    
+                    # Determine status
+                    if day_date > today:
+                        # Future date
+                        status = "Future"
+                    else:
+                        # Past or current date - check attendance
+                        raw_status = attendance_lookup.get(day_date, "No Data")
+                        
+                        # Map old statuses to new simplified system
+                        status_mapping = {
+                            'Present': 'Present',
+                            'Absent': 'Absent', 
+                            'Leave': 'Leave',
+                            'Overtime': 'Overtime',
+                            'Late': 'Present',           # Map Late to Present
+                            'Half Day': 'Present',       # Map Half Day to Present
+                            'Remote Work': 'Present',    # Map Remote Work to Present
+                            'Work from Home': 'Present', # Map WFH to Present
+                            'No Data': 'No Data'
+                        }
+                        status = status_mapping.get(raw_status, 'No Data')
                     
                     # Determine cell appearance based on status
                     if status in self.attendance_colors:
                         bg_color = self.attendance_colors[status]
-                        text_color = "white"
+                        if status == 'Future':
+                            text_color = "#374151"  # Dark text for white background
+                        elif status == 'No Data':
+                            text_color = "#6b7280"  # Gray text for gray background
+                        else:
+                            text_color = "white"    # White text for colored backgrounds
                         status_emoji = self.get_status_emoji(status)
                     else:
-                        bg_color = "#f8f9fa"
+                        bg_color = self.attendance_colors['No Data']
                         text_color = "#6b7280"
                         status_emoji = "📅"
                     
                     # Create enhanced day cell
-                    day_frame = ctk.CTkFrame(
-                        grid_frame,
-                        width=100,
-                        height=80,
-                        fg_color=bg_color,
-                        corner_radius=12
-                    )
+                    if status == 'Future':
+                        # Future dates get a subtle border
+                        day_frame = ctk.CTkFrame(
+                            grid_frame,
+                            width=100,
+                            height=80,
+                            fg_color=bg_color,
+                            border_width=1,
+                            border_color="#D1D5DB",
+                            corner_radius=12
+                        )
+                    else:
+                        # Regular cells without border
+                        day_frame = ctk.CTkFrame(
+                            grid_frame,
+                            width=100,
+                            height=80,
+                            fg_color=bg_color,
+                            corner_radius=12
+                        )
                     day_frame.grid(row=week_num + 1, column=day_num, padx=3, pady=3, sticky="ew")
                     day_frame.grid_propagate(False)
                     
@@ -672,16 +704,14 @@ class ModernReportsPageGUI:
                         no_data_label.pack(expand=True)
     
     def get_status_emoji(self, status):
-        """Get emoji for attendance status"""
+        """Get emoji for attendance status - Simplified"""
         emoji_map = {
             'Present': '✅',
             'Absent': '❌',
-            'Late': '⏰',
-            'Half Day': '🕐',
             'Leave': '🏖️',
             'Overtime': '⏱️',
-            'Remote Work': '🏠',
-            'Work from Home': '🏠'
+            'Future': '📅',
+            'No Data': '📅'
         }
         return emoji_map.get(status, '📅')
     
@@ -710,14 +740,13 @@ class ModernReportsPageGUI:
         # Store reference for cleanup
         self._legend_frame = legend_frame
         
-        # Create legend items with emojis and better layout
+        # Create legend items with emojis and better layout - Simplified
         legend_items = [
             ('Present', self.attendance_colors['Present'], '✅'),
             ('Absent', self.attendance_colors['Absent'], '❌'),
-            ('Late', self.attendance_colors['Late'], '⏰'),
-            ('Half Day', self.attendance_colors['Half Day'], '🕐'),
             ('Leave', self.attendance_colors['Leave'], '🏖️'),
-            ('Overtime', self.attendance_colors['Overtime'], '⏱️')
+            ('Overtime', self.attendance_colors['Overtime'], '⏱️'),
+            ('No Data', self.attendance_colors['No Data'], '📅')
         ]
         
         for i, (status, color, emoji) in enumerate(legend_items):
@@ -928,38 +957,71 @@ class ModernReportsPageGUI:
         except Exception as e:
             self.show_status_message(f"Error generating financial reports: {str(e)}", "error")
     
-    def generate_inventory_reports(self):
-        """Generate enhanced inventory reports"""
-        # Clear previous charts
-        for widget in self.inventory_charts_frame.winfo_children():
-            widget.destroy()
-        
+    def generate_attendance_reports(self):
+        """Generate/refresh attendance reports with latest data"""
         try:
-            self.create_chart_section(
-                self.inventory_charts_frame,
-                "📦 Current Stock Levels",
-                self.create_stock_levels_chart,
-                height=400
-            )
+            # Update status
+            self.show_status_message("Refreshing attendance data...", "info")
             
-            self.create_chart_section(
-                self.inventory_charts_frame,
-                "⚠️ Low Stock Alerts",
-                self.create_low_stock_chart,
-                height=400
-            )
+            # Refresh employee dropdown with latest data
+            self.refresh_employee_dropdown()
             
-            self.create_chart_section(
-                self.inventory_charts_frame,
-                "📊 Stock Movement",
-                self.create_stock_movement_chart,
-                height=400
-            )
+            # If no employee is selected, auto-select the first one
+            if not self.selected_employee and self.employee_var.get() and self.employee_var.get() != "No employees found":
+                self.on_employee_selected(self.employee_var.get())
             
-            self.show_status_message("Inventory reports generated successfully", "success")
+            # Refresh the calendar and statistics
+            self.refresh_calendar()
+            
+            self.show_status_message("Attendance report refreshed successfully", "success")
             
         except Exception as e:
-            self.show_status_message(f"Error generating inventory reports: {str(e)}", "error")
+            self.show_status_message(f"Error refreshing attendance report: {str(e)}", "error")
+    
+    def refresh_employee_dropdown(self):
+        """Refresh the employee dropdown with latest data"""
+        try:
+            # Get latest employee list
+            updated_employee_list = self.get_employee_list()
+            
+            # Update the dropdown values
+            self.employee_dropdown.configure(values=updated_employee_list)
+            
+            # If no employee is selected or current selection is invalid, select first employee
+            current_selection = self.employee_var.get()
+            if not current_selection or current_selection not in updated_employee_list:
+                if updated_employee_list:
+                    self.employee_var.set(updated_employee_list[0])
+                    self.employee_dropdown.set(updated_employee_list[0])
+                
+        except Exception as e:
+            print(f"Error refreshing employee dropdown: {e}")
+    
+    def on_tab_changed(self):
+        """Handle tab change events"""
+        try:
+            current_tab = self.tabview.get()
+            if current_tab == "📅 Attendance Calendar":
+                # Auto-refresh attendance data when tab is accessed
+                self.refresh_employee_dropdown()
+        except Exception as e:
+            print(f"Error handling tab change: {e}")
+    
+    def check_tab_changes(self):
+        """Periodically check for tab changes"""
+        try:
+            current_tab = self.tabview.get()
+            if current_tab != self.last_tab:
+                self.last_tab = current_tab
+                if current_tab == "📅 Attendance Calendar":
+                    self.refresh_employee_dropdown()
+            
+            # Schedule next check
+            self.parent.after(1000, self.check_tab_changes)  # Check every second
+        except Exception as e:
+            print(f"Error checking tab changes: {e}")
+            # Schedule next check even if there's an error
+            self.parent.after(1000, self.check_tab_changes)
     
     def create_chart_section(self, parent, title, chart_function, height=350):
         """Create a chart section with proper spacing"""
@@ -1265,195 +1327,6 @@ class ModernReportsPageGUI:
             
         except Exception as e:
             self.show_no_data_message(parent, f"Error creating purchase chart: {str(e)}")
-    
-    def create_stock_levels_chart(self, parent):
-        """Create stock levels chart"""
-        try:
-            stock_df = self.data_service.get_stock()
-            if stock_df.empty:
-                self.show_no_data_message(parent, "No stock data available")
-                return
-            
-            # Create figure
-            fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-            fig.patch.set_facecolor('white')
-            
-            # Current stock levels
-            items = stock_df['item_name'][:15]  # Top 15 items
-            quantities = stock_df['current_quantity'][:15]
-            
-            # Create bar chart with color coding
-            colors = []
-            for qty in quantities:
-                if qty < 10:
-                    colors.append(self.colors['danger'])  # Low stock
-                elif qty < 25:
-                    colors.append(self.colors['warning'])  # Medium stock
-                else:
-                    colors.append(self.colors['success'])  # Good stock
-            
-            bars = ax.bar(range(len(items)), quantities, color=colors, alpha=0.8)
-            
-            ax.set_title('Current Stock Levels (Top 15 Items)', fontweight='bold', fontsize=16)
-            ax.set_ylabel('Quantity')
-            ax.set_xlabel('Items')
-            ax.set_xticks(range(len(items)))
-            ax.set_xticklabels(items, rotation=45, ha='right')
-            
-            # Add value labels
-            for bar in bars:
-                height = bar.get_height()
-                ax.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
-                       f'{int(height)}', ha='center', va='bottom', fontweight='bold')
-            
-            # Add legend
-            from matplotlib.patches import Patch
-            legend_elements = [
-                Patch(facecolor=self.colors['danger'], label='Low Stock (<10)'),
-                Patch(facecolor=self.colors['warning'], label='Medium Stock (10-25)'),
-                Patch(facecolor=self.colors['success'], label='Good Stock (>25)')
-            ]
-            ax.legend(handles=legend_elements, loc='upper right')
-            
-            plt.tight_layout()
-            
-            # Embed in GUI
-            canvas = FigureCanvasTkAgg(fig, parent)
-            canvas.draw()
-            canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
-            
-        except Exception as e:
-            self.show_no_data_message(parent, f"Error creating stock chart: {str(e)}")
-    
-    def create_low_stock_chart(self, parent):
-        """Create low stock alerts chart"""
-        try:
-            stock_df = self.data_service.get_stock()
-            if stock_df.empty:
-                self.show_no_data_message(parent, "No stock data available")
-                return
-            
-            # Filter low stock items
-            low_stock = stock_df[stock_df['current_quantity'] < stock_df.get('minimum_stock', 10)]
-            
-            if low_stock.empty:
-                # Show good news message
-                fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-                fig.patch.set_facecolor('white')
-                
-                ax.text(0.5, 0.5, '✅ All Items Have Sufficient Stock!', 
-                       horizontalalignment='center', verticalalignment='center',
-                       transform=ax.transAxes, fontsize=20, fontweight='bold',
-                       color=self.colors['success'])
-                ax.set_title('Stock Alert Status', fontweight='bold', fontsize=16)
-                ax.axis('off')
-                
-                plt.tight_layout()
-                
-                # Embed in GUI
-                canvas = FigureCanvasTkAgg(fig, parent)
-                canvas.draw()
-                canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
-                return
-            
-            # Create figure
-            fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-            fig.patch.set_facecolor('white')
-            
-            # Low stock items
-            items = low_stock['item_name']
-            current_qty = low_stock['current_quantity']
-            min_qty = low_stock.get('minimum_stock', 10)
-            
-            x = np.arange(len(items))
-            width = 0.35
-            
-            bars1 = ax.bar(x - width/2, current_qty, width, label='Current Stock', 
-                          color=self.colors['danger'], alpha=0.8)
-            bars2 = ax.bar(x + width/2, min_qty, width, label='Minimum Required', 
-                          color=self.colors['warning'], alpha=0.8)
-            
-            ax.set_title('Low Stock Alerts', fontweight='bold', fontsize=16)
-            ax.set_ylabel('Quantity')
-            ax.set_xlabel('Items')
-            ax.set_xticks(x)
-            ax.set_xticklabels(items, rotation=45, ha='right')
-            ax.legend()
-            
-            plt.tight_layout()
-            
-            # Embed in GUI
-            canvas = FigureCanvasTkAgg(fig, parent)
-            canvas.draw()
-            canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
-            
-        except Exception as e:
-            self.show_no_data_message(parent, f"Error creating low stock chart: {str(e)}")
-    
-    def create_stock_movement_chart(self, parent):
-        """Create stock movement analysis"""
-        try:
-            sales_df = self.data_service.get_sales()
-            purchases_df = self.data_service.get_purchases()
-            
-            if sales_df.empty and purchases_df.empty:
-                self.show_no_data_message(parent, "No transaction data available")
-                return
-            
-            # Create figure
-            fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-            fig.patch.set_facecolor('white')
-            
-            # Combine sales and purchase data
-            stock_movement = {}
-            
-            if not sales_df.empty:
-                for _, sale in sales_df.iterrows():
-                    item = sale['item_name']
-                    if item not in stock_movement:
-                        stock_movement[item] = {'sold': 0, 'purchased': 0}
-                    stock_movement[item]['sold'] += sale['quantity']
-            
-            if not purchases_df.empty:
-                for _, purchase in purchases_df.iterrows():
-                    item = purchase['item_name']
-                    if item not in stock_movement:
-                        stock_movement[item] = {'sold': 0, 'purchased': 0}
-                    stock_movement[item]['purchased'] += purchase['quantity']
-            
-            if not stock_movement:
-                self.show_no_data_message(parent, "No stock movement data")
-                return
-            
-            # Get top 10 items by total movement
-            items = list(stock_movement.keys())[:10]
-            sold_qty = [stock_movement[item]['sold'] for item in items]
-            purchased_qty = [stock_movement[item]['purchased'] for item in items]
-            
-            x = np.arange(len(items))
-            width = 0.35
-            
-            bars1 = ax.bar(x - width/2, purchased_qty, width, label='Purchased', 
-                          color=self.colors['success'], alpha=0.8)
-            bars2 = ax.bar(x + width/2, sold_qty, width, label='Sold', 
-                          color=self.colors['info'], alpha=0.8)
-            
-            ax.set_title('Stock Movement Analysis (Top 10 Items)', fontweight='bold', fontsize=16)
-            ax.set_ylabel('Quantity')
-            ax.set_xlabel('Items')
-            ax.set_xticks(x)
-            ax.set_xticklabels(items, rotation=45, ha='right')
-            ax.legend()
-            
-            plt.tight_layout()
-            
-            # Embed in GUI
-            canvas = FigureCanvasTkAgg(fig, parent)
-            canvas.draw()
-            canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
-            
-        except Exception as e:
-            self.show_no_data_message(parent, f"Error creating stock movement chart: {str(e)}")
     
     def show_no_data_message(self, parent, message):
         """Show no data message"""

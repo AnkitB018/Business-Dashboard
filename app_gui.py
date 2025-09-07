@@ -145,13 +145,51 @@ class HRManagementApp:
             )
             subtitle.pack(side="top")
             
-            # Modern status indicator
-            self.status_frame = ctk.CTkFrame(
-                self.header_frame, 
+            # Container for status and storage indicators
+            indicators_container = ctk.CTkFrame(self.header_frame, fg_color="transparent")
+            indicators_container.pack(side="right", padx=30, pady=15)
+            
+            # Storage usage indicator
+            self.storage_frame = ctk.CTkFrame(
+                indicators_container,
                 corner_radius=20,
                 fg_color=self.colors['secondary']
             )
-            self.status_frame.pack(side="right", padx=30, pady=15)
+            self.storage_frame.pack(side="left", padx=(0, 15))
+            
+            # Make storage frame clickable for manual refresh
+            self.storage_frame.bind("<Button-1>", lambda e: self.update_storage_indicator())
+            
+            # Storage progress bar
+            self.storage_progress = ctk.CTkProgressBar(
+                self.storage_frame,
+                width=150,
+                height=10,
+                corner_radius=5,
+                progress_color=self.colors['success']
+            )
+            self.storage_progress.pack(side="left", padx=(15, 5), pady=15)
+            self.storage_progress.set(0)
+            
+            # Storage label
+            self.storage_label = ctk.CTkLabel(
+                self.storage_frame,
+                text="Storage: 0%",
+                font=ctk.CTkFont(size=11),
+                text_color=self.colors['text_primary']
+            )
+            self.storage_label.pack(side="left", padx=(5, 15), pady=15)
+            
+            # Add tooltip-like behavior
+            self.storage_label.bind("<Button-1>", lambda e: self.update_storage_indicator())
+            
+            # Modern status indicator
+            self.status_frame = ctk.CTkFrame(
+                indicators_container, 
+                corner_radius=20,
+                fg_color=self.colors['secondary']
+            )
+            self.status_frame.pack(side="left")
             
             log_info("Main UI structure created successfully", "UI_INIT")
             
@@ -315,6 +353,8 @@ class HRManagementApp:
                 text_color=self.colors['success']
             )
             self.status_indicator.configure(fg_color=self.colors['success'])
+            # Update storage indicator when connected
+            self.update_storage_indicator()
         else:
             self.status_label.configure(
                 text=f"❌ {message}",
@@ -323,6 +363,41 @@ class HRManagementApp:
             self.status_indicator.configure(fg_color=self.colors['danger'])
             # Show error dialog for connection issues
             messagebox.showerror("Database Connection Error", message)
+    
+    def update_storage_indicator(self):
+        """Update the MongoDB storage usage indicator"""
+        try:
+            if self.data_service:
+                storage_info = self.data_service.get_storage_usage()
+                usage_percentage = storage_info.get('usage_percentage', 0)
+                total_size_mb = storage_info.get('total_size_mb', 0)
+                limit_mb = storage_info.get('limit_mb', 512)
+                
+                # Update progress bar
+                self.storage_progress.set(usage_percentage / 100)
+                
+                # Update color based on usage
+                if usage_percentage > 80:
+                    color = self.colors['danger']
+                elif usage_percentage > 60:
+                    color = self.colors['warning']
+                else:
+                    color = self.colors['success']
+                
+                self.storage_progress.configure(progress_color=color)
+                
+                # Update label
+                self.storage_label.configure(
+                    text=f"Storage: {usage_percentage}% ({total_size_mb:.1f}MB)"
+                )
+                
+        except Exception as e:
+            logger.error(f"Error updating storage indicator: {e}")
+            self.storage_label.configure(text="Storage: N/A")
+            self.storage_progress.set(0)
+            
+        # Schedule next update in 30 seconds
+        self.root.after(30000, self.update_storage_indicator)
     
     def create_pages(self):
         """Create all application pages"""

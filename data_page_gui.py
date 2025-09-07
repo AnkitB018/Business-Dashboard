@@ -55,17 +55,16 @@ class ModernDataPageGUI:
         self.editing_attendance_id = None
         self.editing_sale_id = None
         self.editing_purchase_id = None
-        self.editing_stock_item = None
         self.edit_module_type = None
         
-        # Module filtering - by default show all modules
-        self.enabled_modules = ["employees", "attendance", "stock", "sales", "purchases"]
+        # Module filtering - by default show all modules (removed stock)
+        self.enabled_modules = ["employees", "attendance", "sales", "purchases"]
         
         self.create_page()
     
     def configure_modules(self, modules_list):
         """Configure which modules to show in this instance
-        modules_list: list of module names to show ['employees', 'attendance'] or ['stock', 'sales', 'purchases']
+        modules_list: list of module names to show ['employees', 'attendance'] or ['sales', 'purchases']
         """
         self.enabled_modules = modules_list
         # Recreate the page with the filtered modules
@@ -701,8 +700,6 @@ class ModernDataPageGUI:
             self.create_sales_management_content(module_frame)
         elif module_type == "purchases":
             self.create_purchase_management_content(module_frame)
-        elif module_type == "stock":
-            self.create_stock_management_content(module_frame)
             
         self.content_frames[module_type] = module_frame
         
@@ -755,15 +752,12 @@ class ModernDataPageGUI:
                 
             # Get quick stats using the correct method names
             employees_df = self.data_service.get_employees()
-            stock_df = self.data_service.get_stock()
             
             employees_count = len(employees_df) if not employees_df.empty else 0
-            stock_count = len(stock_df) if not stock_df.empty else 0
             
             # Modern stat cards with improved design
             stats = [
-                ("👥", str(employees_count), "Employees", self.colors['primary']),
-                ("📦", str(stock_count), "Stock Items", self.colors['success'])
+                ("👥", str(employees_count), "Employees", self.colors['primary'])
             ]
             
             for i, (icon, count, label, color) in enumerate(stats):
@@ -866,14 +860,7 @@ class ModernDataPageGUI:
                 "key": "attendance"
             },
             {
-                "title": "📦 Inventory Management",
-                "description": "Control stock levels, suppliers, and product categories",
-                "color": self.colors['warning'],
-                "action": self.open_stock_module,
-                "key": "stock"
-            },
-            {
-                "title": "💰 Sales Records",
+                "title": " Sales Records",
                 "description": "Track sales transactions and customer information",
                 "color": self.colors['success'],
                 "action": self.open_sales_module,
@@ -996,10 +983,6 @@ class ModernDataPageGUI:
         """Navigate to attendance tracking module"""
         self.navigate_to("attendance", "Attendance Tracking")
         
-    def open_stock_module(self):
-        """Navigate to stock management module"""
-        self.navigate_to("stock", "Stock Management")
-        
     def open_sales_module(self):
         """Navigate to sales management module"""
         self.navigate_to("sales", "Sales Management")
@@ -1023,10 +1006,6 @@ class ModernDataPageGUI:
     def create_purchase_management_content(self, parent):
         """Create purchase management content in the frame"""
         self.create_module_content(parent, "Purchase Management", "purchases")
-        
-    def create_stock_management_content(self, parent):
-        """Create stock management content in the frame"""
-        self.create_module_content(parent, "Stock Management", "stock")
         
     def create_module_content(self, parent, title, module_type):
         """Create module content within a frame (adapted from window version)"""
@@ -1067,8 +1046,6 @@ class ModernDataPageGUI:
             self.create_employee_form(left_panel, right_panel)
         elif module_type == "attendance":
             self.create_attendance_form(left_panel, right_panel)
-        elif module_type == "stock":
-            self.create_stock_form(left_panel, right_panel)
         elif module_type == "sales":
             self.create_sales_form(left_panel, right_panel)
         elif module_type == "purchases":
@@ -1380,7 +1357,7 @@ class ModernDataPageGUI:
         
         # Status dropdown with all valid options from reports
         self.create_attendance_status_dropdown(form_scroll, "Status", "status", 
-                               ["Present", "Absent", "Late", "Half Day", "Leave", "Overtime", "Remote Work"], self.att_vars)
+                               ["Present", "Absent", "Leave", "Overtime"], self.att_vars)
         
         # Notes field (optional)
         self.create_form_field(form_scroll, "Notes (Optional)", "notes", "text", self.att_vars, 
@@ -1689,45 +1666,6 @@ class ModernDataPageGUI:
         rgb = tuple(int(color[i:i+2], 16) for i in (0, 2, 4))
         darkened = tuple(int(c * 0.8) for c in rgb)
         return f"#{darkened[0]:02x}{darkened[1]:02x}{darkened[2]:02x}"
-    
-    def create_stock_form(self, form_panel, data_panel):
-        """Create modern stock form"""
-        # Form header
-        form_header = ctk.CTkFrame(form_panel, height=60, corner_radius=8)
-        form_header.pack(fill="x", padx=15, pady=(15, 10))
-        form_header.pack_propagate(False)
-        
-        ctk.CTkLabel(
-            form_header,
-            text="📦 Stock Item",
-            font=ctk.CTkFont(size=18, weight="bold")
-        ).pack(pady=15)
-        
-        # Scrollable form area
-        form_scroll = ctk.CTkScrollableFrame(form_panel)
-        form_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
-        
-        # Configure improved scroll speed
-        self.configure_scroll_speed(form_scroll)
-        
-        # Form fields
-        self.stock_vars = {}
-        fields = [
-            ("Item Name", "item_name", "text"),
-            ("Category", "category", "text"),
-            ("Quantity", "quantity", "number"),
-            ("Price per Unit (₹)", "price_per_unit", "number"),
-            ("Supplier", "supplier", "text")
-        ]
-        
-        for label, key, field_type in fields:
-            self.create_form_field(form_scroll, label, key, field_type, self.stock_vars)
-        
-        # Form buttons
-        self.create_form_buttons(form_scroll, "stock")
-        
-        # Data table
-        self.create_data_table(data_panel, "stock")
     
     def create_sales_orders_content(self, parent):
         """Create comprehensive sales management with orders and transactions"""
@@ -4903,16 +4841,6 @@ class ModernDataPageGUI:
                 
                 result = self.data_service.add_attendance(data)
                 
-            elif module_type == "stock":
-                data = {key: var.get().strip() for key, var in self.stock_vars.items()}
-                if data.get("quantity"):
-                    data["current_quantity"] = int(data["quantity"])
-                    del data["quantity"]  # Remove old key
-                if data.get("price_per_unit"):
-                    data["unit_price"] = float(data["price_per_unit"])
-                    del data["price_per_unit"]  # Remove old key
-                result = self.data_service.add_stock_item(data)
-                
             elif module_type == "sales":
                 data = {key: var.get().strip() for key, var in self.sales_vars.items()}
                 if data.get("quantity"):
@@ -5155,8 +5083,6 @@ class ModernDataPageGUI:
                 self.edit_employee_data(values, mongo_id)
             elif module_type == "attendance":
                 self.edit_attendance_data(values, mongo_id)
-            elif module_type == "stock":
-                self.edit_stock_data(values, mongo_id)
             elif module_type == "sales":
                 self.edit_sales_data(values, mongo_id)
             elif module_type == "purchases":
@@ -6007,29 +5933,6 @@ class ModernDataPageGUI:
             self.show_edit_buttons("attendance")
             self.show_status_message(f"Editing attendance: {employee_id} on {values[1]}", "info")
     
-    def edit_stock_data(self, values, mongo_id):
-        """Edit stock specific data"""
-        item_name = str(values[0])
-        
-        if hasattr(self, 'stock_vars'):
-            self.stock_vars["item_name"].set(values[0])
-            if len(values) > 1:
-                self.stock_vars["category"].set(values[1])
-            if len(values) > 2:
-                self.stock_vars["quantity"].set(values[2])
-            if len(values) > 3:
-                price_str = str(values[3]).replace("₹", "").replace(",", "")
-                self.stock_vars["price_per_unit"].set(price_str)
-            if len(values) > 4:
-                self.stock_vars["supplier"].set(values[4])
-            
-            self.edit_mode = True
-            self.editing_stock_item = item_name  # Keep item name for stock (using item_name as key)
-            self.edit_module_type = "stock"
-            
-            self.show_edit_buttons("stock")
-            self.show_status_message(f"Editing stock item: {item_name}", "info")
-    
     def edit_sales_data(self, values, mongo_id):
         """Edit sales specific data"""
         if hasattr(self, 'sales_vars'):
@@ -6122,8 +6025,6 @@ class ModernDataPageGUI:
                 self.update_employee_record()
             elif module_type == "attendance":
                 self.update_attendance_record()
-            elif module_type == "stock":
-                self.update_stock_record()
             elif module_type == "sales":
                 self.update_sales_record()
             elif module_type == "purchases":
@@ -6213,8 +6114,6 @@ class ModernDataPageGUI:
                     except Exception as e:
                         logger.error(f"Error parsing date for deletion: {e}")
                         continue
-                elif module_type == "stock":
-                    result = self.data_service.delete_stock_item(values[0])
                 elif module_type in ["sale", "sales"]:
                     # Parse date properly for sales deletion
                     date_str = str(values[4])
@@ -6263,7 +6162,6 @@ class ModernDataPageGUI:
                 'employees': 'emp_vars',
                 'employee': 'emp_vars',
                 'attendance': 'att_vars',
-                'stock': 'stock_vars',
                 'sales': 'sales_vars',
                 'purchases': 'purchase_vars',
                 'purchase': 'purchase_vars'
@@ -6549,53 +6447,6 @@ class ModernDataPageGUI:
                 
         except Exception as e:
             self.show_status_message(f"Failed to update attendance: {str(e)}", "error")
-    
-    def update_stock_record(self):
-        """Update stock record with form data"""
-        try:
-            if not self.data_service or not hasattr(self, 'stock_vars'):
-                self.show_status_message("Database or form not available", "error")
-                return
-            
-            # Get form data
-            data = {key: var.get().strip() for key, var in self.stock_vars.items()}
-            
-            # Convert numeric fields with correct field names
-            if data.get("quantity"):
-                data["current_quantity"] = int(data["quantity"])
-            if data.get("price_per_unit"):
-                data["unit_cost_average"] = float(data["price_per_unit"])
-                data["total_value"] = data.get("current_quantity", 0) * float(data["price_per_unit"])
-            
-            # Use the original item name for updating
-            item_name = self.editing_stock_item
-            
-            # Remove form field names from update data and add database field names
-            update_data = {}
-            for k, v in data.items():
-                if k == "item_name":
-                    continue  # Skip item_name as we use it for filtering
-                elif k == "quantity":
-                    update_data["current_quantity"] = int(v) if v else 0
-                elif k == "price_per_unit":
-                    update_data["unit_cost_average"] = float(v) if v else 0.0
-                else:
-                    update_data[k] = v
-                    
-            update_data["last_updated"] = datetime.now()
-            
-            # Update stock record
-            result = self.data_service.update_stock(item_name, update_data)
-            
-            if result > 0:
-                self.show_status_message(f"Stock item '{item_name}' updated successfully!", "success")
-                self.refresh_table("stock")
-                self.cancel_edit_record("stock")
-            else:
-                self.show_status_message(f"Failed to update stock item '{item_name}'", "error")
-                
-        except Exception as e:
-            self.show_status_message(f"Failed to update stock: {str(e)}", "error")
     
     def update_sales_record(self):
         """Update sales record with form data"""
