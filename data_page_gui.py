@@ -58,6 +58,19 @@ class ModernDataPageGUI:
         self.editing_stock_item = None
         self.edit_module_type = None
         
+        # Module filtering - by default show all modules
+        self.enabled_modules = ["employees", "attendance", "stock", "sales", "purchases"]
+        
+        self.create_page()
+    
+    def configure_modules(self, modules_list):
+        """Configure which modules to show in this instance
+        modules_list: list of module names to show ['employees', 'attendance'] or ['stock', 'sales', 'purchases']
+        """
+        self.enabled_modules = modules_list
+        # Recreate the page with the filtered modules
+        if hasattr(self, 'frame') and self.frame:
+            self.frame.destroy()
         self.create_page()
         
     def darken_color(self, color, factor=0.8):
@@ -772,45 +785,52 @@ class ModernDataPageGUI:
         
     def create_module_cards(self, parent):
         """Create modern cards for each module in a grid layout"""
-        modules = [
+        all_modules = [
             {
                 "title": "👥 Employee Management",
                 "description": "Manage employee records, positions, and contact information",
                 "color": self.colors['primary'],
-                "action": self.open_employee_module
+                "action": self.open_employee_module,
+                "key": "employees"
             },
             {
                 "title": "📅 Attendance Tracking", 
                 "description": "Record and monitor daily attendance and working hours",
                 "color": self.colors['success'],
-                "action": self.open_attendance_module
+                "action": self.open_attendance_module,
+                "key": "attendance"
             },
             {
                 "title": "📦 Inventory Management",
                 "description": "Control stock levels, suppliers, and product categories",
                 "color": self.colors['warning'],
-                "action": self.open_stock_module
+                "action": self.open_stock_module,
+                "key": "stock"
             },
             {
                 "title": "💰 Sales Records",
                 "description": "Track sales transactions and customer information",
                 "color": self.colors['success'],
-                "action": self.open_sales_module
+                "action": self.open_sales_module,
+                "key": "sales"
             },
             {
                 "title": "🛒 Purchase Management",
                 "description": "Manage purchase orders and supplier transactions",
                 "color": self.colors['danger'],
-                "action": self.open_purchases_module
+                "action": self.open_purchases_module,
+                "key": "purchases"
             }
         ]
+        
+        # Filter modules based on enabled_modules
+        modules = [module for module in all_modules if module["key"] in self.enabled_modules]
         
         # Create grid layout container
         grid_container = ctk.CTkFrame(parent, fg_color="transparent")
         grid_container.pack(fill="both", expand=True, padx=10, pady=20)
         
         # Create cards in a proper 2-column grid layout
-        # 5 cards total: 3 rows with 2 columns
         for i, module in enumerate(modules):
             row = i // 2  # 0, 0, 1, 1, 2
             col = i % 2   # 0, 1, 0, 1, 0
