@@ -1,0 +1,32 @@
+BUSINESS DASHBOARD SOFTWARE LICENSE
+===================================
+
+SOFTWARE: Business Dashboard v1.0.0
+DATE: September 9, 2025
+
+COPYRIGHT NOTICE:
+© 2025 Antrocraft and Arolive Build. All Rights Reserved.
+
+OWNERSHIP:
+- Created by: Antrocraft and Arolive Build
+- Owned by: Ankit Banerjee and Aritra Banerjee
+- Licensed for Business Use by: M/s Designo (Owner: Anupam Das)
+
+LICENSE GRANT:
+This software is licensed exclusively to M/s Designo for internal business operations only.
+
+RESTRICTIONS:
+- NO unauthorized use, copying, distribution, or sharing
+- NO reverse engineering or modification
+- NO resale or sublicensing
+- NO use outside of M/s Designo organization
+
+VIOLATION NOTICE:
+Any unauthorized use, reproduction, or distribution is strictly prohibited 
+and constitutes a material breach of this license agreement.
+
+For complete license terms, see LICENSE.md
+
+CONTACT:
+Antrocraft and Arolive Build
+Owned by: Ankit Banerjee and Aritra Banerjee

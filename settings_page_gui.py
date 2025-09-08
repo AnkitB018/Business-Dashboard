@@ -13,6 +13,7 @@ import subprocess
 import pandas as pd
 from datetime import datetime
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -25,11 +26,37 @@ class SettingsPageGUI:
         self.frame = None
         self.notebook = None
         
-        # Configuration file path
-        self.env_file_path = os.path.join(os.getcwd(), ".env")
-        self.config_file_path = os.path.join(os.getcwd(), "config.py")
+        # Configuration file path - works for both development and executable
+        self.env_file_path = self._get_application_path(".env")
+        self.config_file_path = self._get_application_path("config.py")
         
         self.create_page()
+        
+    def _get_application_path(self, filename):
+        """Get the correct path for application files, works for both development and executable"""
+        try:
+            # For PyInstaller executable
+            if hasattr(sys, '_MEIPASS'):
+                # When running as executable, look in the directory where the .exe is located
+                base_path = os.path.dirname(sys.executable)
+            else:
+                # When running as script, use the script's directory
+                base_path = os.path.dirname(os.path.abspath(__file__))
+            
+            file_path = os.path.join(base_path, filename)
+            
+            # If file doesn't exist in base path, try current working directory as fallback
+            if not os.path.exists(file_path):
+                fallback_path = os.path.join(os.getcwd(), filename)
+                if os.path.exists(fallback_path):
+                    return fallback_path
+            
+            return file_path
+            
+        except Exception as e:
+            logger.error(f"Error determining application path for {filename}: {e}")
+            # Fallback to current working directory
+            return os.path.join(os.getcwd(), filename)
         
     def create_page(self):
         """Create the settings page with enhanced tab design"""
@@ -811,17 +838,50 @@ Last Updated: August 2025"""
             
             # Then, try to load from .env file to get any additional values
             if os.path.exists(self.env_file_path):
-                with open(self.env_file_path, 'r') as f:
-                    content = f.read()
+                try:
+                    with open(self.env_file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                        
+                    for line in content.split('\n'):  # Fixed: was '\\n' 
+                        line = line.strip()
+                        if line and not line.startswith('#') and '=' in line:
+                            key, value = line.split('=', 1)
+                            key = key.strip()
+                            value = value.strip()
+                            if key in env_values:
+                                env_values[key] = value
+                except Exception as e:
+                    logger.error(f"Error reading .env file: {e}")
+                    self.db_status_label.configure(text=f"⚠️ Error reading .env file: {str(e)}", text_color="orange")
+            else:
+                logger.warning(f".env file not found at: {self.env_file_path}")
+                # Try to create a basic .env file if it doesn't exist
+                try:
+                    env_dir = os.path.dirname(self.env_file_path)
+                    if not os.path.exists(env_dir):
+                        os.makedirs(env_dir, exist_ok=True)
                     
-                for line in content.split('\n'):  # Fixed: was '\\n' 
-                    line = line.strip()
-                    if line and not line.startswith('#') and '=' in line:
-                        key, value = line.split('=', 1)
-                        key = key.strip()
-                        value = value.strip()
-                        if key in env_values:
-                            env_values[key] = value
+                    # Create basic .env file with empty values
+                    basic_env_content = """# MongoDB Atlas Configuration
+# Configure your MongoDB Atlas connection below
+
+MONGODB_URI=
+MONGODB_DATABASE=hr_management_db
+ATLAS_CLUSTER_NAME=
+ATLAS_DATABASE_USER=
+ATLAS_DATABASE_PASSWORD=
+
+# Application Security
+SECRET_KEY=change-this-for-production
+
+# Development Settings
+DEBUG_MODE=True
+"""
+                    with open(self.env_file_path, 'w', encoding='utf-8') as f:
+                        f.write(basic_env_content)
+                    logger.info(f"Created basic .env file at: {self.env_file_path}")
+                except Exception as e:
+                    logger.error(f"Could not create .env file: {e}")
             
             # Set the UI fields with loaded values
             self.mongodb_uri_var.set(env_values.get('MONGODB_URI', ''))
@@ -1115,23 +1175,49 @@ DEBUG_MODE=True
 # Generated on {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 """
             
+            # Ensure directory exists
+            env_dir = os.path.dirname(self.env_file_path)
+            if not os.path.exists(env_dir):
+                os.makedirs(env_dir, exist_ok=True)
+            
             # Write to .env file
-            with open(self.env_file_path, 'w') as f:
+            with open(self.env_file_path, 'w', encoding='utf-8') as f:
                 f.write(env_content)
             
-            messagebox.showinfo("Success", 
-                "Database settings saved successfully!\n\n"
-                "✅ Connection string saved\n"
-                "✅ Database name saved\n" 
-                "✅ Atlas credentials saved\n\n"
-                "Note: You may need to restart the application for changes to take effect.")
+            # Verify the file was written
+            if os.path.exists(self.env_file_path):
+                with open(self.env_file_path, 'r', encoding='utf-8') as f:
+                    saved_content = f.read()
+                    if uri in saved_content:
+                        messagebox.showinfo("Success", 
+                            f"Database settings saved successfully!\n\n"
+                            f"✅ Connection string saved\n"
+                            f"✅ Database name saved\n" 
+                            f"✅ Atlas credentials saved\n\n"
+                            f"File saved to: {self.env_file_path}\n\n"
+                            f"Note: You may need to restart the application for changes to take effect.")
+                    else:
+                        raise Exception("Settings were not saved correctly")
+            else:
+                raise Exception(f"Could not create .env file at {self.env_file_path}")
             
             # Disable edit mode after saving
             self.edit_mode_var.set(False)
             self.toggle_edit_mode()
             
+        except PermissionError:
+            messagebox.showerror("Permission Error", 
+                f"Cannot write to .env file. Please ensure:\n"
+                f"1. The application has write permissions\n"
+                f"2. The .env file is not open in another program\n"
+                f"3. You're running as administrator if needed\n\n"
+                f"File path: {self.env_file_path}")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to save settings: {str(e)}")
+            messagebox.showerror("Error", 
+                f"Failed to save settings: {str(e)}\n\n"
+                f"Attempted to save to: {self.env_file_path}\n"
+                f"File exists: {os.path.exists(self.env_file_path)}\n"
+                f"Directory exists: {os.path.exists(os.path.dirname(self.env_file_path))}")
             logger.error(f"Error saving database settings: {e}")
     
     def save_and_restart(self):

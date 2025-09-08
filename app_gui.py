@@ -1,5 +1,15 @@
 """
-HR Management System - Desktop GUI Application
+Business Dashboard - Desktop GUI Application
+© 2025 Antrocraft and Arolive Build. All Rights Reserved.
+
+Created by: Antrocraft and Arolive Build
+Owned by: Ankit Banerjee and Aritra Banerjee
+Licensed for Business Use by: M/s Designo (Owner: Anupam Das)
+
+PROPRIETARY SOFTWARE - UNAUTHORIZED USE PROHIBITED
+This software is licensed exclusively to M/s Designo for internal business operations.
+Any unauthorized use, copying, distribution, or sharing is strictly prohibited.
+
 Main application file with automatic routing and database initialization
 """
 

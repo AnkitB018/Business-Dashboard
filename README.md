@@ -115,10 +115,27 @@ The application uses MongoDB with the following collections:
 - `sales` - Sales transactions
 - `purchases` - Purchase records
 
+## � **License**
+
+**© 2025 Antrocraft and Arolive Build. All Rights Reserved.**
+
+This software is proprietary and licensed exclusively to M/s Designo (Owner: Anupam Das) for internal business operations. 
+
+**⚠️ IMPORTANT**: Unauthorized use, copying, distribution, or sharing is strictly prohibited.
+
+For complete license terms, see [LICENSE.md](LICENSE.md)
+
 ## 📧 **Support**
 
-For issues, feature requests, or contributions, please visit the GitHub repository.
+**Licensed Business Entity**: M/s Designo  
+**Owner**: Anupam Das  
+
+**Software Created by**: Antrocraft and Arolive Build  
+**Owned by**: Ankit Banerjee and Aritra Banerjee  
+
+For technical support or licensing inquiries, please contact the appropriate representatives.
 
 ---
 
-**Built with ❤️ using Python and CustomTkinter**
+**Built with ❤️ by Antrocraft and Arolive Build**  
+**© 2025 - All Rights Reserved**

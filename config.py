@@ -6,10 +6,38 @@
 
 # For development, you can also set this as an environment variable
 import os
+import sys
 from dotenv import load_dotenv
 
+def get_application_path(filename=""):
+    """Get the correct path for application files, works for both development and executable"""
+    try:
+        # For PyInstaller executable
+        if hasattr(sys, '_MEIPASS'):
+            # When running as executable, look in the directory where the .exe is located
+            base_path = os.path.dirname(sys.executable)
+        else:
+            # When running as script, use the script's directory
+            base_path = os.path.dirname(os.path.abspath(__file__))
+        
+        if filename:
+            file_path = os.path.join(base_path, filename)
+            # If file doesn't exist in base path, try current working directory as fallback
+            if not os.path.exists(file_path):
+                fallback_path = os.path.join(os.getcwd(), filename)
+                if os.path.exists(fallback_path):
+                    return fallback_path
+            return file_path
+        else:
+            return base_path
+            
+    except Exception:
+        # Fallback to current working directory
+        return os.path.join(os.getcwd(), filename) if filename else os.getcwd()
+
 # Load environment variables from .env file
-load_dotenv()
+env_file_path = get_application_path(".env")
+load_dotenv(env_file_path)
 
 # MongoDB Configuration
 MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/')
