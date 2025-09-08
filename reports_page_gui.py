@@ -1075,13 +1075,6 @@ class ModernReportsPageGUI:
             self.create_monthly_summary()
             
 
-            self.create_chart_section(
-                self.financial_charts_frame,
-                "� Monthly Revenue vs Expenses",
-                self.create_monthly_revenue_expense_chart,
-                height=400
-            )
-            
             # 1. Daily Sales Trend (Month/Year-based)
             self.create_chart_section_with_controls(
                 self.financial_charts_frame,
@@ -1355,6 +1348,10 @@ class ModernReportsPageGUI:
         # Create chart
         chart_function(chart_container)
     
+    def create_disabled_chart(self, parent):
+        """Disabled chart - does nothing"""
+        pass
+    
     def create_chart_section_with_controls(self, parent, title, chart_function, control_type, height=350):
         """Create a chart section with controls above it"""
         # Section container
@@ -1427,7 +1424,7 @@ class ModernReportsPageGUI:
         refresh_btn = ctk.CTkButton(
             controls_container,
             text="🔄 Refresh",
-            command=lambda: self.create_daily_sales_chart(parent.master.winfo_children()[-1]),
+            command=self.generate_financial_reports,
             width=80,
             height=28
         )
@@ -1457,7 +1454,7 @@ class ModernReportsPageGUI:
         refresh_btn = ctk.CTkButton(
             controls_container,
             text="🔄 Refresh",
-            command=lambda: self.create_daily_transactions_chart(parent.master.winfo_children()[-1]),
+            command=self.generate_financial_reports,
             width=80,
             height=28
         )
@@ -2277,80 +2274,6 @@ class ModernReportsPageGUI:
         except Exception as e:
             logger.error(f"Error creating dues analysis chart: {str(e)}")
             self.show_no_data_message(parent, f"Error creating chart: {str(e)}")
-        try:
-            sales_df = self.data_service.get_sales()
-            purchases_df = self.data_service.get_purchases()
-            
-            # Create figure
-            fig, ax = plt.subplots(1, 1, figsize=(12, 6))
-            fig.patch.set_facecolor('white')
-            
-            if sales_df.empty and purchases_df.empty:
-                self.show_no_data_message(parent, "No financial data available")
-                return
-            
-            # Calculate monthly totals
-            monthly_data = []
-            
-            if not sales_df.empty:
-                sales_df['month'] = pd.to_datetime(sales_df['date']).dt.to_period('M')
-                monthly_sales = sales_df.groupby('month')['total_price'].sum()
-            else:
-                monthly_sales = pd.Series()
-            
-            if not purchases_df.empty:
-                purchases_df['month'] = pd.to_datetime(purchases_df['date']).dt.to_period('M')
-                monthly_purchases = purchases_df.groupby('month')['total_price'].sum()
-            else:
-                monthly_purchases = pd.Series()
-            
-            # Get all months
-            all_months = set()
-            if not monthly_sales.empty:
-                all_months.update(monthly_sales.index)
-            if not monthly_purchases.empty:
-                all_months.update(monthly_purchases.index)
-            
-            if not all_months:
-                self.show_no_data_message(parent, "No financial data for charting")
-                return
-            
-            months = sorted(list(all_months))
-            sales_values = [monthly_sales.get(month, 0) for month in months]
-            purchase_values = [monthly_purchases.get(month, 0) for month in months]
-            
-            # Create grouped bar chart
-            x = np.arange(len(months))
-            width = 0.35
-            
-            bars1 = ax.bar(x - width/2, sales_values, width, label='Revenue', 
-                          color=self.colors['success'], alpha=0.8)
-            bars2 = ax.bar(x + width/2, purchase_values, width, label='Expenses', 
-                          color=self.colors['danger'], alpha=0.8)
-            
-            ax.set_title('Monthly Revenue vs Expenses', fontweight='bold', fontsize=16)
-            ax.set_ylabel('Amount (₹)')
-            ax.set_xlabel('Month')
-            ax.set_xticks(x)
-            ax.set_xticklabels([str(m) for m in months], rotation=45)
-            ax.legend()
-            
-            # Add value labels
-            for bars in [bars1, bars2]:
-                for bar in bars:
-                    height = bar.get_height()
-                    if height > 0:
-                        ax.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
-                               f'₹{height:,.0f}', ha='center', va='bottom', fontsize=9)
-            
-            plt.tight_layout()
-            
-            # Embed in GUI
-            canvas = FigureCanvasTkAgg(fig, parent)
-            canvas.draw()
-            canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
-            
-        except Exception as e:
             self.show_no_data_message(parent, f"Error creating financial chart: {str(e)}")
     
     def show_no_data_message(self, parent, message):
