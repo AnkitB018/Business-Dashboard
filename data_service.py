@@ -726,6 +726,54 @@ class HRDataService:
             log_info("Updated due payments for all customers", "DATA_SERVICE")
         except Exception as e:
             log_error(e, "Error updating all customer due payments")
+    
+    # ====== ORDER MANAGEMENT METHODS ======
+    
+    def get_all_orders(self):
+        """Get all orders from database"""
+        try:
+            orders = self.db_manager.find_documents("orders", {})
+            # Sort by created date, newest first
+            orders.sort(key=lambda x: x.get('created_date', ''), reverse=True)
+            return orders
+        except Exception as e:
+            logger.error(f"Failed to get orders: {str(e)}")
+            return []
+    
+    def get_all_transactions_with_orders(self):
+        """Get all transactions with order information - OPTIMIZED"""
+        try:
+            # Get all transactions and orders in bulk
+            transactions = self.db_manager.find_documents("transactions", {})
+            all_orders = self.db_manager.find_documents("orders", {})
+            
+            # Create a lookup dictionary for orders by order_id for O(1) access
+            orders_dict = {order.get('order_id'): order for order in all_orders}
+            
+            # Enrich transactions with order information
+            enriched_transactions = []
+            for transaction in transactions:
+                order_id = transaction.get('order_id')
+                if order_id and order_id in orders_dict:
+                    order = orders_dict[order_id]
+                    # Merge transaction and order data
+                    enriched_transaction = transaction.copy()
+                    enriched_transaction['customer_name'] = order.get('customer_name', 'N/A')
+                    enriched_transaction['order_status'] = order.get('order_status', 'N/A')
+                    enriched_transactions.append(enriched_transaction)
+                else:
+                    # Include transactions without orders but mark them
+                    enriched_transaction = transaction.copy()
+                    enriched_transaction['customer_name'] = 'Unknown'
+                    enriched_transaction['order_status'] = 'N/A'
+                    enriched_transactions.append(enriched_transaction)
+            
+            # Sort by creation timestamp (newest first), fallback to payment_date if created_date not available
+            enriched_transactions.sort(key=lambda x: x.get('created_date', x.get('payment_date', '')), reverse=True)
+            return enriched_transactions
+        except Exception as e:
+            logger.error(f"Failed to get transactions with orders: {str(e)}")
+            return []
 
 # Singleton instance
 hr_service = None

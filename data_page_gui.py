@@ -1292,22 +1292,13 @@ class ModernDataPageGUI:
         self.create_form_field(form_scroll, "Phone Number", "phone", "text", self.emp_vars,
                               placeholder="9876543210 or +91 9876543210 (10 digits)")
         
-        # Department dropdown
-        departments = [
-            "Human Resources", "Information Technology", "Finance", "Marketing", 
-            "Sales", "Operations", "Customer Service", "Research & Development",
-            "Quality Assurance", "Administration"
-        ]
-        self.create_combo_field(form_scroll, "Department", "department", departments, self.emp_vars)
+        # Department field (text input)
+        self.create_form_field(form_scroll, "Department", "department", "text", self.emp_vars,
+                              placeholder="e.g., Human Resources, IT, Finance, Sales, Marketing")
         
-        # Position dropdown
-        positions = [
-            "Manager", "Senior Manager", "Team Lead", "Senior Developer", "Developer",
-            "Junior Developer", "Business Analyst", "Data Analyst", "Designer",
-            "Sales Executive", "Customer Support", "HR Executive", "Accountant",
-            "Marketing Executive", "Operations Executive", "Intern"
-        ]
-        self.create_combo_field(form_scroll, "Position", "position", positions, self.emp_vars)
+        # Position field (text input)
+        self.create_form_field(form_scroll, "Position", "position", "text", self.emp_vars,
+                              placeholder="e.g., Manager, Developer, Analyst, Executive")
         
         # Salary field with validation hint
         self.create_form_field(form_scroll, "Monthly Salary (₹)", "salary", "number", self.emp_vars,
