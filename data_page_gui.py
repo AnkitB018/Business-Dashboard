@@ -1710,55 +1710,70 @@ class ModernDataPageGUI:
             button_container,
             text="📝 Add New Order",
             command=self.show_new_order_form,
-            width=160,
+            width=130,
             height=50,
             corner_radius=15,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             fg_color=("#4caf50", "#2e7d32"),
             hover_color=("#45a049", "#1b5e20"),
             text_color="white"
         )
-        add_order_btn.pack(side="left", padx=(0, 15))
+        add_order_btn.pack(side="left", padx=(0, 10))
         
         # Manage Orders Button
         manage_btn = ctk.CTkButton(
             button_container,
             text="📊 Manage Orders",
             command=self.show_orders_management,
-            width=160,
+            width=130,
             height=50,
             corner_radius=15,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             fg_color=("#2196f3", "#1565c0"),
             hover_color=("#1976d2", "#0d47a1"),
             text_color="white"
         )
-        manage_btn.pack(side="left", padx=(0, 15))
+        manage_btn.pack(side="left", padx=(0, 10))
         
-        # Payment Collection Button (NEW)
+        # Customer Management Button (NEW)
+        customer_btn = ctk.CTkButton(
+            button_container,
+            text="👥 Manage Customers",
+            command=self.show_customer_management,
+            width=130,
+            height=50,
+            corner_radius=15,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=("#673ab7", "#512da8"),
+            hover_color=("#5e35b1", "#4527a0"),
+            text_color="white"
+        )
+        customer_btn.pack(side="left", padx=(0, 10))
+        
+        # Payment Collection Button
         payment_btn = ctk.CTkButton(
             button_container,
             text="💰 Collect Payments",
             command=self.show_payment_collection,
-            width=160,
+            width=130,
             height=50,
             corner_radius=15,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             fg_color=("#9c27b0", "#6a1b9a"),
             hover_color=("#8e24aa", "#4a148c"),
             text_color="white"
         )
-        payment_btn.pack(side="left", padx=(0, 15))
+        payment_btn.pack(side="left", padx=(0, 10))
         
         # Transactions History Button
         transactions_btn = ctk.CTkButton(
             button_container,
             text="💳 Transaction History",
             command=self.show_transactions_view,
-            width=160,
+            width=130,
             height=50,
             corner_radius=15,
-            font=ctk.CTkFont(size=14, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             fg_color=("#ff9800", "#e65100"),
             hover_color=("#f57c00", "#bf360c"),
             text_color="white"
@@ -1839,8 +1854,8 @@ class ModernDataPageGUI:
         customer_grid.pack(fill="x", pady=(0, 20))
         customer_grid.grid_columnconfigure((0, 1), weight=1)
         
-        self.create_large_field(customer_grid, "Customer Name", "customer_name", "text", 
-                               self.order_vars, placeholder="Enter customer full name", row=0, col=0)
+        # Create customer name combobox with auto-fill functionality
+        self.create_customer_name_combo(customer_grid, row=0, col=0)
         self.create_large_field(customer_grid, "Phone Number", "customer_phone", "text", 
                                self.order_vars, placeholder="e.g., +91 9876543210", row=0, col=1)
         
@@ -2239,6 +2254,77 @@ class ModernDataPageGUI:
         
         return combo
     
+    def create_customer_name_combo(self, parent, row=0, col=0):
+        """Create customer name combobox with auto-fill functionality"""
+        field_container = ctk.CTkFrame(parent, fg_color="transparent")
+        field_container.grid(row=row, column=col, padx=12, pady=12, sticky="ew")
+        
+        # Label
+        label_widget = ctk.CTkLabel(
+            field_container,
+            text="Customer Name *",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=("gray20", "gray80")
+        )
+        label_widget.pack(anchor="w", pady=(0, 6))
+        
+        # Get customer names for dropdown
+        try:
+            customers_df = self.data_service.get_customers()
+            customer_names = [""] + customers_df['name'].tolist() if not customers_df.empty else [""]
+        except:
+            customer_names = [""]
+        
+        # Initialize variable
+        self.order_vars["customer_name"] = tk.StringVar()
+        
+        # Create combobox
+        self.customer_name_combo = ctk.CTkComboBox(
+            field_container,
+            values=customer_names,
+            variable=self.order_vars["customer_name"],
+            height=45,
+            corner_radius=10,
+            border_width=2,
+            font=ctk.CTkFont(size=14),
+            command=self.on_customer_selected
+        )
+        self.customer_name_combo.pack(fill="x")
+        
+        # Bind events for typing functionality
+        self.customer_name_combo.bind('<KeyRelease>', self.on_customer_name_typed)
+        self.customer_name_combo.bind('<FocusOut>', self.on_customer_focus_out)
+        
+        return self.customer_name_combo
+    
+    def on_customer_selected(self, selected_name):
+        """Handle customer selection from dropdown"""
+        if not selected_name or selected_name == "":
+            return
+        
+        try:
+            # Get customer details
+            customer = self.data_service.get_customer_by_name(selected_name)
+            if customer:
+                # Auto-fill customer information
+                self.order_vars["customer_phone"].set(customer.get('contact_number', ''))
+                self.order_vars["customer_address"].set(customer.get('address', ''))
+                
+        except Exception as e:
+            logger.error(f"Error loading customer details: {str(e)}")
+    
+    def on_customer_name_typed(self, event):
+        """Handle typing in customer name field"""
+        # Allow users to type new customer names
+        pass
+    
+    def on_customer_focus_out(self, event):
+        """Handle when customer name field loses focus"""
+        typed_name = self.order_vars["customer_name"].get().strip()
+        if typed_name and typed_name not in [combo_value for combo_value in self.customer_name_combo.cget("values")]:
+            # This is a new customer name - we'll add it to the database when the order is created
+            pass
+
     def create_large_order_buttons(self, parent):
         """Create large action buttons for full-tab experience"""
         button_frame = ctk.CTkFrame(parent, fg_color="transparent", height=80)
@@ -3191,6 +3277,664 @@ class ModernDataPageGUI:
         # Load all transactions
         self.refresh_all_transactions_table()
     
+    def show_customer_management(self):
+        """Display COMPLETE TAKEOVER customer management interface"""
+        # COMPLETE TAKEOVER: Hide all existing sales tab content and navigation
+        self.clear_sales_content()
+        self.current_sales_view = "customers"
+        
+        # Find the parent container (the entire data management area)
+        data_parent = self.sales_content_frame.master
+        
+        # Hide the existing sales tab structure (buttons + content frame)
+        for widget in data_parent.winfo_children():
+            widget.pack_forget()
+        
+        # Create COMPLETE takeover container - takes ENTIRE data management area
+        self.complete_takeover_container = ctk.CTkFrame(data_parent, corner_radius=0,
+                                                       fg_color=("white", "gray17"))
+        self.complete_takeover_container.pack(fill="both", expand=True)
+        
+        # Header with back button - minimal height
+        header_frame = ctk.CTkFrame(self.complete_takeover_container, height=60, corner_radius=0,
+                                   fg_color=("#673ab7", "#512da8"))
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        header_content = ctk.CTkFrame(header_frame, fg_color="transparent")
+        header_content.pack(fill="both", expand=True, padx=20, pady=15)
+        
+        # Back button and title on same line
+        ctk.CTkButton(
+            header_content,
+            text="← Back to Sales",
+            command=self.restore_sales_tab,
+            width=140,
+            height=30,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=("white", "gray25"),
+            text_color=("#512da8", "white"),
+            hover_color=("#f5f5f5", "gray35")
+        ).pack(side="left")
+        
+        ctk.CTkLabel(
+            header_content,
+            text="👥 Customer Management",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="white"
+        ).pack(side="left", padx=(30, 0))
+        
+        # Maximized content area - full remaining space
+        content_container = ctk.CTkFrame(self.complete_takeover_container, corner_radius=0,
+                                        fg_color=("white", "gray20"))
+        content_container.pack(fill="both", expand=True)
+        
+        # Create main container with two panels
+        main_container = ctk.CTkFrame(content_container, fg_color="transparent")
+        main_container.pack(fill="both", expand=True, padx=25, pady=25)
+        
+        # Left panel - Customer form (40% width)
+        form_panel = ctk.CTkFrame(main_container, width=450, corner_radius=12,
+                                 fg_color=("#f8f9fa", "gray19"))
+        form_panel.pack(side="left", fill="y", padx=(0, 15))
+        form_panel.pack_propagate(False)
+        
+        # Right panel - Customer table (60% width)
+        table_panel = ctk.CTkFrame(main_container, corner_radius=12,
+                                  fg_color=("#f8f9fa", "gray19"))
+        table_panel.pack(side="right", fill="both", expand=True, padx=(15, 0))
+        
+        # === LEFT PANEL: CUSTOMER FORM ===
+        self.create_customer_form(form_panel)
+        
+        # === RIGHT PANEL: CUSTOMER TABLE ===
+        self.create_customer_table(table_panel)
+        
+        # Load customers data
+        self.refresh_customer_table()
+    
+    def create_customer_form(self, parent):
+        """Create customer input form"""
+        # Form header
+        form_header = ctk.CTkFrame(parent, height=60, corner_radius=10,
+                                  fg_color=("#673ab7", "#512da8"))
+        form_header.pack(fill="x", padx=15, pady=(15, 10))
+        form_header.pack_propagate(False)
+        
+        ctk.CTkLabel(
+            form_header,
+            text="👥 Customer Form",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="white"
+        ).pack(pady=15)
+        
+        # Scrollable form area
+        form_scroll = ctk.CTkScrollableFrame(parent, corner_radius=0)
+        form_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Initialize customer form variables
+        self.customer_vars = {}
+        self.current_customer_id = None
+        
+        # Customer Details Section
+        self.create_minimal_section(form_scroll, "Customer Information")
+        
+        # Name field (required)
+        self.create_simple_field(form_scroll, "Customer Name", "name", "text", 
+                                self.customer_vars, placeholder="Enter customer full name", 
+                                required=True, full_width=True)
+        
+        # Contact number field (required)
+        self.create_simple_field(form_scroll, "Contact Number", "contact_number", "text", 
+                                self.customer_vars, placeholder="e.g., +91 9876543210", 
+                                required=True, full_width=True)
+        
+        # GST number field (optional)
+        self.create_simple_field(form_scroll, "GST Number", "gst_number", "text", 
+                                self.customer_vars, placeholder="e.g., 29ABCDE1234F1Z5 (optional)", 
+                                required=False, full_width=True)
+        
+        # Address field (optional)
+        address_container = ctk.CTkFrame(form_scroll, fg_color="transparent")
+        address_container.pack(fill="x", pady=8)
+        
+        ctk.CTkLabel(
+            address_container,
+            text="Address",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=("gray20", "gray80")
+        ).pack(anchor="w", pady=(0, 4))
+        
+        self.customer_vars["address"] = tk.StringVar()
+        address_textbox = ctk.CTkTextbox(
+            address_container,
+            height=80,
+            corner_radius=8,
+            border_width=1,
+            font=ctk.CTkFont(size=12)
+        )
+        address_textbox.pack(fill="x")
+        address_textbox.insert("1.0", "Enter customer address (optional)")
+        self.customer_address_textbox = address_textbox
+        
+        # Due payment field (read-only, auto-calculated)
+        due_container = ctk.CTkFrame(form_scroll, fg_color="transparent")
+        due_container.pack(fill="x", pady=8)
+        
+        ctk.CTkLabel(
+            due_container,
+            text="Due Payment (Auto-calculated)",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color=("gray20", "gray80")
+        ).pack(anchor="w", pady=(0, 4))
+        
+        self.customer_vars["due_payment"] = tk.StringVar()
+        self.customer_vars["due_payment"].set("₹0.00")
+        due_entry = ctk.CTkEntry(
+            due_container,
+            textvariable=self.customer_vars["due_payment"],
+            height=35,
+            corner_radius=8,
+            border_width=1,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            state="readonly"
+        )
+        due_entry.pack(fill="x")
+        
+        # Action buttons
+        self.create_customer_form_buttons(form_scroll)
+    
+    def create_customer_form_buttons(self, parent):
+        """Create customer form action buttons"""
+        buttons_container = ctk.CTkFrame(parent, fg_color="transparent")
+        buttons_container.pack(fill="x", pady=(20, 10))
+        buttons_container.grid_columnconfigure((0, 1), weight=1)
+        
+        # Save/Update button
+        self.customer_save_btn = ctk.CTkButton(
+            buttons_container,
+            text="💾 Save Customer",
+            command=self.save_customer,
+            height=45,
+            corner_radius=12,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#4caf50", "#2e7d32"),
+            hover_color=("#45a049", "#1b5e20")
+        )
+        self.customer_save_btn.grid(row=0, column=0, padx=(0, 5), sticky="ew")
+        
+        # Clear/Cancel button
+        self.customer_clear_btn = ctk.CTkButton(
+            buttons_container,
+            text="🗑️ Clear Form",
+            command=self.clear_customer_form,
+            height=45,
+            corner_radius=12,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=("#6c757d", "#495057"),
+            hover_color=("#5a6268", "#343a40")
+        )
+        self.customer_clear_btn.grid(row=0, column=1, padx=(5, 0), sticky="ew")
+    
+    def create_customer_table(self, parent):
+        """Create customer table with edit functionality"""
+        # Table header
+        table_header = ctk.CTkFrame(parent, height=60, corner_radius=10,
+                                   fg_color=("#673ab7", "#512da8"))
+        table_header.pack(fill="x", padx=15, pady=(15, 10))
+        table_header.pack_propagate(False)
+        
+        header_content = ctk.CTkFrame(table_header, fg_color="transparent")
+        header_content.pack(fill="both", expand=True, padx=20, pady=15)
+        
+        ctk.CTkLabel(
+            header_content,
+            text="📋 Customer Records",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="white"
+        ).pack(side="left")
+        
+        # Refresh button
+        refresh_btn = ctk.CTkButton(
+            header_content,
+            text="🔄 Refresh",
+            command=self.refresh_customer_table,
+            width=100,
+            height=30,
+            corner_radius=8,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=("white", "gray25"),
+            text_color=("#673ab7", "white"),
+            hover_color=("#f5f5f5", "gray35")
+        )
+        refresh_btn.pack(side="right")
+        
+        # Table container
+        table_container = ctk.CTkFrame(parent, corner_radius=0, fg_color="transparent")
+        table_container.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Create customer table without actions column in Treeview
+        columns = ("Name", "Contact", "GST Number", "Address", "Due Payment")
+        
+        # Define column headings and widths
+        column_configs = {
+            "Name": 150,
+            "Contact": 120,
+            "GST Number": 150,
+            "Address": 200,
+            "Due Payment": 100
+        }
+        
+        # Create main table and actions layout
+        table_and_actions_frame = ctk.CTkFrame(table_container, fg_color="transparent")
+        table_and_actions_frame.pack(fill="both", expand=True)
+        
+        # Left side: Table with scrollbars
+        table_main_frame = ctk.CTkFrame(table_and_actions_frame, fg_color="transparent")
+        table_main_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        
+        # Create the treeview
+        self.customer_tree = ttk.Treeview(table_main_frame, columns=columns, show="headings", height=15)
+        
+        for col, width in column_configs.items():
+            self.customer_tree.heading(col, text=col)
+            self.customer_tree.column(col, width=width, minwidth=80)
+        
+        # Pack the tree first
+        self.customer_tree.pack(fill="both", expand=True)
+        
+        # Create and pack scrollbars (simplified approach)
+        v_scrollbar = ttk.Scrollbar(table_main_frame, orient="vertical", command=self.customer_tree.yview)
+        self.customer_tree.configure(yscrollcommand=v_scrollbar.set)
+        
+        # Note: Removing horizontal scrollbar for now to simplify layout
+        # v_scrollbar.pack(side="right", fill="y")
+        
+        # Right side: Action buttons frame
+        actions_frame = ctk.CTkFrame(table_and_actions_frame, width=120, corner_radius=10,
+                                   fg_color=("#f8f9fa", "gray19"))
+        actions_frame.pack(side="right", fill="y")
+        actions_frame.pack_propagate(False)
+        
+        # Actions header
+        actions_header = ctk.CTkFrame(actions_frame, height=40, corner_radius=8,
+                                     fg_color=("#673ab7", "#512da8"))
+        actions_header.pack(fill="x", padx=5, pady=(5, 10))
+        actions_header.pack_propagate(False)
+        
+        ctk.CTkLabel(
+            actions_header,
+            text="Actions",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="white"
+        ).pack(pady=10)
+        
+        # Actions scroll frame for dynamic buttons
+        self.actions_scroll = ctk.CTkScrollableFrame(actions_frame, corner_radius=0)
+        self.actions_scroll.pack(fill="both", expand=True, padx=5, pady=(0, 5))
+        
+        # Bind selection event to update action buttons
+        self.customer_tree.bind("<<TreeviewSelect>>", self.update_customer_actions)
+        
+        # Remove old event bindings since we'll use the action buttons
+        # self.customer_tree.bind("<Double-1>", self.edit_customer_from_table)
+        # self.customer_tree.bind("<Button-3>", self.show_customer_context_menu)
+    
+    def save_customer(self):
+        """Save or update customer"""
+        try:
+            # Validate required fields
+            name = self.customer_vars["name"].get().strip()
+            contact = self.customer_vars["contact_number"].get().strip()
+            
+            if not name:
+                messagebox.showerror("Validation Error", "Customer name is required!")
+                return
+            
+            if not contact:
+                messagebox.showerror("Validation Error", "Contact number is required!")
+                return
+            
+            # Get form data
+            customer_data = {
+                "name": name,
+                "contact_number": contact,
+                "gst_number": self.customer_vars["gst_number"].get().strip(),
+                "address": self.customer_address_textbox.get("1.0", "end-1c").strip()
+            }
+            
+            # Remove placeholder text if present
+            if customer_data["address"] == "Enter customer address (optional)":
+                customer_data["address"] = ""
+            
+            if self.current_customer_id:
+                # Update existing customer
+                result = self.data_service.update_customer(self.current_customer_id, customer_data)
+                if result > 0:
+                    messagebox.showinfo("Success", "Customer updated successfully!")
+                    self.clear_customer_form()
+                    self.refresh_customer_table()
+                else:
+                    messagebox.showerror("Error", "Failed to update customer!")
+            else:
+                # Add new customer
+                result = self.data_service.add_customer(customer_data)
+                if result:
+                    messagebox.showinfo("Success", "Customer added successfully!")
+                    self.clear_customer_form()
+                    self.refresh_customer_table()
+                else:
+                    messagebox.showerror("Error", "Failed to add customer!")
+                    
+        except ValueError as e:
+            messagebox.showerror("Validation Error", str(e))
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save customer: {str(e)}")
+    
+    def clear_customer_form(self):
+        """Clear the customer form"""
+        for var in self.customer_vars.values():
+            var.set("")
+        
+        self.customer_address_textbox.delete("1.0", "end")
+        self.customer_address_textbox.insert("1.0", "Enter customer address (optional)")
+        
+        self.current_customer_id = None
+        self.customer_save_btn.configure(text="💾 Save Customer")
+        self.customer_clear_btn.configure(text="🗑️ Clear Form")
+        self.customer_vars["due_payment"].set("₹0.00")
+    
+    def refresh_customer_table(self):
+        """Refresh customer table data"""
+        try:
+            # Clear existing data
+            for item in self.customer_tree.get_children():
+                self.customer_tree.delete(item)
+            
+            # Get updated customer data directly from database (with _id)
+            customers_list = self.data_service.db_manager.find_documents("customers", {})
+            
+            if not customers_list:
+                # Clear action buttons when no data
+                self.update_customer_actions()
+                return
+            
+            # Insert data into table
+            for customer in customers_list:
+                # Handle customer ID properly - MongoDB ObjectId needs to be converted to string
+                customer_id = str(customer.get('_id', ''))
+                
+                name = customer.get('name', '')
+                contact = customer.get('contact_number', '')
+                gst = customer.get('gst_number', '')
+                address = customer.get('address', '')[:50] + "..." if len(str(customer.get('address', ''))) > 50 else customer.get('address', '')
+                due_payment = f"₹{customer.get('due_payment', 0):.2f}"
+                
+                # Store customer ID as tag for later retrieval
+                item = self.customer_tree.insert("", "end", values=(name, contact, gst, address, due_payment), tags=(customer_id,))
+                
+            # Update action buttons for current selection
+            self.update_customer_actions()
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to refresh customer table: {str(e)}")
+    
+    def update_customer_actions(self, event=None):
+        """Update action buttons based on current selection"""
+        # Clear existing action buttons
+        for widget in self.actions_scroll.winfo_children():
+            widget.destroy()
+        
+        # Get current selection
+        selection = self.customer_tree.selection()
+        
+        if not selection:
+            # Show message when no customer selected
+            message_label = ctk.CTkLabel(
+                self.actions_scroll,
+                text="Select a customer\nto see actions",
+                font=ctk.CTkFont(size=10),
+                text_color=("gray50", "gray60"),
+                justify="center"
+            )
+            message_label.pack(pady=20)
+            return
+        
+        # Get selected customer data
+        item = selection[0]
+        customer_data = self.customer_tree.item(item)
+        customer_name = customer_data['values'][0]
+        customer_id = customer_data['tags'][0] if customer_data['tags'] else None
+        
+        if not customer_id:
+            return
+        
+        # Customer info display
+        info_frame = ctk.CTkFrame(self.actions_scroll, corner_radius=8,
+                                 fg_color=("#e8f5e8", "gray30"))
+        info_frame.pack(fill="x", pady=(0, 10), padx=5)
+        
+        ctk.CTkLabel(
+            info_frame,
+            text=f"Selected:",
+            font=ctk.CTkFont(size=9, weight="bold"),
+            text_color=("gray40", "gray70")
+        ).pack(pady=(5, 0))
+        
+        ctk.CTkLabel(
+            info_frame,
+            text=customer_name[:15] + "..." if len(customer_name) > 15 else customer_name,
+            font=ctk.CTkFont(size=10, weight="bold"),
+            text_color=("#2e7d32", "#66bb6a")
+        ).pack(pady=(0, 5))
+        
+        # Edit button
+        edit_btn = ctk.CTkButton(
+            self.actions_scroll,
+            text="✏️ Edit",
+            command=lambda: self.edit_customer_by_id(customer_id),
+            width=100,
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=("#2196f3", "#1565c0"),
+            hover_color=("#1976d2", "#0d47a1")
+        )
+        edit_btn.pack(pady=(0, 5), padx=5)
+        
+        # Delete button
+        delete_btn = ctk.CTkButton(
+            self.actions_scroll,
+            text="🗑️ Delete",
+            command=lambda: self.delete_customer_by_id(customer_id, customer_name),
+            width=100,
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=("#f44336", "#c62828"),
+            hover_color=("#d32f2f", "#b71c1c")
+        )
+        delete_btn.pack(pady=(0, 5), padx=5)
+        
+        # View Orders button
+        orders_btn = ctk.CTkButton(
+            self.actions_scroll,
+            text="📋 View Orders",
+            command=lambda: self.view_customer_orders(customer_name),
+            width=100,
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=("#9c27b0", "#6a1b9a"),
+            hover_color=("#8e24aa", "#4a148c")
+        )
+        orders_btn.pack(pady=(0, 5), padx=5)
+    
+    def edit_customer_by_id(self, customer_id):
+        """Edit customer by ID"""
+        try:
+            # Get customer data from database
+            customers = self.data_service.db_manager.find_documents("customers", {"_id": self.data_service.db_manager.string_to_objectid(customer_id)})
+            
+            if not customers:
+                messagebox.showerror("Error", "Customer not found!")
+                return
+            
+            customer = customers[0]
+            
+            # Populate form with customer data
+            self.customer_vars["name"].set(customer.get('name', ''))
+            self.customer_vars["contact_number"].set(customer.get('contact_number', ''))
+            self.customer_vars["gst_number"].set(customer.get('gst_number', ''))
+            self.customer_vars["due_payment"].set(f"₹{customer.get('due_payment', 0):.2f}")
+            
+            # Set address
+            self.customer_address_textbox.delete("1.0", "end")
+            self.customer_address_textbox.insert("1.0", customer.get('address', ''))
+            
+            # Set edit mode
+            self.current_customer_id = customer_id
+            self.customer_save_btn.configure(text="💾 Update Customer")
+            self.customer_clear_btn.configure(text="❌ Cancel Edit")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load customer data: {str(e)}")
+    
+    def delete_customer_by_id(self, customer_id, customer_name):
+        """Delete customer by ID"""
+        # Confirm deletion
+        response = messagebox.askyesno(
+            "Confirm Deletion", 
+            f"Are you sure you want to delete customer '{customer_name}'?\n\nThis action cannot be undone."
+        )
+        
+        if response:
+            try:
+                result = self.data_service.delete_customer(customer_id)
+                
+                if result > 0:
+                    messagebox.showinfo("Success", "Customer deleted successfully!")
+                    self.refresh_customer_table()
+                    # Clear form if this customer was being edited
+                    if self.current_customer_id == customer_id:
+                        self.clear_customer_form()
+                else:
+                    messagebox.showerror("Error", "Failed to delete customer!")
+                    
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to delete customer: {str(e)}")
+    
+    def view_customer_orders(self, customer_name):
+        """View all orders for a specific customer"""
+        try:
+            # Get orders for this customer
+            orders = self.data_service.db_manager.find_documents("orders", {"customer_name": customer_name})
+            
+            if not orders:
+                messagebox.showinfo("No Orders", f"No orders found for customer '{customer_name}'")
+                return
+            
+            # Create a popup window to show orders
+            popup = tk.Toplevel()
+            popup.title(f"Orders for {customer_name}")
+            popup.geometry("800x400")
+            popup.resizable(True, True)
+            popup.grab_set()  # Make window modal
+            
+            # Center the popup
+            popup.update_idletasks()
+            x = (popup.winfo_screenwidth() // 2) - (popup.winfo_width() // 2)
+            y = (popup.winfo_screenheight() // 2) - (popup.winfo_height() // 2)
+            popup.geometry(f"+{x}+{y}")
+            
+            # Create frame for content
+            main_frame = ctk.CTkFrame(popup)
+            main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            # Header
+            header_label = ctk.CTkLabel(
+                main_frame,
+                text=f"📋 Orders for {customer_name}",
+                font=ctk.CTkFont(size=16, weight="bold")
+            )
+            header_label.pack(pady=(10, 20))
+            
+            # Orders table
+            orders_frame = ctk.CTkFrame(main_frame)
+            orders_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+            
+            columns = ("Order ID", "Item", "Quantity", "Total", "Due Amount", "Status", "Date")
+            orders_tree = ttk.Treeview(orders_frame, columns=columns, show="headings", height=15)
+            
+            # Configure columns
+            order_column_configs = {
+                "Order ID": 100,
+                "Item": 150,
+                "Quantity": 80,
+                "Total": 100,
+                "Due Amount": 100,
+                "Status": 100,
+                "Date": 100
+            }
+            
+            for col, width in order_column_configs.items():
+                orders_tree.heading(col, text=col)
+                orders_tree.column(col, width=width, minwidth=60)
+            
+            # Add scrollbars
+            v_scroll = ttk.Scrollbar(orders_frame, orient="vertical", command=orders_tree.yview)
+            h_scroll = ttk.Scrollbar(orders_frame, orient="horizontal", command=orders_tree.xview)
+            orders_tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
+            
+            # Pack elements
+            orders_tree.pack(side="left", fill="both", expand=True)
+            v_scroll.pack(side="right", fill="y")
+            h_scroll.pack(side="bottom", fill="x")
+            
+            # Populate orders
+            total_due = 0
+            for order in orders:
+                order_id = order.get('order_id', 'N/A')
+                item = order.get('item_name', 'N/A')
+                quantity = order.get('quantity', 0)
+                total_amount = order.get('total_amount', 0)
+                due_amount = order.get('due_amount', 0)
+                status = order.get('order_status', 'N/A')
+                order_date = order.get('order_date', 'N/A')
+                
+                total_due += due_amount
+                
+                orders_tree.insert("", "end", values=(
+                    order_id, item, quantity, f"₹{total_amount:.2f}", 
+                    f"₹{due_amount:.2f}", status, order_date
+                ))
+            
+            # Summary frame
+            summary_frame = ctk.CTkFrame(main_frame, height=50)
+            summary_frame.pack(fill="x", padx=10, pady=(0, 10))
+            summary_frame.pack_propagate(False)
+            
+            ctk.CTkLabel(
+                summary_frame,
+                text=f"Total Orders: {len(orders)} | Total Due: ₹{total_due:.2f}",
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color=("#d32f2f", "#ef5350")
+            ).pack(pady=15)
+            
+            # Close button
+            close_btn = ctk.CTkButton(
+                main_frame,
+                text="Close",
+                command=popup.destroy,
+                width=100,
+                height=35
+            )
+            close_btn.pack(pady=(0, 10))
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load customer orders: {str(e)}")
+
     def show_payment_collection(self):
         """Display COMPLETE TAKEOVER payment collection interface"""
         # COMPLETE TAKEOVER: Hide all existing sales tab content and navigation
@@ -4995,45 +5739,35 @@ class ModernDataPageGUI:
             # Get form data
             data = {key: var.get().strip() for key, var in self.emp_vars.items()}
             
-            # For edit mode, ensure we have the original employee_id and join_date
-            # since these fields might be disabled and empty
-            data["employee_id"] = str(self.editing_employee_id)
-            if not data.get("join_date"):
-                # Get the original join_date from the current employee data if empty
-                try:
-                    original_employee = self.data_service.get_employees({"employee_id": str(self.editing_employee_id)})
-                    if not original_employee.empty:
-                        data["join_date"] = original_employee.iloc[0].get("join_date", "")
-                except:
-                    data["join_date"] = ""  # Default to empty if we can't get it
-            
             # Validate employee data with field-specific feedback
             is_valid, error_message = self.validate_employee_data_with_feedback(data)
             if not is_valid:
                 self.show_status_message(f"Validation Error: {error_message}", "error")
                 return
             
-            # Use the original employee ID for updating (in case it was changed in form)
-            employee_id = str(self.editing_employee_id)  # Ensure it's a string
-            
-            # Remove employee_id from update data (we use it as filter)
-            update_data = {k: v for k, v in data.items() if k != "employee_id"}
-            
-            # Convert salary to float after validation
-            if update_data.get("salary"):
-                update_data["salary"] = float(update_data["salary"])
-            
-            # Update employee record
-            result = self.data_service.update_employee(employee_id, update_data)
+            # Use the MongoDB ID if available, otherwise use employee_id for lookup
+            if hasattr(self, 'editing_mongo_id') and self.editing_mongo_id:
+                # Use MongoDB ID for direct update
+                update_data = {k: v for k, v in data.items() if k != "employee_id"}
+                if update_data.get("salary"):
+                    update_data["salary"] = float(update_data["salary"])
+                
+                result = self.data_service.update_employee_by_id(self.editing_mongo_id, update_data)
+            else:
+                # Fallback to employee_id based update
+                employee_id = str(self.editing_employee_id)
+                update_data = {k: v for k, v in data.items() if k != "employee_id"}
+                if update_data.get("salary"):
+                    update_data["salary"] = float(update_data["salary"])
+                
+                result = self.data_service.update_employee(employee_id, update_data)
             
             if result > 0:
-                self.show_status_message(f"Employee {employee_id} updated successfully!", "success")
-                # Refresh the table
+                self.show_status_message(f"Employee updated successfully!", "success")
                 self.refresh_table("employees")
-                # Exit edit mode
                 self.cancel_edit_record("employees")
             else:
-                self.show_status_message(f"Failed to update employee {employee_id}", "error")
+                self.show_status_message(f"Failed to update employee", "error")
                 
         except Exception as e:
             self.show_status_message(f"Failed to update employee: {str(e)}", "error")
@@ -5078,6 +5812,10 @@ class ModernDataPageGUI:
                 self.show_status_message(f"Invalid {module_type[:-1]} selection", "error")
                 return
             
+            if not mongo_id:
+                self.show_status_message(f"Missing database ID for {module_type[:-1]} - cannot edit", "error")
+                return
+            
             # Call specific edit method based on module type
             if module_type == "employees":
                 self.edit_employee_data(values, mongo_id)
@@ -5093,8 +5831,6 @@ class ModernDataPageGUI:
     
     def edit_employee_data(self, values, mongo_id=None):
         """Edit employee specific data"""
-        employee_id = str(values[0])
-        
         if hasattr(self, 'emp_vars'):
             self.emp_vars["employee_id"].set(values[0])
             self.emp_vars["name"].set(values[1])
@@ -5105,16 +5841,19 @@ class ModernDataPageGUI:
             salary_str = str(values[6]).replace("₹", "").replace(",", "")
             self.emp_vars["salary"].set(salary_str)
             
-            # Store for editing
+            # Store for editing - use the actual employee_id for string operations
             employee_id = str(values[0])
             self.editing_employee_id = employee_id
             self.editing_mongo_id = mongo_id
             
-            # Change button text to indicate editing mode
-            if hasattr(self, 'employees_add_btn'):
-                self.employees_add_btn.configure(text="💾 Update Employee")
+            # Set edit mode
+            self.edit_mode = True
+            self.edit_module_type = "employees"
             
-            self.show_status_message(f"Editing employee: {values[1]} ({employee_id}). Employee ID and Join Date are locked for security.", "info")
+            # Show edit buttons and change add button
+            self.show_edit_buttons("employees")
+            
+            self.show_status_message(f"Editing employee: {values[1]} ({employee_id}). Modify fields and save.", "info")
                 
     # ====== ORDERS AND TRANSACTIONS IMPLEMENTATION ======
     
@@ -5127,6 +5866,26 @@ class ModernDataPageGUI:
                 if not self.order_vars[field].get().strip():
                     self.show_status_message(f"Please enter {field.replace('_', ' ').title()}", "warning")
                     return
+            
+            # Check if customer exists, if not create new customer
+            customer_name = self.order_vars['customer_name'].get().strip()
+            customer_phone = self.order_vars['customer_phone'].get().strip()
+            customer_address = self.order_vars['customer_address'].get().strip()
+            
+            existing_customer = self.data_service.get_customer_by_name(customer_name)
+            if not existing_customer:
+                # Create new customer automatically
+                try:
+                    new_customer_data = {
+                        'name': customer_name,
+                        'contact_number': customer_phone,
+                        'gst_number': '',  # Empty for now
+                        'address': customer_address
+                    }
+                    self.data_service.add_customer(new_customer_data)
+                    logger.info(f"Automatically created new customer: {customer_name}")
+                except Exception as e:
+                    logger.warning(f"Failed to auto-create customer: {str(e)}")
             
             # Calculate amounts and auto-determine status
             quantity = int(self.order_vars['quantity'].get())
@@ -5144,9 +5903,9 @@ class ModernDataPageGUI:
             # Prepare order data
             order_data = {
                 'order_id': order_id,
-                'customer_name': self.order_vars['customer_name'].get().strip(),
-                'customer_phone': self.order_vars['customer_phone'].get().strip(),
-                'customer_address': self.order_vars['customer_address'].get().strip(),
+                'customer_name': customer_name,
+                'customer_phone': customer_phone,
+                'customer_address': customer_address,
                 'item_name': self.order_vars['item_name'].get().strip(),
                 'quantity': quantity,
                 'unit_price': unit_price,
@@ -5161,11 +5920,12 @@ class ModernDataPageGUI:
             }
             
             # Save to database
-            from data_service import DataService
-            data_service = DataService()
-            result = data_service.add_order(order_data)
+            result = self.data_service.add_order(order_data)
             
             if result:
+                # Update customer due payments after order creation
+                self.data_service.update_all_customer_due_payments()
+                
                 # Create initial transaction if advance payment exists
                 if advance_payment > 0:
                     self.create_initial_transaction(order_id, advance_payment, self.order_vars['payment_method'].get())
@@ -5173,10 +5933,13 @@ class ModernDataPageGUI:
                 # Enhanced success message with order details
                 success_msg = f"✅ Order Created Successfully!\n\n"
                 success_msg += f"Order ID: {order_id}\n"
-                success_msg += f"Customer: {self.order_vars['customer_name'].get().strip()}\n"
+                success_msg += f"Customer: {customer_name}\n"
                 success_msg += f"Item: {self.order_vars['item_name'].get().strip()}\n"
                 success_msg += f"Total Amount: ₹{total_amount:.2f}\n"
                 success_msg += f"Status: {order_status}"
+                
+                if not existing_customer:
+                    success_msg += f"\n\n📝 New customer '{customer_name}' added automatically!"
                 
                 self.show_success_message(success_msg)
                 self.clear_order_form()
@@ -5240,6 +6003,15 @@ class ModernDataPageGUI:
                 self.order_vars['payment_method'].set("Cash")
             if 'due_date' in self.order_vars:
                 self.order_vars['due_date'].set(date.today().strftime("%Y-%m-%d"))
+            
+            # Refresh customer dropdown with latest customers
+            if hasattr(self, 'customer_name_combo'):
+                try:
+                    customers_df = self.data_service.get_customers()
+                    customer_names = [""] + customers_df['name'].tolist() if not customers_df.empty else [""]
+                    self.customer_name_combo.configure(values=customer_names)
+                except:
+                    pass
                 
         except Exception as e:
             print(f"Error clearing order form: {e}")
@@ -6093,6 +6865,11 @@ class ModernDataPageGUI:
             deleted_count = 0
             for item in selected_items:
                 values = tree.item(item, 'values')
+                
+                # Get MongoDB document ID from the item tags for more accurate deletion
+                tags = tree.item(item, 'tags')
+                mongo_id = tags[0] if tags else None
+                
                 if not values:
                     continue
                     
@@ -6243,15 +7020,40 @@ class ModernDataPageGUI:
             
             # Convert DataFrame to list of dictionaries and add MongoDB IDs
             if data_df is not None and not data_df.empty:
-                # Create a mapping from display data to MongoDB IDs
+                # Create a mapping from display data to MongoDB IDs by matching key fields
                 for i, (_, record) in enumerate(data_df.iterrows()):
                     values = self.extract_table_values(record, table_type)
+                    
+                    # Find matching MongoDB record for this row
+                    mongo_id = ''
+                    if i < len(raw_records):
+                        mongo_id = str(raw_records[i].get('_id', ''))
+                    else:
+                        # Fallback: try to match by key field
+                        key_field = self.get_key_field_for_table(table_type)
+                        if key_field and values:
+                            key_value = values[0]  # First column is usually the key
+                            for raw_record in raw_records:
+                                if str(raw_record.get(key_field, '')) == str(key_value):
+                                    mongo_id = str(raw_record.get('_id', ''))
+                                    break
+                    
                     # Store the MongoDB document ID as item data using tags
-                    mongo_id = raw_records[i].get('_id', '') if i < len(raw_records) else ''
-                    item_id = tree.insert("", "end", values=values, tags=(mongo_id,))
+                    item_id = tree.insert("", "end", values=values, tags=(mongo_id,) if mongo_id else ('',))
                 
         except Exception as e:
             logger.error(f"Error refreshing {table_type} table: {e}")
+    
+    def get_key_field_for_table(self, table_type):
+        """Get the key field name for matching records"""
+        key_mapping = {
+            "employees": "employee_id",
+            "attendance": "employee_id", 
+            "sales": "item_name",
+            "purchases": "item_name",
+            "stock": "item_name"
+        }
+        return key_mapping.get(table_type, "name")
     
     def extract_table_values(self, record, table_type):
         """Extract values for table display"""
@@ -6511,19 +7313,28 @@ class ModernDataPageGUI:
             # Get form data
             data = {key: var.get().strip() for key, var in self.purchase_vars.items()}
             
+            # Prepare update data with proper field mapping
+            update_data = {}
+            for k, v in data.items():
+                if k == "price_per_unit":
+                    update_data["unit_price"] = float(v) if v else 0.0
+                else:
+                    update_data[k] = v
+            
             # Convert numeric fields
-            if data.get("quantity"):
-                data["quantity"] = int(data["quantity"])
-            if data.get("price_per_unit"):
-                data["price_per_unit"] = float(data["price_per_unit"])
-                data["total_amount"] = data["quantity"] * data["price_per_unit"]
+            if update_data.get("quantity"):
+                update_data["quantity"] = int(update_data["quantity"])
+            
+            # Calculate total
+            if update_data.get("quantity") and update_data.get("unit_price"):
+                update_data["total_price"] = update_data["quantity"] * update_data["unit_price"]
             
             # Convert date
-            if data.get("date"):
-                data["date"] = datetime.strptime(data["date"], "%Y-%m-%d")
+            if update_data.get("date"):
+                update_data["date"] = datetime.strptime(update_data["date"], "%Y-%m-%d")
             
             # Update purchase record using MongoDB ID
-            result = self.data_service.update_purchase(self.editing_purchase_id, data)
+            result = self.data_service.update_purchase(self.editing_purchase_id, update_data)
             
             if result > 0:
                 self.show_status_message("Purchase record updated successfully!", "success")

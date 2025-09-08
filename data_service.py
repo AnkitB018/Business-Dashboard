@@ -304,6 +304,35 @@ class HRDataService:
             raise
 
     @log_function_call
+    def update_employee_by_id(self, mongo_id: str, employee_data: Dict) -> int:
+        """Update employee record by MongoDB ID"""
+        try:
+            # Convert string ID to ObjectId
+            object_id = self.db_manager.string_to_objectid(mongo_id)
+            log_info(f"Updating employee by MongoDB ID: {mongo_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("EMPLOYEE_UPDATE_BY_ID_START", {"mongo_id": mongo_id})
+            
+            # Update the employee using MongoDB ID
+            result = self.db_manager.update_document("employees", {"_id": object_id}, employee_data)
+            
+            if result > 0:
+                log_info(f"Employee updated successfully by ID: {mongo_id}", "DATA_SERVICE")
+                dashboard_logger.log_user_activity("EMPLOYEE_UPDATE_BY_ID_SUCCESS", {"mongo_id": mongo_id, "updated_count": result})
+                dashboard_logger.log_data_operation("update_employee_by_id", "employees", result, True)
+            else:
+                log_error(Exception("Update operation failed"), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("EMPLOYEE_UPDATE_BY_ID_FAILED", {"mongo_id": mongo_id, "reason": "update_failed"})
+                dashboard_logger.log_data_operation("update_employee_by_id", "employees", 0, False)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_UPDATE_EMPLOYEE_BY_ID")
+            dashboard_logger.log_user_activity("EMPLOYEE_UPDATE_BY_ID_ERROR", {"mongo_id": mongo_id, "error": str(e)})
+            dashboard_logger.log_data_operation("update_employee_by_id", "employees", 0, False, e)
+            raise
+
+    @log_function_call
     def add_attendance(self, attendance_data: Dict) -> str:
         """Add attendance record"""
         try:
@@ -548,6 +577,155 @@ class HRDataService:
                 'database_name': 'Unknown',
                 'error': str(e)
             }
+    
+    # ====== CUSTOMER MANAGEMENT METHODS ======
+    
+    def get_customers(self, filter_dict: Dict = None) -> pd.DataFrame:
+        """Get customers as DataFrame"""
+        return self.db_manager.get_collection_as_dataframe("customers", filter_dict)
+    
+    @log_function_call
+    def add_customer(self, customer_data: Dict) -> str:
+        """Add new customer"""
+        try:
+            log_info(f"Adding new customer: {customer_data.get('name', 'unknown')}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("CUSTOMER_ADD_START", {"customer_name": customer_data.get('name')})
+            
+            # Calculate due payment from orders
+            due_payment = self.calculate_customer_due_payment(customer_data.get('name', ''))
+            customer_data['due_payment'] = due_payment
+            
+            result = self.db_manager.insert_document("customers", customer_data)
+            log_info(f"Customer added successfully: {customer_data.get('name')}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("CUSTOMER_ADD_SUCCESS", {"customer_name": customer_data.get('name'), "result_id": result})
+            dashboard_logger.log_data_operation("add_customer", "customers", 1, True)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_ADD_CUSTOMER")
+            dashboard_logger.log_user_activity("CUSTOMER_ADD_ERROR", {"customer_name": customer_data.get('name'), "error": str(e)})
+            dashboard_logger.log_data_operation("add_customer", "customers", 0, False, e)
+            raise
+    
+    @log_function_call
+    def update_customer(self, customer_id: str, customer_data: Dict) -> int:
+        """Update customer record by customer ID"""
+        try:
+            log_info(f"Updating customer: {customer_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("CUSTOMER_UPDATE_START", {"customer_id": customer_id})
+            
+            # Check if customer record exists
+            existing = self.db_manager.find_documents("customers", {"_id": self.db_manager.string_to_objectid(customer_id)})
+            
+            if not existing:
+                error_msg = f"Customer record {customer_id} not found"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_UPDATE_FAILED", {"customer_id": customer_id, "reason": "not_found"})
+                return 0
+            
+            # Recalculate due payment if name is being updated
+            if 'name' in customer_data:
+                due_payment = self.calculate_customer_due_payment(customer_data['name'])
+                customer_data['due_payment'] = due_payment
+            
+            # Update the customer record
+            result = self.db_manager.update_document("customers", {"_id": self.db_manager.string_to_objectid(customer_id)}, customer_data)
+            
+            if result > 0:
+                log_info(f"Customer updated successfully: {customer_id}", "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_UPDATE_SUCCESS", {"customer_id": customer_id, "updated_count": result})
+                dashboard_logger.log_data_operation("update_customer", "customers", result, True)
+            else:
+                log_error(Exception("Update operation failed"), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_UPDATE_FAILED", {"customer_id": customer_id, "reason": "update_failed"})
+                dashboard_logger.log_data_operation("update_customer", "customers", 0, False)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_UPDATE_CUSTOMER")
+            dashboard_logger.log_user_activity("CUSTOMER_UPDATE_ERROR", {"customer_id": customer_id, "error": str(e)})
+            dashboard_logger.log_data_operation("update_customer", "customers", 0, False, e)
+            raise
+    
+    def delete_customer(self, customer_id: str) -> int:
+        """Delete customer record by customer ID"""
+        try:
+            log_info(f"Deleting customer: {customer_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("CUSTOMER_DELETE_START", {"customer_id": customer_id})
+            
+            # Check if customer exists
+            existing = self.db_manager.find_documents("customers", {"_id": self.db_manager.string_to_objectid(customer_id)})
+            if not existing:
+                error_msg = f"Customer ID {customer_id} not found"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_DELETE_FAILED", {"customer_id": customer_id, "reason": "not_found"})
+                return 0
+            
+            # Delete the customer
+            result = self.db_manager.delete_documents("customers", {"_id": self.db_manager.string_to_objectid(customer_id)})
+            
+            if result > 0:
+                log_info(f"Customer deleted successfully: {customer_id}", "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_DELETE_SUCCESS", {"customer_id": customer_id, "deleted_count": result})
+                dashboard_logger.log_data_operation("delete_customer", "customers", result, True)
+            else:
+                log_error(Exception("Delete operation failed"), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_DELETE_FAILED", {"customer_id": customer_id, "reason": "delete_failed"})
+                dashboard_logger.log_data_operation("delete_customer", "customers", 0, False)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_DELETE_CUSTOMER")
+            dashboard_logger.log_user_activity("CUSTOMER_DELETE_ERROR", {"customer_id": customer_id, "error": str(e)})
+            dashboard_logger.log_data_operation("delete_customer", "customers", 0, False, e)
+            raise
+    
+    def calculate_customer_due_payment(self, customer_name: str) -> float:
+        """Calculate total due payment for a customer from all orders"""
+        try:
+            # Find all orders for this customer
+            orders = self.db_manager.find_documents("orders", {"customer_name": customer_name})
+            
+            total_due = 0.0
+            for order in orders:
+                due_amount = order.get('due_amount', 0)
+                if due_amount:
+                    total_due += float(due_amount)
+            
+            return total_due
+        except Exception as e:
+            log_error(e, f"Error calculating due payment for {customer_name}")
+            return 0.0
+    
+    def get_customer_by_name(self, customer_name: str) -> Dict:
+        """Get customer details by name"""
+        try:
+            customers = self.db_manager.find_documents("customers", {"name": customer_name})
+            if customers:
+                return customers[0]
+            return None
+        except Exception as e:
+            log_error(e, f"Error getting customer by name: {customer_name}")
+            return None
+    
+    def update_all_customer_due_payments(self):
+        """Update due payments for all customers"""
+        try:
+            customers = self.db_manager.find_documents("customers", {})
+            for customer in customers:
+                customer_name = customer.get('name', '')
+                due_payment = self.calculate_customer_due_payment(customer_name)
+                self.db_manager.update_document(
+                    "customers", 
+                    {"_id": customer["_id"]}, 
+                    {"due_payment": due_payment}
+                )
+            log_info("Updated due payments for all customers", "DATA_SERVICE")
+        except Exception as e:
+            log_error(e, "Error updating all customer due payments")
 
 # Singleton instance
 hr_service = None
@@ -711,6 +889,155 @@ class DataService:
         except Exception as e:
             logger.error(f"Failed to delete transactions for order {order_id}: {str(e)}")
             return None
+    
+    # ====== CUSTOMER MANAGEMENT METHODS ======
+    
+    def get_customers(self, filter_dict: Dict = None) -> pd.DataFrame:
+        """Get customers as DataFrame"""
+        return self.db_manager.get_collection_as_dataframe("customers", filter_dict)
+    
+    @log_function_call
+    def add_customer(self, customer_data: Dict) -> str:
+        """Add new customer"""
+        try:
+            log_info(f"Adding new customer: {customer_data.get('name', 'unknown')}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("CUSTOMER_ADD_START", {"customer_name": customer_data.get('name')})
+            
+            # Calculate due payment from orders
+            due_payment = self.calculate_customer_due_payment(customer_data.get('name', ''))
+            customer_data['due_payment'] = due_payment
+            
+            result = self.db_manager.insert_document("customers", customer_data)
+            log_info(f"Customer added successfully: {customer_data.get('name')}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("CUSTOMER_ADD_SUCCESS", {"customer_name": customer_data.get('name'), "result_id": result})
+            dashboard_logger.log_data_operation("add_customer", "customers", 1, True)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_ADD_CUSTOMER")
+            dashboard_logger.log_user_activity("CUSTOMER_ADD_ERROR", {"customer_name": customer_data.get('name'), "error": str(e)})
+            dashboard_logger.log_data_operation("add_customer", "customers", 0, False, e)
+            raise
+    
+    @log_function_call
+    def update_customer(self, customer_id: str, customer_data: Dict) -> int:
+        """Update customer record by customer ID"""
+        try:
+            log_info(f"Updating customer: {customer_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("CUSTOMER_UPDATE_START", {"customer_id": customer_id})
+            
+            # Check if customer record exists
+            existing = self.db_manager.find_documents("customers", {"_id": self.db_manager.string_to_objectid(customer_id)})
+            
+            if not existing:
+                error_msg = f"Customer record {customer_id} not found"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_UPDATE_FAILED", {"customer_id": customer_id, "reason": "not_found"})
+                return 0
+            
+            # Recalculate due payment if name is being updated
+            if 'name' in customer_data:
+                due_payment = self.calculate_customer_due_payment(customer_data['name'])
+                customer_data['due_payment'] = due_payment
+            
+            # Update the customer record
+            result = self.db_manager.update_document("customers", {"_id": self.db_manager.string_to_objectid(customer_id)}, customer_data)
+            
+            if result > 0:
+                log_info(f"Customer updated successfully: {customer_id}", "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_UPDATE_SUCCESS", {"customer_id": customer_id, "updated_count": result})
+                dashboard_logger.log_data_operation("update_customer", "customers", result, True)
+            else:
+                log_error(Exception("Update operation failed"), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_UPDATE_FAILED", {"customer_id": customer_id, "reason": "update_failed"})
+                dashboard_logger.log_data_operation("update_customer", "customers", 0, False)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_UPDATE_CUSTOMER")
+            dashboard_logger.log_user_activity("CUSTOMER_UPDATE_ERROR", {"customer_id": customer_id, "error": str(e)})
+            dashboard_logger.log_data_operation("update_customer", "customers", 0, False, e)
+            raise
+    
+    def delete_customer(self, customer_id: str) -> int:
+        """Delete customer record by customer ID"""
+        try:
+            log_info(f"Deleting customer: {customer_id}", "DATA_SERVICE")
+            dashboard_logger.log_user_activity("CUSTOMER_DELETE_START", {"customer_id": customer_id})
+            
+            # Check if customer exists
+            existing = self.db_manager.find_documents("customers", {"_id": self.db_manager.string_to_objectid(customer_id)})
+            if not existing:
+                error_msg = f"Customer ID {customer_id} not found"
+                log_error(ValueError(error_msg), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_DELETE_FAILED", {"customer_id": customer_id, "reason": "not_found"})
+                return 0
+            
+            # Delete the customer
+            result = self.db_manager.delete_documents("customers", {"_id": self.db_manager.string_to_objectid(customer_id)})
+            
+            if result > 0:
+                log_info(f"Customer deleted successfully: {customer_id}", "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_DELETE_SUCCESS", {"customer_id": customer_id, "deleted_count": result})
+                dashboard_logger.log_data_operation("delete_customer", "customers", result, True)
+            else:
+                log_error(Exception("Delete operation failed"), "DATA_SERVICE")
+                dashboard_logger.log_user_activity("CUSTOMER_DELETE_FAILED", {"customer_id": customer_id, "reason": "delete_failed"})
+                dashboard_logger.log_data_operation("delete_customer", "customers", 0, False)
+            
+            return result
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE_DELETE_CUSTOMER")
+            dashboard_logger.log_user_activity("CUSTOMER_DELETE_ERROR", {"customer_id": customer_id, "error": str(e)})
+            dashboard_logger.log_data_operation("delete_customer", "customers", 0, False, e)
+            raise
+    
+    def calculate_customer_due_payment(self, customer_name: str) -> float:
+        """Calculate total due payment for a customer from all orders"""
+        try:
+            # Find all orders for this customer
+            orders = self.db_manager.find_documents("orders", {"customer_name": customer_name})
+            
+            total_due = 0.0
+            for order in orders:
+                due_amount = order.get('due_amount', 0)
+                if due_amount:
+                    total_due += float(due_amount)
+            
+            return total_due
+        except Exception as e:
+            log_error(e, f"Error calculating due payment for {customer_name}")
+            return 0.0
+    
+    def get_customer_by_name(self, customer_name: str) -> Dict:
+        """Get customer details by name"""
+        try:
+            customers = self.db_manager.find_documents("customers", {"name": customer_name})
+            if customers:
+                return customers[0]
+            return None
+        except Exception as e:
+            log_error(e, f"Error getting customer by name: {customer_name}")
+            return None
+    
+    def update_all_customer_due_payments(self):
+        """Update due payments for all customers"""
+        try:
+            customers = self.db_manager.find_documents("customers", {})
+            for customer in customers:
+                customer_name = customer.get('name', '')
+                due_payment = self.calculate_customer_due_payment(customer_name)
+                self.db_manager.update_document(
+                    "customers", 
+                    {"_id": customer["_id"]}, 
+                    {"due_payment": due_payment}
+                )
+            log_info("Updated due payments for all customers", "DATA_SERVICE")
+        except Exception as e:
+            log_error(e, "Error updating all customer due payments")
     
     # ====== LEGACY SALES METHODS (for backward compatibility) ======
     
