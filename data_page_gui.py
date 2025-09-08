@@ -1369,6 +1369,48 @@ class ModernDataPageGUI:
         # Data table
         self.create_data_table(data_panel, "attendance")
         
+    def create_sales_form(self, form_panel, data_panel):
+        """Create modern sales form"""
+        # Form header
+        form_header = ctk.CTkFrame(form_panel, height=60, corner_radius=8)
+        form_header.pack(fill="x", padx=15, pady=(15, 10))
+        form_header.pack_propagate(False)
+        
+        ctk.CTkLabel(
+            form_header,
+            text="💰 Sales Record",
+            font=ctk.CTkFont(size=18, weight="bold")
+        ).pack(pady=15)
+        
+        # Scrollable form area
+        form_scroll = ctk.CTkScrollableFrame(form_panel)
+        form_scroll.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(form_scroll)
+        
+        # Form fields
+        self.sales_vars = {}
+        fields = [
+            ("Item Name", "item_name", "text"),
+            ("Quantity", "quantity", "number"),
+            ("Sale Price (₹)", "price_per_unit", "number"),
+            ("Customer Name", "customer", "text"),
+            ("Sale Date", "date", "date")
+        ]
+        
+        for label, key, field_type in fields:
+            if field_type == "date":
+                self.create_form_field(form_scroll, label, key, "text", self.sales_vars, placeholder=date.today().strftime("%Y-%m-%d"))
+            else:
+                self.create_form_field(form_scroll, label, key, field_type, self.sales_vars)
+        
+        # Form buttons
+        self.create_form_buttons(form_scroll, "sales")
+        
+        # Data table
+        self.create_data_table(data_panel, "sales")
+        
     def create_employee_dropdown(self, parent, label, key, vars_dict):
         """Create employee selection dropdown"""
         field_frame = ctk.CTkFrame(parent, fg_color="transparent")
