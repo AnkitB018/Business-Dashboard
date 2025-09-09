@@ -65,7 +65,8 @@ class DataMigration:
                     "phone": str(row.get("Phone", "")),
                     "department": str(row.get("Department", "")),
                     "position": str(row.get("Position", "")),
-                    "salary": float(row.get("Salary", 0)) if pd.notna(row.get("Salary")) else 0,
+                    "daily_wage": float(row.get("Daily Wage", row.get("Salary", 0))) if pd.notna(row.get("Daily Wage", row.get("Salary", 0))) else 0,
+                    "last_paid": None,  # Initialize as None, will be set when first payment is made
                     "status": "active"
                 }
                 
@@ -197,6 +198,46 @@ class HRDataService:
     
     def __init__(self, db_manager=None):
         self.db_manager = db_manager if db_manager else get_db_manager()
+        # Run database migrations on initialization
+        self._migrate_existing_data()
+    
+    def _migrate_existing_data(self):
+        """Migrate existing employee records to new wage system"""
+        try:
+            # Check if any employees need migration
+            employees = self.db_manager.find_documents("employees")
+            migration_needed = False
+            
+            for employee in employees:
+                update_needed = False
+                updates = {}
+                
+                # Migrate salary to daily_wage if missing
+                if "salary" in employee and "daily_wage" not in employee:
+                    # Convert monthly salary to daily wage (assuming 30 working days)
+                    monthly_salary = employee.get("salary", 0)
+                    if monthly_salary > 0:
+                        daily_wage = round(monthly_salary / 30, 2)
+                        updates["daily_wage"] = daily_wage
+                        update_needed = True
+                        migration_needed = True
+                
+                # Add last_paid field if missing (set to current time for existing employees)
+                if "last_paid" not in employee:
+                    updates["last_paid"] = datetime.now()
+                    update_needed = True
+                    migration_needed = True
+                
+                # Apply updates if needed
+                if update_needed:
+                    self.db_manager.update_document("employees", {"_id": employee["_id"]}, updates)
+                    log_info(f"Migrated employee {employee.get('employee_id', 'unknown')} to wage system", "DATA_SERVICE")
+            
+            if migration_needed:
+                log_info("Successfully migrated existing employees to wage system", "DATA_SERVICE")
+            
+        except Exception as e:
+            log_error(e, "DATA_SERVICE", "Error during employee migration")
     
     # Employee operations
     def get_employees(self, filter_dict: Dict = None) -> pd.DataFrame:
@@ -217,6 +258,11 @@ class HRDataService:
                 log_error(ValueError(error_msg), "DATA_SERVICE")
                 dashboard_logger.log_user_activity("EMPLOYEE_ADD_FAILED", {"employee_id": employee_data.get('employee_id'), "reason": "duplicate"})
                 raise ValueError(error_msg)
+            
+            # Initialize last_paid to hire_date for new wage calculation system
+            if 'hire_date' in employee_data and 'last_paid' not in employee_data:
+                employee_data['last_paid'] = employee_data['hire_date']
+                log_info(f"Set last_paid to hire_date for new employee: {employee_data.get('employee_id')}", "DATA_SERVICE")
             
             result = self.db_manager.insert_document("employees", employee_data)
             log_info(f"Employee added successfully: {employee_data.get('employee_id')}", "DATA_SERVICE")

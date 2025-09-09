@@ -51,6 +51,12 @@ class HRManagementApp:
             # Create main window with modern styling
             self.root = ctk.CTk()
             self.root.title("🏢 Business Dashboard - Enterprise Edition")
+            
+            # Set window state and properties for better positioning
+            self.root.state('normal')  # Ensure normal window state
+            self.root.resizable(True, True)  # Allow resizing
+            
+            # Set initial size and position
             self.root.geometry("1600x1000")
             self.root.minsize(1400, 900)
             log_info("Main window created with dimensions 1600x1000", "APP_INIT")
@@ -75,8 +81,8 @@ class HRManagementApp:
             except Exception as e:
                 dashboard_logger.log_debug("No icon file found, using default", {'error': str(e)})
                 
-            # Center the window
-            self.center_window()
+            # Center the window (after a brief delay to ensure proper sizing)
+            self.root.after(100, self.center_window)
             
             # Initialize database connection immediately (no threading for now)
             self.db_manager = None
@@ -111,13 +117,33 @@ class HRManagementApp:
             sys.exit(1)
         
     def center_window(self):
-        """Center the window on the screen"""
-        self.root.update_idletasks()
-        width = self.root.winfo_width()
-        height = self.root.winfo_height()
-        x = (self.root.winfo_screenwidth() // 2) - (width // 2)
-        y = (self.root.winfo_screenheight() // 2) - (height // 2)
-        self.root.geometry(f"{width}x{height}+{x}+{y}")
+        """Center the window on the screen with improved positioning"""
+        # Get the desired window size (1600x1000 as set in geometry)
+        window_width = 1600
+        window_height = 1000
+        
+        # Get screen dimensions
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+        
+        # Calculate position to center the window
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        
+        # Ensure the window doesn't go off-screen (for smaller displays)
+        x = max(0, x)
+        y = max(0, y)
+        
+        # Set the window position
+        self.root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        
+        # Additional window management for better appearance
+        self.root.lift()  # Bring to front
+        self.root.attributes('-topmost', True)  # Temporarily make topmost
+        self.root.after(100, lambda: self.root.attributes('-topmost', False))  # Remove topmost after brief delay
+        
+        # Focus the window
+        self.root.focus_force()
         
     @log_function_call
     def create_main_structure(self):

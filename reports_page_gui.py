@@ -5,7 +5,7 @@ Modern interface with attendance calendar and meaningful charts
 
 import customtkinter as ctk
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -147,11 +147,13 @@ class ModernReportsPageGUI:
         
         # Add tabs
         self.tabview.add("📅 Attendance Calendar")
-        self.tabview.add("👥 Employee Analytics") 
+        self.tabview.add("� Wage Reports")
+        self.tabview.add("�👥 Employee Analytics") 
         self.tabview.add("💰 Financial Reports")
         
         # Create tab content
         self.create_attendance_tab()
+        self.create_wage_reports_tab()
         self.create_employee_tab()
         self.create_financial_tab()
         
@@ -282,9 +284,502 @@ class ModernReportsPageGUI:
         self.create_attendance_legend()
         self.create_attendance_stats()
         
+    def create_wage_reports_tab(self):
+        """Create wage reports tab for employee wage calculations"""
+        tab_frame = self.tabview.tab("� Wage Reports")
+        
+        # Create scrollable container
+        container = ctk.CTkScrollableFrame(tab_frame, corner_radius=8)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(container)
+        
+        # Header section
+        header_frame = ctk.CTkFrame(container, height=80, corner_radius=8)
+        header_frame.pack(fill="x", padx=10, pady=(10, 20))
+        header_frame.pack_propagate(False)
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            header_frame,
+            text="💰 Employee Wage Calculator",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=self.colors['success']
+        )
+        title_label.pack(side="left", padx=20, pady=25)
+        
+        # Refresh button
+        refresh_btn = ctk.CTkButton(
+            header_frame,
+            text="🔄 Refresh Data",
+            command=self.refresh_wage_data,
+            height=40,
+            width=150,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=self.colors['primary'],
+            hover_color=self.darken_color(self.colors['primary'])
+        )
+        refresh_btn.pack(side="right", padx=20, pady=20)
+        
+        # Employee selection section
+        selection_frame = ctk.CTkFrame(container, corner_radius=8)
+        selection_frame.pack(fill="x", padx=10, pady=(0, 20))
+        
+        # Employee dropdown
+        dropdown_frame = ctk.CTkFrame(selection_frame, fg_color="transparent")
+        dropdown_frame.pack(fill="x", padx=20, pady=20)
+        
+        ctk.CTkLabel(
+            dropdown_frame,
+            text="Select Employee:",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=self.colors['dark']
+        ).pack(side="left", padx=(0, 20))
+        
+        self.wage_employee_var = ctk.StringVar()
+        self.wage_employee_dropdown = ctk.CTkComboBox(
+            dropdown_frame,
+            variable=self.wage_employee_var,
+            values=self.get_employee_list_for_wage(),
+            width=300,
+            height=40,
+            font=ctk.CTkFont(size=14),
+            command=self.on_wage_employee_select
+        )
+        self.wage_employee_dropdown.pack(side="left", padx=(0, 20))
+        
+        # Calculate button
+        calculate_btn = ctk.CTkButton(
+            dropdown_frame,
+            text="📊 Calculate Wages",
+            command=self.calculate_employee_wages,
+            height=40,
+            width=180,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=self.colors['success'],
+            hover_color=self.darken_color(self.colors['success'])
+        )
+        calculate_btn.pack(side="left")
+        
+        # Results display section
+        self.wage_results_frame = ctk.CTkFrame(container, corner_radius=8)
+        self.wage_results_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        # Initial empty state
+        self.create_wage_empty_state()
+        
+    def get_employee_list_for_wage(self):
+        """Get list of employees for wage dropdown"""
+        try:
+            employees_df = self.data_service.get_employees()
+            if employees_df.empty:
+                return ["No employees found"]
+            
+            employee_list = []
+            for _, emp in employees_df.iterrows():
+                emp_id = emp.get('employee_id', 'Unknown')
+                name = emp.get('name', 'Unknown')
+                employee_list.append(f"{emp_id} - {name}")
+            
+            return employee_list
+        except Exception as e:
+            logger.error(f"Error getting employee list for wages: {e}")
+            return ["Error loading employees"]
+    
+    def on_wage_employee_select(self, selection):
+        """Handle employee selection in wage dropdown"""
+        if selection and selection != "No employees found" and selection != "Error loading employees":
+            # Automatically calculate wages when employee is selected
+            self.calculate_employee_wages()
+    
+    def refresh_wage_data(self):
+        """Refresh employee dropdown and clear results"""
+        try:
+            # Update dropdown values
+            new_values = self.get_employee_list_for_wage()
+            self.wage_employee_dropdown.configure(values=new_values)
+            
+            # Clear selection
+            self.wage_employee_var.set("")
+            
+            # Show empty state
+            self.create_wage_empty_state()
+            
+        except Exception as e:
+            logger.error(f"Error refreshing wage data: {e}")
+    
+    def create_wage_empty_state(self):
+        """Create empty state for wage results"""
+        # Clear existing widgets
+        for widget in self.wage_results_frame.winfo_children():
+            widget.destroy()
+        
+        # Empty state message
+        empty_frame = ctk.CTkFrame(self.wage_results_frame, fg_color="transparent")
+        empty_frame.pack(expand=True, fill="both")
+        
+        ctk.CTkLabel(
+            empty_frame,
+            text="💼 Select an employee to calculate wages",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.colors['gray_light'] if hasattr(self, 'colors') and 'gray_light' in self.colors else "#9CA3AF"
+        ).pack(expand=True, pady=50)
+    
+    def calculate_employee_wages(self):
+        """Calculate and display wages for selected employee"""
+        try:
+            # Get selected employee
+            selection = self.wage_employee_var.get()
+            if not selection or selection in ["No employees found", "Error loading employees", ""]:
+                messagebox.showwarning("Selection Required", "Please select an employee first.")
+                return
+            
+            # Extract employee ID
+            emp_id = selection.split(" - ")[0].strip()
+            
+            # Get employee data
+            employees_df = self.data_service.get_employees({"employee_id": emp_id})
+            if employees_df.empty:
+                messagebox.showerror("Error", "Employee not found.")
+                return
+            
+            employee = employees_df.iloc[0]
+            daily_wage = float(employee.get('daily_wage', 0))
+            last_paid = employee.get('last_paid')
+            
+            if daily_wage <= 0:
+                messagebox.showerror("Error", "Employee daily wage not set or invalid.")
+                return
+            
+            # Calculate wage period: Always from (last_paid + 1 day) to today
+            from datetime import datetime, date, timedelta
+            
+            # Get last_paid date (should always exist, defaulting to hire_date)
+            last_paid = employee.get('last_paid')
+            if not last_paid:
+                # Fallback to hire_date if last_paid is missing
+                hire_date = employee.get('hire_date')
+                if hire_date:
+                    last_paid = hire_date
+                else:
+                    # Ultimate fallback (shouldn't happen)
+                    last_paid = date.today() - timedelta(days=30)
+            
+            # Handle different date formats for last_paid
+            if isinstance(last_paid, str):
+                try:
+                    last_paid_date = datetime.strptime(last_paid, "%Y-%m-%d").date()
+                except ValueError:
+                    # Try ISO format
+                    last_paid_date = datetime.fromisoformat(last_paid.replace('Z', '')).date()
+            elif hasattr(last_paid, 'date'):
+                last_paid_date = last_paid.date()
+            else:
+                last_paid_date = last_paid
+            
+            # Calculate from day after last_paid to today
+            start_date = last_paid_date + timedelta(days=1)
+            end_date = date.today()
+            
+            # If start_date is in the future (last_paid is today), show ₹0.0
+            if start_date > end_date:
+                start_date = end_date  # This will result in 0 days
+            
+            end_date = date.today()
+            
+            # Debug: Print date range
+            print(f"Calculating wages for {emp_id} from {start_date} to {end_date}")
+            
+            # Get attendance data for the period
+            # Convert dates to datetime for MongoDB query
+            start_datetime = datetime.combine(start_date, datetime.min.time())
+            end_datetime = datetime.combine(end_date, datetime.max.time())
+            
+            # Get all attendance records for this employee
+            all_attendance_df = self.data_service.get_attendance({"employee_id": emp_id})
+            
+            # Filter by date range in Python since MongoDB query might be complex
+            attendance_df = pd.DataFrame()
+            if not all_attendance_df.empty:
+                # Convert date column to datetime for comparison
+                all_attendance_df['date_converted'] = pd.to_datetime(all_attendance_df['date'])
+                mask = (all_attendance_df['date_converted'] >= start_datetime) & (all_attendance_df['date_converted'] <= end_datetime)
+                attendance_df = all_attendance_df[mask]
+            
+            print(f"Found {len(attendance_df)} attendance records in date range")
+            
+            # Calculate present days and overtime hours
+            present_days = 0
+            overtime_hours = 0
+            
+            for _, record in attendance_df.iterrows():
+                status = record.get('status', '').lower()
+                if status in ['present', 'overtime']:
+                    present_days += 1
+                    if status == 'overtime':
+                        # Handle overtime_hour field safely
+                        overtime_val = record.get('overtime_hour', 0)
+                        if overtime_val is not None and overtime_val != '' and str(overtime_val).lower() != 'nan':
+                            try:
+                                overtime_hours += float(overtime_val)
+                            except (ValueError, TypeError):
+                                # If conversion fails, treat as 0
+                                pass
+            
+            print(f"Calculated: {present_days} present days, {overtime_hours} overtime hours")
+            
+            # Calculate total wage
+            # Formula: total_wage = present_days * daily_wage + (daily_wage/8) * overtime_hours
+            overtime_rate = daily_wage / 8
+            total_wage = (present_days * daily_wage) + (overtime_rate * overtime_hours)
+            
+            print(f"Total wage calculated: ₹{total_wage}")
+            
+            # Display results
+            self.display_wage_results(employee, present_days, overtime_hours, total_wage, start_date, end_date)
+            
+        except Exception as e:
+            logger.error(f"Error calculating wages: {e}")
+            print(f"Error calculating wages: {e}")
+            messagebox.showerror("Error", f"Failed to calculate wages: {str(e)}")
+    
+    
+    def display_wage_results(self, employee, present_days, overtime_hours, total_wage, start_date, end_date):
+        """Display calculated wage results"""
+        # Clear existing widgets
+        for widget in self.wage_results_frame.winfo_children():
+            widget.destroy()
+        
+        # Main results container
+        results_container = ctk.CTkFrame(self.wage_results_frame, fg_color="transparent")
+        results_container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Employee info header
+        info_frame = ctk.CTkFrame(results_container, corner_radius=8, fg_color=self.colors['light'])
+        info_frame.pack(fill="x", pady=(0, 20))
+        
+        info_content = ctk.CTkFrame(info_frame, fg_color="transparent")
+        info_content.pack(fill="x", padx=20, pady=15)
+        
+        # Employee name and ID
+        emp_label = ctk.CTkLabel(
+            info_content,
+            text=f"👤 {employee.get('name', 'Unknown')} (ID: {employee.get('employee_id', 'Unknown')})",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.colors['dark']
+        )
+        emp_label.pack(side="left")
+        
+        # Daily wage info
+        wage_label = ctk.CTkLabel(
+            info_content,
+            text=f"💰 Daily Wage: ₹{employee.get('daily_wage', 0):,.2f}",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=self.colors['success']
+        )
+        wage_label.pack(side="right")
+        
+        # Period info
+        period_frame = ctk.CTkFrame(results_container, corner_radius=8, fg_color=self.colors['info'])
+        period_frame.pack(fill="x", pady=(0, 20))
+        
+        period_label = ctk.CTkLabel(
+            period_frame,
+            text=f"📅 Calculation Period: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="white"
+        )
+        period_label.pack(pady=15)
+        
+        # Results grid
+        results_grid = ctk.CTkFrame(results_container, corner_radius=8)
+        results_grid.pack(fill="x", pady=(0, 20))
+        
+        # Configure grid
+        results_grid.grid_columnconfigure((0, 1, 2), weight=1)
+        
+        # Present days card
+        present_card = ctk.CTkFrame(results_grid, corner_radius=8, fg_color=self.colors['success'])
+        present_card.grid(row=0, column=0, padx=10, pady=15, sticky="ew")
+        
+        ctk.CTkLabel(
+            present_card,
+            text="📊 Present Days",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="white"
+        ).pack(pady=(15, 5))
+        
+        ctk.CTkLabel(
+            present_card,
+            text=str(present_days),
+            font=ctk.CTkFont(size=24, weight="bold"),
+            text_color="white"
+        ).pack(pady=(0, 15))
+        
+        # Overtime hours card
+        overtime_card = ctk.CTkFrame(results_grid, corner_radius=8, fg_color=self.colors['warning'])
+        overtime_card.grid(row=0, column=1, padx=10, pady=15, sticky="ew")
+        
+        ctk.CTkLabel(
+            overtime_card,
+            text="⏰ Overtime Hours",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="white"
+        ).pack(pady=(15, 5))
+        
+        ctk.CTkLabel(
+            overtime_card,
+            text=str(overtime_hours),
+            font=ctk.CTkFont(size=24, weight="bold"),
+            text_color="white"
+        ).pack(pady=(0, 15))
+        
+        # Total wage card
+        wage_card = ctk.CTkFrame(results_grid, corner_radius=8, fg_color=self.colors['primary'])
+        wage_card.grid(row=0, column=2, padx=10, pady=15, sticky="ew")
+        
+        ctk.CTkLabel(
+            wage_card,
+            text="💰 Total Wage",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="white"
+        ).pack(pady=(15, 5))
+        
+        ctk.CTkLabel(
+            wage_card,
+            text=f"₹{total_wage:,.2f}",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="white"
+        ).pack(pady=(0, 15))
+        
+        # Calculation breakdown
+        breakdown_frame = ctk.CTkFrame(results_container, corner_radius=8)
+        breakdown_frame.pack(fill="x", pady=(0, 20))
+        
+        breakdown_label = ctk.CTkLabel(
+            breakdown_frame,
+            text="📋 Calculation Breakdown:",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=self.colors['dark']
+        )
+        breakdown_label.pack(anchor="w", padx=20, pady=(15, 5))
+        
+        # Breakdown details
+        daily_amount = present_days * employee.get('daily_wage', 0)
+        overtime_amount = (employee.get('daily_wage', 0) / 8) * overtime_hours
+        
+        breakdown_text = f"""
+        🔹 Present Days: {present_days} × ₹{employee.get('daily_wage', 0):,.2f} = ₹{daily_amount:,.2f}
+        🔹 Overtime: {overtime_hours} hours × ₹{employee.get('daily_wage', 0)/8:,.2f}/hour = ₹{overtime_amount:,.2f}
+        🔹 Total Wage = ₹{daily_amount:,.2f} + ₹{overtime_amount:,.2f} = ₹{total_wage:,.2f}
+        """
+        
+        breakdown_details = ctk.CTkLabel(
+            breakdown_frame,
+            text=breakdown_text.strip(),
+            font=ctk.CTkFont(size=12),
+            text_color=self.colors['dark'],
+            justify="left"
+        )
+        breakdown_details.pack(anchor="w", padx=20, pady=(0, 15))
+        
+        # Action buttons
+        action_frame = ctk.CTkFrame(results_container, fg_color="transparent")
+        action_frame.pack(fill="x")
+        
+        # Paid button
+        paid_btn = ctk.CTkButton(
+            action_frame,
+            text="✅ Mark as Paid",
+            command=lambda: self.mark_as_paid(employee.get('employee_id'), end_date, total_wage),
+            height=50,
+            width=200,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=self.colors['success'],
+            hover_color=self.darken_color(self.colors['success'])
+        )
+        paid_btn.pack(side="left", padx=(0, 20))
+        
+        # Export button (future feature)
+        export_btn = ctk.CTkButton(
+            action_frame,
+            text="📄 Export Report",
+            command=lambda: self.export_wage_report(employee, present_days, overtime_hours, total_wage),
+            height=50,
+            width=180,
+            font=ctk.CTkFont(size=16, weight="bold"),
+            fg_color=self.colors['info'],
+            hover_color=self.darken_color(self.colors['info'])
+        )
+        export_btn.pack(side="left")
+    
+    def mark_as_paid(self, employee_id, paid_date, amount):
+        """Mark employee as paid and reset wage calculation"""
+        try:
+            from tkinter import messagebox
+            from datetime import datetime, date
+            
+            logger.info(f"Attempting to mark employee {employee_id} as paid ₹{amount}")
+            logger.info(f"Paid date type: {type(paid_date)}, value: {paid_date}")
+            
+            # Confirm action
+            result = messagebox.askyesno(
+                "Confirm Payment", 
+                f"Mark employee {employee_id} as paid ₹{amount:,.2f}?\n\nThis will reset the wage calculation and update the last paid date to {paid_date}."
+            )
+            
+            if not result:
+                logger.info("Payment marking cancelled by user")
+                return
+            
+            # Convert paid_date to datetime if it's a date object
+            if isinstance(paid_date, date) and not isinstance(paid_date, datetime):
+                paid_date = datetime.combine(paid_date, datetime.min.time())
+            elif isinstance(paid_date, str):
+                paid_date = datetime.strptime(paid_date, "%Y-%m-%d")
+                
+            logger.info(f"Converted paid_date to: {paid_date} (type: {type(paid_date)})")
+            
+            # Update employee's last_paid date
+            update_data = {
+                "last_paid": paid_date
+            }
+            
+            logger.info(f"Attempting database update with filter: {{'employee_id': '{employee_id}'}}")
+            logger.info(f"Update data: {update_data}")
+            
+            updated = self.data_service.db_manager.update_document(
+                "employees",
+                {"employee_id": employee_id},
+                {"$set": update_data}
+            )
+            
+            logger.info(f"Database update result: {updated}")
+            
+            if updated > 0:
+                logger.info(f"Successfully marked employee {employee_id} as paid")
+                messagebox.showinfo("Success", f"Employee {employee_id} marked as paid successfully!")
+                # Refresh the wage calculation
+                self.calculate_employee_wages()
+            else:
+                logger.error(f"Database update returned 0 for employee {employee_id}")
+                messagebox.showerror("Error", "Failed to update payment status.")
+                
+        except Exception as e:
+            logger.error(f"Error marking as paid: {e}")
+            logger.error(f"Exception type: {type(e)}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
+            messagebox.showerror("Error", f"Failed to mark as paid: {str(e)}")
+    
+    def export_wage_report(self, employee, present_days, overtime_hours, total_wage):
+        """Export wage report (placeholder for future implementation)"""
+        messagebox.showinfo("Coming Soon", "Export functionality will be available in a future update.")
+        
     def create_employee_tab(self):
         """Create employee analytics tab"""
-        tab_frame = self.tabview.tab("👥 Employee Analytics")
+        tab_frame = self.tabview.tab("�👥 Employee Analytics")
         
         # Create scrollable container
         container = ctk.CTkScrollableFrame(tab_frame, corner_radius=8)
@@ -1026,6 +1521,9 @@ class ModernReportsPageGUI:
             widget.destroy()
         
         try:
+            # Create prominent total wage display at the top
+            self.create_total_wage_display()
+            
             # Create charts with better spacing
             self.create_chart_section(
                 self.employee_charts_frame,
@@ -1036,8 +1534,8 @@ class ModernReportsPageGUI:
             
             self.create_chart_section(
                 self.employee_charts_frame,
-                "💰 Salary Analysis",
-                self.create_salary_chart,
+                "💰 Daily Wage Analysis",
+                self.create_daily_wage_chart,
                 height=400
             )
             
@@ -1059,6 +1557,174 @@ class ModernReportsPageGUI:
             
         except Exception as e:
             self.show_status_message(f"Error generating employee reports: {str(e)}", "error")
+    
+    def create_total_wage_display(self):
+        """Create prominent total wage to be paid display at the top"""
+        try:
+            # Calculate total wage to be paid using correct logic
+            total_wages_to_pay = 0
+            employees_with_dues = 0
+            calculation_details = []
+            
+            # Get all employees
+            employees_df = self.data_service.get_employees()
+            if employees_df.empty:
+                return
+            
+            from datetime import datetime, date, timedelta
+            
+            for _, employee in employees_df.iterrows():
+                try:
+                    # Get employee details
+                    emp_id = employee.get('employee_id')
+                    daily_wage = float(employee.get('daily_wage', 0))
+                    last_paid = employee.get('last_paid')
+                    
+                    if daily_wage <= 0:
+                        continue
+                    
+                    # Get last_paid date
+                    if not last_paid:
+                        # Fallback to hire_date if last_paid is missing
+                        hire_date = employee.get('hire_date')
+                        if hire_date:
+                            last_paid = hire_date
+                        else:
+                            continue
+                    
+                    # Handle different date formats for last_paid
+                    if isinstance(last_paid, str):
+                        try:
+                            if 'T' in last_paid:
+                                last_paid_date = datetime.fromisoformat(last_paid.replace('Z', '')).date()
+                            else:
+                                last_paid_date = datetime.strptime(last_paid, "%Y-%m-%d").date()
+                        except ValueError:
+                            try:
+                                last_paid_date = datetime.fromisoformat(last_paid).date()
+                            except:
+                                continue
+                    elif hasattr(last_paid, 'date'):
+                        last_paid_date = last_paid.date()
+                    elif isinstance(last_paid, date):
+                        last_paid_date = last_paid
+                    else:
+                        continue
+                    
+                    # Calculate wage period: from day after last_paid to today
+                    start_date = last_paid_date + timedelta(days=1)
+                    end_date = date.today()
+                    
+                    # Skip if start_date is in the future
+                    if start_date > end_date:
+                        continue
+                    
+                    # Get attendance data for the period
+                    start_datetime = datetime.combine(start_date, datetime.min.time())
+                    end_datetime = datetime.combine(end_date, datetime.max.time())
+                    
+                    # Get attendance records for this employee in the date range
+                    attendance_filter = {
+                        "employee_id": emp_id,
+                        "date": {
+                            "$gte": start_datetime,
+                            "$lte": end_datetime
+                        }
+                    }
+                    
+                    all_attendance_df = self.data_service.get_attendance(attendance_filter)
+                    
+                    present_days = 0
+                    overtime_hours = 0
+                    
+                    if not all_attendance_df.empty:
+                        # Count present days (Present + Overtime status)
+                        present_records = all_attendance_df[all_attendance_df['status'].isin(['Present', 'Overtime'])]
+                        present_days = len(present_records)
+                        
+                        # Sum overtime hours for Overtime status records
+                        overtime_records = all_attendance_df[all_attendance_df['status'] == 'Overtime']
+                        if not overtime_records.empty and 'overtime_hour' in overtime_records.columns:
+                            overtime_hours = overtime_records['overtime_hour'].fillna(0).sum()
+                        else:
+                            overtime_hours = 0
+                    
+                    # Calculate total wage for this employee
+                    overtime_rate = daily_wage / 8  # Hourly rate for overtime
+                    employee_total_wage = (present_days * daily_wage) + (overtime_rate * overtime_hours)
+                    
+                    if employee_total_wage > 0:
+                        total_wages_to_pay += employee_total_wage
+                        employees_with_dues += 1
+                        calculation_details.append({
+                            'emp_id': emp_id,
+                            'name': employee.get('name', 'Unknown'),
+                            'wage': employee_total_wage,
+                            'days': present_days,
+                            'overtime': overtime_hours
+                        })
+                
+                except Exception as e:
+                    logger.warning(f"Error calculating wage for employee {emp_id}: {e}")
+                    continue
+            
+            # Create prominent display frame
+            total_wage_frame = ctk.CTkFrame(
+                self.employee_charts_frame, 
+                corner_radius=15,
+                fg_color="#1a472a",  # Dark green background
+                height=120
+            )
+            total_wage_frame.pack(fill="x", padx=15, pady=(10, 20))
+            total_wage_frame.pack_propagate(False)
+            
+            # Main title
+            title_label = ctk.CTkLabel(
+                total_wage_frame,
+                text="💰 TOTAL WAGES TO BE PAID",
+                font=ctk.CTkFont(size=20, weight="bold"),
+                text_color="#ffffff"
+            )
+            title_label.pack(pady=(15, 5))
+            
+            # Amount display
+            amount_label = ctk.CTkLabel(
+                total_wage_frame,
+                text=f"₹{total_wages_to_pay:,.2f}",
+                font=ctk.CTkFont(size=32, weight="bold"),
+                text_color="#4ade80"  # Bright green
+            )
+            amount_label.pack(pady=(0, 5))
+            
+            # Details
+            details_text = f"Outstanding wages for {employees_with_dues} employees"
+            if employees_with_dues > 0:
+                avg_per_employee = total_wages_to_pay / employees_with_dues
+                details_text += f" • Average: ₹{avg_per_employee:,.2f} per employee"
+            
+            details_label = ctk.CTkLabel(
+                total_wage_frame,
+                text=details_text,
+                font=ctk.CTkFont(size=12),
+                text_color="#d1fae5"
+            )
+            details_label.pack(pady=(0, 15))
+            
+            logger.info(f"Total wage calculation: ₹{total_wages_to_pay:,.2f} for {employees_with_dues} employees")
+            
+        except Exception as e:
+            logger.error(f"Error creating total wage display: {e}")
+            # Create error display
+            error_frame = ctk.CTkFrame(self.employee_charts_frame, corner_radius=10, fg_color="#7f1d1d")
+            error_frame.pack(fill="x", padx=15, pady=(10, 20))
+            
+            error_label = ctk.CTkLabel(
+                error_frame,
+                text=f"❌ Error calculating total wages: {str(e)}",
+                font=ctk.CTkFont(size=14, weight="bold"),
+                text_color="#ffffff"
+            )
+            error_label.pack(pady=20)
     
     def generate_financial_reports(self):
         """Generate enhanced financial reports with new structure"""
@@ -1504,8 +2170,8 @@ class ModernReportsPageGUI:
         except Exception as e:
             self.show_no_data_message(parent, f"Error creating department chart: {str(e)}")
     
-    def create_salary_chart(self, parent):
-        """Create salary analysis chart"""
+    def create_daily_wage_chart(self, parent):
+        """Create daily wage analysis chart"""
         try:
             employees_df = self.data_service.get_employees()
             if employees_df.empty:
@@ -1516,12 +2182,12 @@ class ModernReportsPageGUI:
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
             fig.patch.set_facecolor('white')
             
-            # Salary by department
-            dept_salary = employees_df.groupby('department')['salary'].mean()
-            bars1 = ax1.bar(dept_salary.index, dept_salary.values, 
+            # Daily wage by department
+            dept_daily_wage = employees_df.groupby('department')['daily_wage'].mean()
+            bars1 = ax1.bar(dept_daily_wage.index, dept_daily_wage.values, 
                            color=self.colors['primary'], alpha=0.7)
-            ax1.set_title('Average Salary by Department', fontweight='bold')
-            ax1.set_ylabel('Average Salary (₹)')
+            ax1.set_title('Average Daily Wage by Department', fontweight='bold')
+            ax1.set_ylabel('Average Daily Wage (₹)')
             ax1.tick_params(axis='x', rotation=45)
             
             # Add value labels on bars
@@ -1530,12 +2196,20 @@ class ModernReportsPageGUI:
                 ax1.text(bar.get_x() + bar.get_width()/2., height + height*0.01,
                         f'₹{height:,.0f}', ha='center', va='bottom', fontweight='bold')
             
-            # Salary distribution histogram
-            ax2.hist(employees_df['salary'], bins=10, color=self.colors['success'], 
-                    alpha=0.7, edgecolor='black')
-            ax2.set_title('Salary Distribution', fontweight='bold')
-            ax2.set_xlabel('Salary (₹)')
-            ax2.set_ylabel('Number of Employees')
+            # Employee count by position (pie chart)
+            position_counts = employees_df['position'].value_counts()
+            colors = [self.colors['success'], self.colors['warning'], self.colors['danger'], 
+                     self.colors['info'], '#FF6B6B', '#4ECDC4', '#45B7D1']
+            
+            wedges, texts, autotexts = ax2.pie(position_counts.values, labels=position_counts.index, 
+                                              autopct='%1.1f%%', startangle=90, 
+                                              colors=colors[:len(position_counts)])
+            ax2.set_title('Employee Distribution by Position', fontweight='bold')
+            
+            # Enhance pie chart text
+            for autotext in autotexts:
+                autotext.set_color('white')
+                autotext.set_fontweight('bold')
             
             plt.tight_layout()
             
@@ -1545,7 +2219,7 @@ class ModernReportsPageGUI:
             canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
             
         except Exception as e:
-            self.show_no_data_message(parent, f"Error creating salary chart: {str(e)}")
+            self.show_no_data_message(parent, f"Error creating daily wage chart: {str(e)}")
     
     def create_employee_overview_chart(self, parent):
         """Create monthly attendance statistics report"""
@@ -1743,11 +2417,11 @@ class ModernReportsPageGUI:
             
             # Basic statistics
             total_employees = len(employees_df)
-            avg_salary = employees_df['salary'].mean()
-            total_salary_budget = employees_df['salary'].sum()
+            avg_daily_wage = employees_df['daily_wage'].mean()
+            total_daily_wage_budget = employees_df['daily_wage'].sum()
             
-            # Find highest salary employee
-            highest_salary_emp = employees_df.loc[employees_df['salary'].idxmax()]
+            # Find highest daily wage employee
+            highest_daily_wage_emp = employees_df.loc[employees_df['daily_wage'].idxmax()]
             
             # Calculate attendance statistics if available
             attendance_stats = {}
@@ -1786,18 +2460,19 @@ class ModernReportsPageGUI:
             stats_data = [
                 ("📊 Overall Statistics", "#2E86AB", [
                     f"Total Employees: {total_employees}",
-                    f"Average Salary: ₹{avg_salary:,.2f}",
-                    f"Total Salary Budget: ₹{total_salary_budget:,.2f}",
+                    f"Average Daily Wage: ₹{avg_daily_wage:,.2f}",
+                    f"Total Daily Wage Budget: ₹{total_daily_wage_budget:,.2f}",
                     f"Largest Department: {largest_dept} ({largest_dept_count} employees)",
                     f"Most Common Position: {most_common_position}"
                 ]),
                 
-                ("💰 Highest Paid Employee", "#F18F01", [
-                    f"Name: {highest_salary_emp['name']}",
-                    f"Salary: ₹{highest_salary_emp['salary']:,.2f}",
-                    f"Department: {highest_salary_emp['department']}",
-                    f"Position: {highest_salary_emp['position']}",
-                    f"Email: {highest_salary_emp['email']}"
+                
+                ("�💰 Highest Daily Wage Employee", "#F18F01", [
+                    f"Name: {highest_daily_wage_emp['name']}",
+                    f"Daily Wage: ₹{highest_daily_wage_emp['daily_wage']:,.2f}",
+                    f"Department: {highest_daily_wage_emp['department']}",
+                    f"Position: {highest_daily_wage_emp['position']}",
+                    f"Email: {highest_daily_wage_emp['email']}"
                 ])
             ]
             
@@ -1811,18 +2486,18 @@ class ModernReportsPageGUI:
                     ]
                 ))
             
-            # Salary distribution analysis
-            salary_ranges = {
-                "₹0 - ₹30,000": len(employees_df[employees_df['salary'] <= 30000]),
-                "₹30,001 - ₹50,000": len(employees_df[(employees_df['salary'] > 30000) & (employees_df['salary'] <= 50000)]),
-                "₹50,001 - ₹75,000": len(employees_df[(employees_df['salary'] > 50000) & (employees_df['salary'] <= 75000)]),
-                "₹75,001+": len(employees_df[employees_df['salary'] > 75000])
+            # Daily wage distribution analysis
+            daily_wage_ranges = {
+                "₹0 - ₹200": len(employees_df[employees_df['daily_wage'] <= 200]),
+                "₹201 - ₹500": len(employees_df[(employees_df['daily_wage'] > 200) & (employees_df['daily_wage'] <= 500)]),
+                "₹501 - ₹800": len(employees_df[(employees_df['daily_wage'] > 500) & (employees_df['daily_wage'] <= 800)]),
+                "₹801+": len(employees_df[employees_df['daily_wage'] > 800])
             }
             
             stats_data.append((
-                "💵 Salary Distribution", "#C73E1D", [
+                "💵 Daily Wage Distribution", "#C73E1D", [
                     f"{range_name}: {count} employees" 
-                    for range_name, count in salary_ranges.items() if count > 0
+                    for range_name, count in daily_wage_ranges.items() if count > 0
                 ]
             ))
             

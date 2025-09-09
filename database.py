@@ -405,11 +405,28 @@ class MongoDBManager:
             if self.db is None:
                 logger.error("Database connection not established")
                 return 0
+            
+            # Convert string _id to ObjectId if present
+            if '_id' in filter_dict and isinstance(filter_dict['_id'], str):
+                try:
+                    filter_dict['_id'] = ObjectId(filter_dict['_id'])
+                except Exception as e:
+                    logger.error(f"Invalid ObjectId string: {filter_dict['_id']}")
+                    return 0
+            
+            # Handle both direct field updates and MongoDB operations
+            if '$set' in update_dict:
+                # If $set operation is provided, add updated_at to it
+                update_dict['$set']['updated_at'] = datetime.now()
+                final_update = update_dict
+            else:
+                # If direct field update, wrap in $set with updated_at
+                update_dict['updated_at'] = datetime.now()
+                final_update = {"$set": update_dict}
                 
-            update_dict['updated_at'] = datetime.now()
             result = self.db[collection_name].update_many(
                 filter_dict, 
-                {"$set": update_dict}
+                final_update
             )
             logger.info(f"Updated {result.modified_count} documents in {collection_name}")
             return result.modified_count

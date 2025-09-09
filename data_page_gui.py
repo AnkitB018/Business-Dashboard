@@ -105,9 +105,9 @@ class ModernDataPageGUI:
             if not self.validate_phone(data.get("phone", "")):
                 return False, "Phone must be 10 digits (e.g., 9876543210) or with country code (+91 9876543210)"
             
-            # Salary validation
-            if not self.validate_salary(data.get("salary", "")):
-                return False, "Salary must be a positive number between 1,000 and 10,00,000"
+            # Daily wage validation
+            if not self.validate_daily_wage(data.get("daily_wage", "")):
+                return False, "Daily wage must be a positive number between 1 and 50,000"
             
             # Department and position validation
             if not data.get("department", "").strip():
@@ -184,14 +184,14 @@ class ModernDataPageGUI:
         
         return False
     
-    def validate_salary(self, salary):
-        """Validate salary: positive number between 1,000 and 10,00,000"""
-        if not salary:
+    def validate_daily_wage(self, daily_wage):
+        """Validate daily wage: positive number between 1 and 50,000"""
+        if not daily_wage:
             return False
         
         try:
-            salary_val = float(str(salary).replace(',', ''))
-            return 1000 <= salary_val <= 1000000
+            daily_wage_val = float(str(daily_wage).replace(',', ''))
+            return 1 <= daily_wage_val <= 50000
         except (ValueError, TypeError):
             return False
     
@@ -234,10 +234,10 @@ class ModernDataPageGUI:
             if not self.validate_phone(value):
                 is_valid = False
                 error_msg = "10 digits starting with 6,7,8,9 or +91 format"
-        elif field_key == "salary":
-            if not self.validate_salary(value):
+        elif field_key == "daily_wage":
+            if not self.validate_daily_wage(value):
                 is_valid = False
-                error_msg = "Amount between ₹1,000 and ₹10,00,000"
+                error_msg = "Amount between ₹1 and ₹50,000"
         
         # Show error if validation failed
         if not is_valid:
@@ -340,12 +340,12 @@ class ModernDataPageGUI:
                 is_valid = False
                 error_fields.append("Phone")
             
-            # Salary validation
-            salary_valid = self.validate_salary(data.get("salary", ""))
-            if not salary_valid:
-                self.show_field_error("salary", "Amount between ₹1,000 and ₹10,00,000")
+            # Daily wage validation
+            daily_wage_valid = self.validate_daily_wage(data.get("daily_wage", ""))
+            if not daily_wage_valid:
+                self.show_field_error("daily_wage", "Amount between ₹1 and ₹50,000")
                 is_valid = False
-                error_fields.append("Salary")
+                error_fields.append("Daily Wage")
             
             # Department and position validation (no field-level errors for dropdowns)
             dept_valid = bool(data.get("department", "").strip())
@@ -390,8 +390,8 @@ class ModernDataPageGUI:
    • 10 digits: 9876543210 (must start with 6, 7, 8, or 9)
    • With country code: +91 9876543210 or 919876543210
 
-💰 Salary:
-   • Range: ₹1,000 to ₹10,00,000
+💰 Daily Wage:
+   • Range: ₹1 to ₹50,000
    • Numbers only (commas will be removed automatically)
 
 🏢 Department & Position:
@@ -1301,8 +1301,8 @@ class ModernDataPageGUI:
                               placeholder="e.g., Manager, Developer, Analyst, Executive")
         
         # Salary field with validation hint
-        self.create_form_field(form_scroll, "Monthly Salary (₹)", "salary", "number", self.emp_vars,
-                              placeholder="50000 (Range: 1,000 - 10,00,000)")
+        self.create_form_field(form_scroll, "Daily Wage (₹)", "daily_wage", "number", self.emp_vars,
+                              placeholder="500 (Range: 1 - 50,000)")
         
         # Join date
         self.create_date_picker(form_scroll, "Join Date", "join_date", self.emp_vars)
@@ -1349,6 +1349,9 @@ class ModernDataPageGUI:
         # Status dropdown with all valid options from reports
         self.create_attendance_status_dropdown(form_scroll, "Status", "status", 
                                ["Present", "Absent", "Leave", "Overtime"], self.att_vars)
+        
+        # Overtime hour field (enabled only when status is Overtime)
+        self.create_overtime_hour_field(form_scroll, "Overtime Hours", "overtime_hour", self.att_vars)
         
         # Notes field (optional)
         self.create_form_field(form_scroll, "Notes (Optional)", "notes", "text", self.att_vars, 
@@ -1658,7 +1661,7 @@ class ModernDataPageGUI:
         helper_text.pack(anchor="w")
 
     def on_status_change(self, status):
-        """Handle status change to enable/disable time fields"""
+        """Handle status change to enable/disable time fields and overtime hours"""
         try:
             if hasattr(self, 'time_in_widgets') and hasattr(self, 'time_out_widgets'):
                 is_absent_or_leave = status.lower() in ["absent", "leave"]
@@ -1680,8 +1683,55 @@ class ModernDataPageGUI:
                         self.att_vars['time_in'].set("--:--")
                     if 'time_out' in self.att_vars:
                         self.att_vars['time_out'].set("--:--")
+            
+            # Handle overtime hour field visibility
+            if hasattr(self, 'overtime_hour_widget'):
+                is_overtime = status.lower() == "overtime"
+                self.overtime_hour_widget.configure(state="normal" if is_overtime else "disabled")
+                if not is_overtime:
+                    self.att_vars['overtime_hour'].set("0")
+                    
         except Exception as e:
             logger.error(f"Error handling status change: {e}")
+    
+    def create_overtime_hour_field(self, parent, label, key, vars_dict):
+        """Create overtime hour field that's enabled only when status is Overtime"""
+        field_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        field_frame.pack(fill="x", pady=8)
+
+        # Label
+        label_widget = ctk.CTkLabel(
+            field_frame,
+            text=f"{label}",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        label_widget.pack(anchor="w", pady=(0, 5))
+
+        # Entry field
+        vars_dict[key] = tk.StringVar(value="0")
+        self.overtime_hour_widget = ctk.CTkEntry(
+            field_frame,
+            textvariable=vars_dict[key],
+            width=300,
+            height=35,
+            corner_radius=6,
+            border_width=1,
+            font=ctk.CTkFont(size=12),
+            placeholder_text="Enter overtime hours (e.g., 2, 4)"
+        )
+        self.overtime_hour_widget.pack(fill="x", pady=(0, 5))
+        
+        # Initially disabled
+        self.overtime_hour_widget.configure(state="disabled")
+
+        # Helper text
+        helper_text = ctk.CTkLabel(
+            field_frame,
+            text="Enabled only when status is 'Overtime'",
+            font=ctk.CTkFont(size=10),
+            text_color="gray"
+        )
+        helper_text.pack(anchor="w")
     
     def set_time(self, time_str, hour_var, minute_var):
         """Set time from button click"""
@@ -5544,7 +5594,7 @@ class ModernDataPageGUI:
     def get_table_columns(self, table_type):
         """Get table columns based on type"""
         columns_map = {
-            "employees": ["Employee_ID", "Name", "Email", "Phone", "Department", "Position", "Salary"],
+            "employees": ["Employee_ID", "Name", "Email", "Phone", "Department", "Position", "Daily_Wage"],
             "attendance": ["Employee_ID", "Date", "Time_In", "Time_Out", "Status", "Hours"],
             "stock": ["Item_Name", "Category", "Quantity", "Price", "Supplier", "Total_Value"],
             "sales": ["Item_Name", "Quantity", "Price", "Customer", "Date", "Total"],
@@ -5575,13 +5625,16 @@ class ModernDataPageGUI:
                     self.show_status_message(f"Validation Error: {error_message}", "error")
                     return
                 
-                # Convert salary to float after validation
-                if data.get("salary"):
-                    data["salary"] = float(data["salary"])
+                # Convert daily_wage to float after validation
+                if data.get("daily_wage"):
+                    data["daily_wage"] = float(data["daily_wage"])
                 # Add joining date as datetime
                 if data.get("join_date"):
                     data["hire_date"] = datetime.strptime(data["join_date"], "%Y-%m-%d")
                     del data["join_date"]  # Remove old key
+                
+                # Add last_paid field (initialize as None for new employees)
+                data["last_paid"] = None
                 
                 result = self.data_service.add_employee(data)
                 
@@ -5609,12 +5662,24 @@ class ModernDataPageGUI:
                     # For absent/leave, set meaningful default times or empty
                     data["time_in"] = ""
                     data["time_out"] = ""
+                    data["overtime_hour"] = 0  # No overtime for absent/leave
                 else:
                     # For other statuses, ensure times are provided
                     if not data.get("time_in") or data.get("time_in") == "--:--":
                         data["time_in"] = "09:00"
                     if not data.get("time_out") or data.get("time_out") == "--:--":
                         data["time_out"] = "17:00"
+                
+                # Handle overtime hours
+                if status == "overtime":
+                    # Convert overtime_hour to integer
+                    overtime_hour = data.get("overtime_hour", "0")
+                    try:
+                        data["overtime_hour"] = int(overtime_hour) if overtime_hour else 0
+                    except (ValueError, TypeError):
+                        data["overtime_hour"] = 0
+                else:
+                    data["overtime_hour"] = 0  # No overtime for other statuses
                 
                 result = self.data_service.add_attendance(data)
                 
@@ -5698,9 +5763,9 @@ class ModernDataPageGUI:
                 self.emp_vars["phone"].set(values[3])         # Phone
                 self.emp_vars["department"].set(values[4])    # Department
                 self.emp_vars["position"].set(values[5])      # Position
-                # Remove currency formatting for salary
-                salary_str = str(values[6]).replace("₹", "").replace(",", "")
-                self.emp_vars["salary"].set(salary_str)
+                # Remove currency formatting for daily wage
+                daily_wage_str = str(values[6]).replace("₹", "").replace(",", "")
+                self.emp_vars["daily_wage"].set(daily_wage_str)
                 
                 # Enable editing mode
                 self.edit_mode = True
@@ -5782,16 +5847,16 @@ class ModernDataPageGUI:
             if hasattr(self, 'editing_mongo_id') and self.editing_mongo_id:
                 # Use MongoDB ID for direct update
                 update_data = {k: v for k, v in data.items() if k != "employee_id"}
-                if update_data.get("salary"):
-                    update_data["salary"] = float(update_data["salary"])
+                if update_data.get("daily_wage"):
+                    update_data["daily_wage"] = float(update_data["daily_wage"])
                 
                 result = self.data_service.update_employee_by_id(self.editing_mongo_id, update_data)
             else:
                 # Fallback to employee_id based update
                 employee_id = str(self.editing_employee_id)
                 update_data = {k: v for k, v in data.items() if k != "employee_id"}
-                if update_data.get("salary"):
-                    update_data["salary"] = float(update_data["salary"])
+                if update_data.get("daily_wage"):
+                    update_data["daily_wage"] = float(update_data["daily_wage"])
                 
                 result = self.data_service.update_employee(employee_id, update_data)
             
@@ -5871,8 +5936,9 @@ class ModernDataPageGUI:
             self.emp_vars["phone"].set(values[3])
             self.emp_vars["department"].set(values[4])
             self.emp_vars["position"].set(values[5])
-            salary_str = str(values[6]).replace("₹", "").replace(",", "")
-            self.emp_vars["salary"].set(salary_str)
+            # Handle daily wage (column 6)
+            daily_wage_str = str(values[6]).replace("₹", "").replace(",", "")
+            self.emp_vars["daily_wage"].set(daily_wage_str)
             
             # Store for editing - use the actual employee_id for string operations
             employee_id = str(values[0])
@@ -7098,7 +7164,7 @@ class ModernDataPageGUI:
                 record.get("phone", ""),
                 record.get("department", ""),
                 record.get("position", ""),
-                f"₹{record.get('salary', 0):,.2f}"
+                f"₹{record.get('daily_wage', 0):,.2f}"
             ]
         elif table_type == "attendance":
             # Format date properly
