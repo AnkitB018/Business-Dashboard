@@ -956,6 +956,10 @@ class ModernReportsPageGUI:
         """Handle daily year selection change"""
         self.daily_year_var.set(value)
         
+    def on_histogram_year_changed(self, value):
+        """Handle histogram year selection change"""
+        self.selected_year_var.set(value)
+        
     def get_employee_list(self):
         """Get list of employees for dropdown"""
         try:
@@ -1740,8 +1744,16 @@ class ModernReportsPageGUI:
             # Generate monthly summary at top
             self.create_monthly_summary()
             
+            # 1. Monthly Expense vs Sales Histogram (NEW)
+            self.create_chart_section_with_controls(
+                self.financial_charts_frame,
+                "📊 Monthly Expense vs Sales Comparison",
+                self.create_monthly_expense_vs_sales_histogram,
+                "monthly_histogram",
+                height=400
+            )
 
-            # 1. Daily Sales Trend (Month/Year-based)
+            # 2. Daily Sales Trend (Month/Year-based)
             self.create_chart_section_with_controls(
                 self.financial_charts_frame,
                 "📈 Daily Sales Trend",
@@ -1750,7 +1762,7 @@ class ModernReportsPageGUI:
                 height=400
             )
             
-            # 2. Daily Transactions (Date-based)
+            # 3. Daily Transactions (Date-based)
             self.create_chart_section_with_controls(
                 self.financial_charts_frame,
                 "💳 Daily Transactions",
@@ -1759,7 +1771,7 @@ class ModernReportsPageGUI:
                 height=400
             )
             
-            # 3. Top Customer Spenders
+            # 4. Top Customer Spenders
             self.create_chart_section(
                 self.financial_charts_frame,
                 "🏆 Top Customer Spenders",
@@ -1767,7 +1779,7 @@ class ModernReportsPageGUI:
                 height=400
             )
             
-            # 4. Outstanding Dues Analysis
+            # 5. Outstanding Dues Analysis
             self.create_chart_section(
                 self.financial_charts_frame,
                 "⚠️ Outstanding Dues Analysis",
@@ -2041,6 +2053,8 @@ class ModernReportsPageGUI:
             self.create_daily_sales_controls(controls_frame)
         elif control_type == "daily_transactions":
             self.create_daily_transactions_controls(controls_frame)
+        elif control_type == "monthly_histogram":
+            self.create_monthly_histogram_controls(controls_frame)
         
         # Chart container
         chart_container = ctk.CTkFrame(section_frame, height=height, corner_radius=8)
@@ -2115,6 +2129,40 @@ class ModernReportsPageGUI:
             width=150
         )
         date_entry.pack(side="left", padx=(10, 5))
+        
+        # Refresh button
+        refresh_btn = ctk.CTkButton(
+            controls_container,
+            text="🔄 Refresh",
+            command=self.generate_financial_reports,
+            width=80,
+            height=28
+        )
+        refresh_btn.pack(side="left", padx=(5, 10))
+    
+    def create_monthly_histogram_controls(self, parent):
+        """Create controls for monthly expense vs sales histogram"""
+        ctk.CTkLabel(
+            parent, 
+            text="Select Year:", 
+            font=ctk.CTkFont(size=12, weight="bold")
+        ).pack(pady=(10, 5))
+        
+        controls_container = ctk.CTkFrame(parent)
+        controls_container.pack(pady=(0, 10))
+        
+        # Year dropdown
+        current_year = datetime.now().year
+        years = [str(year) for year in range(current_year - 3, current_year + 2)]
+        
+        year_dropdown = ctk.CTkComboBox(
+            controls_container,
+            values=years,
+            variable=self.selected_year_var,
+            command=self.on_histogram_year_changed,
+            width=100
+        )
+        year_dropdown.pack(side="left", padx=(10, 5))
         
         # Refresh button
         refresh_btn = ctk.CTkButton(
@@ -2621,6 +2669,109 @@ class ModernReportsPageGUI:
             logger.error(f"Error creating monthly revenue expense chart: {str(e)}")
             self.show_no_data_message(parent, f"Error creating chart: {str(e)}")
     
+    def create_monthly_expense_vs_sales_histogram(self, parent):
+        """Create monthly expense vs sales histogram for the selected year"""
+        try:
+            selected_year = int(self.selected_year_var.get())
+            
+            # Get data using correct method names
+            orders_data = self.data_service.get_all_orders()
+            purchases_df = self.data_service.get_purchases()
+            
+            # Create figure
+            fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+            fig.patch.set_facecolor('white')
+            
+            # Prepare monthly data
+            months = list(range(1, 13))
+            month_names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                          'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+            
+            monthly_sales = []
+            monthly_expenses = []
+            
+            for month in months:
+                # Calculate sales for this month from orders
+                sales_amount = 0
+                if orders_data:
+                    for order in orders_data:
+                        try:
+                            order_date = pd.to_datetime(order.get('created_date', order.get('date', '')))
+                            if (order_date.month == month and 
+                                order_date.year == selected_year):
+                                sales_amount += float(order.get('total_amount', 0))
+                        except:
+                            continue
+                
+                # Calculate expenses for this month from purchases
+                expense_amount = 0
+                if not purchases_df.empty:
+                    purchases_df['date'] = pd.to_datetime(purchases_df['date'])
+                    month_purchases = purchases_df[
+                        (purchases_df['date'].dt.month == month) & 
+                        (purchases_df['date'].dt.year == selected_year)
+                    ]
+                    expense_amount = month_purchases['total_price'].sum()
+                
+                monthly_sales.append(sales_amount)
+                monthly_expenses.append(expense_amount)
+            
+            # Create grouped bar chart (histogram style)
+            x = np.arange(len(month_names))
+            width = 0.35
+            
+            bars1 = ax.bar(x - width/2, monthly_sales, width, label='Sales', 
+                          color='#10B981', alpha=0.8, edgecolor='white', linewidth=1)
+            bars2 = ax.bar(x + width/2, monthly_expenses, width, label='Expenses', 
+                          color='#EF4444', alpha=0.8, edgecolor='white', linewidth=1)
+            
+            # Customize the chart
+            ax.set_xlabel('Month', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Amount (₹)', fontsize=12, fontweight='bold')
+            ax.set_title(f'Monthly Sales vs Expenses - {selected_year}', 
+                        fontsize=16, fontweight='bold', pad=20)
+            ax.set_xticks(x)
+            ax.set_xticklabels(month_names)
+            ax.legend(fontsize=12)
+            
+            # Format y-axis to show currency
+            ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'₹{x:,.0f}'))
+            
+            # Add value labels on bars
+            def add_value_labels(bars):
+                for bar in bars:
+                    height = bar.get_height()
+                    if height > 0:
+                        ax.text(bar.get_x() + bar.get_width()/2., height + max(monthly_sales + monthly_expenses) * 0.01,
+                               f'₹{height:,.0f}',
+                               ha='center', va='bottom', fontsize=9, rotation=45)
+            
+            add_value_labels(bars1)
+            add_value_labels(bars2)
+            
+            # Improve layout
+            plt.xticks(rotation=45)
+            plt.grid(True, alpha=0.3, axis='y')
+            plt.tight_layout()
+            
+            # Calculate totals for summary
+            total_sales = sum(monthly_sales)
+            total_expenses = sum(monthly_expenses)
+            net_profit = total_sales - total_expenses
+            
+            # Add summary text
+            summary_text = f'Total Sales: ₹{total_sales:,.2f} | Total Expenses: ₹{total_expenses:,.2f} | Net: ₹{net_profit:,.2f}'
+            fig.suptitle(summary_text, fontsize=12, y=0.02, color='#666666')
+            
+            # Embed in GUI
+            canvas = FigureCanvasTkAgg(fig, parent)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill="both", expand=True, padx=10, pady=10)
+            
+        except Exception as e:
+            logger.error(f"Error creating monthly expense vs sales histogram: {str(e)}")
+            self.show_no_data_message(parent, f"Error creating histogram: {str(e)}")
+
     def create_daily_sales_chart(self, parent):
         """Create daily sales trend chart for selected month/year"""
         try:
