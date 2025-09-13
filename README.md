@@ -1,14 +1,28 @@
-# 🏢 Business Dashboard - Enterprise Edition
+# 🏢 Business Dashboard v2.0.0 - Enterprise Edition with Auto-Update
 
-A comprehensive business management system built with Python and CustomTkinter, featuring modern UI design and MongoDB Atlas integration.
+A comprehensive business management system built with Python and CustomTkinter, featuring modern UI design, MongoDB Atlas integration, and **automatic update system** via GitHub Releases.
 
-## ✨ Features
+## 🚀 **Latest Release - v2.0.0**
+
+### 🎉 **NEW: Complete Auto-Update System**
+- ✅ **Automatic update checking** on application startup
+- ✅ **GitHub Releases integration** for seamless updates
+- ✅ **One-click update process** with progress tracking
+- ✅ **Professional installer/uninstaller** with NSIS
+
+### 📥 **Quick Installation**
+1. Go to **[Releases](https://github.com/AnkitB018/Business-Dashboard/releases)**
+2. Download the latest `BusinessDashboard_v2.0.0_Installer.exe`
+3. Run the installer and follow the setup wizard
+4. **That's it!** The app will automatically check for future updates
+
+## ✨ **Key Features**
 
 ### 📊 **Data Management**
-- **Employee Management:** Complete CRUD operations for employee records
-- **Attendance Tracking:** Comprehensive attendance system with calendar view
+- **Employee Management:** Complete CRUD operations with enhanced UI
+- **Attendance Tracking:** Comprehensive attendance system with improved date/time formatting
 - **Inventory Management:** Stock tracking with automatic purchase/sales integration
-- **Financial Records:** Sales and purchase management
+- **Financial Records:** Sales and purchase management with better validation
 
 ### 📈 **Reports & Analytics**
 - **Interactive Calendar:** Visual attendance tracking with color-coded status
@@ -18,17 +32,39 @@ A comprehensive business management system built with Python and CustomTkinter, 
 
 ### ⚙️ **Settings & Configuration**
 - **Database Management:** MongoDB Atlas configuration and connection
+- **Auto-Update Settings:** Check for updates manually or automatically
 - **Data Import/Export:** Excel-based backup and restore functionality
 - **Theme Toggle:** Dark/Light mode support
 - **System Preferences:** Customizable application settings
 
-## 🚀 **Quick Start**
+### 🔄 **Auto-Update System**
+- **Startup Checks:** Automatically checks for new versions on launch
+- **Manual Updates:** Check for updates anytime from Settings
+- **Seamless Installation:** Downloads and installs updates automatically
+- **Version Management:** Always stay current with the latest features
+
+## 🎯 **For End Users (Simple Installation)**
+
+### � **Recommended: Use the Installer**
+1. **Download:** Get the latest installer from [Releases](https://github.com/AnkitB018/Business-Dashboard/releases)
+2. **Install:** Run `BusinessDashboard_v2.0.0_Installer.exe`
+3. **Configure:** Enter your MongoDB Atlas credentials during setup
+4. **Launch:** Use desktop shortcut or Start Menu entry
+5. **Updates:** App will notify you when new versions are available!
+
+### 🔧 **System Requirements**
+- **OS:** Windows 10/11 (64-bit)
+- **Memory:** 4GB RAM minimum, 8GB recommended
+- **Storage:** 500MB free space
+- **Internet:** Required for database connection and updates
+
+## 🛠️ **For Developers (Source Code)**
 
 ### Prerequisites
 - Python 3.8+
 - MongoDB Atlas account (free tier available)
 
-### Installation
+### Installation from Source
 
 1. **Clone the repository:**
    ```bash
@@ -50,30 +86,47 @@ A comprehensive business management system built with Python and CustomTkinter, 
    ```
 
 4. **Configure database:**
-   - Create a `.env` file with your MongoDB Atlas connection string
-   - Or use the Settings page to configure the database
+   ```bash
+   # Copy the example environment file
+   cp .env.example .env
+   # Edit .env with your MongoDB Atlas credentials
+   ```
 
 5. **Run the application:**
    ```bash
    python app_gui.py
-   # or
-   run_business_dashboard.bat  # Windows
    ```
+
+### 🏗️ **Building Installer**
+```bash
+cd build_tools
+python build_installer_fixed.py
+```
 
 ## 🗂️ **Project Structure**
 
 ```
 Business-Dashboard/
 ├── app_gui.py              # Main application entry point
-├── data_page_gui.py        # Data management interface
+├── data_page_gui.py        # Data management interface (enhanced UI)
 ├── reports_page_gui.py     # Reports and analytics interface
-├── settings_page_gui.py    # Settings and configuration
+├── settings_page_gui.py    # Settings with auto-update functionality
+├── update_manager.py       # Auto-update system (NEW)
 ├── data_service.py         # Business logic and data operations
 ├── database.py             # MongoDB Atlas connection manager
-├── config.py               # Application configuration
-├── requirements.txt        # Python dependencies
-├── .env                    # Environment variables (create this)
-├── sample_data/           # Sample data files for testing
+├── database_config.py      # Database configuration utilities (NEW)
+├── config.py               # Application configuration with version management
+├── uninstaller.py          # Professional uninstaller (NEW)
+├── requirements.txt        # Python dependencies (updated)
+├── .env.example           # Environment template (SAFE - no real credentials)
+├── build_tools/           # Build system for creating installers
+│   ├── build_installer_fixed.py  # Main build script
+│   ├── installer.nsi      # NSIS installer configuration
+│   └── version_info.txt   # Version information for builds
+├── _docs/                 # Documentation
+│   ├── API_Documentation.md
+│   ├── User_Manual.md
+│   └── Technical_Documentation.md
 └── README.md              # This file
 ```
 
@@ -81,61 +134,184 @@ Business-Dashboard/
 
 - **CustomTkinter Framework:** Modern, native-looking interface
 - **Professional Color Scheme:** Carefully chosen colors for optimal UX
-- **Responsive Layout:** Adapts to different screen sizes
+- **Responsive Layout:** Adapts to different screen sizes and compacted design
 - **Theme Support:** Built-in dark/light mode toggle
-- **Visual Feedback:** Hover effects, status indicators, and animations
+- **Visual Feedback:** Hover effects, status indicators, and smooth animations
+- **Enhanced Date/Time Formatting:** Improved readability across all modules
 
 ## 🔧 **Technical Stack**
 
 - **Frontend:** CustomTkinter (Modern Tkinter alternative)
 - **Backend:** Python with pandas for data processing
 - **Database:** MongoDB Atlas (Cloud database)
+- **Auto-Updates:** GitHub Releases API with `requests` and `packaging` libraries
+- **Installer:** NSIS (Nullsoft Scriptable Install System)
 - **Visualization:** Matplotlib, Seaborn for charts and graphs
 - **Data Export:** Excel support via openpyxl
 
-## 📝 **Usage**
+## � **Usage Guide**
 
+### 🚀 **For New Users**
+1. **Install:** Download and run the installer from GitHub Releases
+2. **Setup:** Configure MongoDB Atlas connection during installation
+3. **Launch:** Use desktop shortcut or Start Menu entry
+4. **Explore:** Navigate through Data, Reports, and Settings tabs
+5. **Updates:** App automatically notifies when updates are available
+
+### 💼 **For Business Operations**
 1. **Data Management:** Use the Data tab to add employees, record attendance, manage inventory
 2. **View Reports:** Check the Reports tab for analytics and calendar views
-3. **Configure System:** Use Settings tab for database setup and data management
+3. **Configure System:** Use Settings tab for database setup and auto-update preferences
 4. **Export Data:** Backup your data to Excel files for external use
+
+### 🔄 **Auto-Update Process**
+1. **Automatic Check:** App checks for updates on startup
+2. **Notification:** Update dialog appears when new version is available
+3. **Download:** Click "Update Now" to download latest version
+4. **Install:** App automatically installs update and restarts
+5. **Done:** You're now running the latest version!
+
+## 🚀 **Release Management**
+
+### 🏷️ **Version System**
+- **Current Version:** v2.0.0
+- **Versioning:** Semantic versioning (MAJOR.MINOR.PATCH)
+- **Release Channel:** GitHub Releases
+- **Update Frequency:** As needed for features and bug fixes
+
+### 📦 **Distribution**
+- **Primary:** GitHub Releases with installer attachments
+- **Format:** Windows Installer (.exe) with uninstaller
+- **Size:** ~150MB (includes all dependencies)
+- **Compatibility:** Windows 10/11 (64-bit)
+
+### 🔄 **Update Workflow**
+```
+Developer → GitHub Push → Create Release → Users Get Notified → Automatic Update
+```
 
 ## 🛠️ **Development**
 
-### Adding New Features
+### 🏗️ **Building from Source**
+```bash
+# Install build dependencies
+pip install pyinstaller requests packaging
+
+# Create installer
+cd build_tools
+python build_installer_fixed.py
+
+# Output: BusinessDashboard_v2.0.0_Installer.exe
+```
+
+### 🎯 **Adding New Features**
 - Follow the modular structure established in the codebase
 - Use the existing color scheme and UI patterns
 - Ensure database operations go through `data_service.py`
+- Update version in `config.py` for new releases
+- Test auto-update functionality with new versions
 
-### Database Schema
+### 🗄️ **Database Schema**
 The application uses MongoDB with the following collections:
-- `employees` - Employee records
-- `attendance` - Daily attendance data
+- `employees` - Employee records with enhanced validation
+- `attendance` - Daily attendance data with improved date handling
 - `stock` - Inventory items
 - `sales` - Sales transactions
 - `purchases` - Purchase records
 
-## � **License**
+## 🔒 **Security & Privacy**
+
+### 🛡️ **Security Features**
+- **Environment Variables:** Sensitive credentials stored in `.env` files
+- **No Credential Tracking:** Real credentials never committed to repository
+- **Secure Updates:** Verified downloads from GitHub Releases
+- **Input Validation:** Comprehensive data validation and sanitization
+
+### 🔐 **Privacy**
+- **Local Processing:** All data processing happens locally
+- **MongoDB Atlas:** Secure cloud database with encryption
+- **No Telemetry:** Application doesn't send usage data
+- **User Control:** Complete control over data and settings
+## 📋 **Changelog**
+
+### 🆕 **v2.0.0 - Auto-Update Edition** (Latest)
+- ✅ **NEW:** Complete GitHub-based auto-update system
+- ✅ **NEW:** Professional Windows installer with uninstaller
+- ✅ **Enhanced:** Compacted UI design for better usability
+- ✅ **Enhanced:** Improved date/time formatting across all modules
+- ✅ **Fixed:** CRUD operations for employee management
+- ✅ **Fixed:** Database connection and validation issues
+- ✅ **Security:** Enhanced credential management and repository cleanup
+
+### 📜 **Previous Versions**
+- **v1.0.0:** Initial stable release with core functionality
+- **Daily Wage System:** Enhanced employee wage management
+- **Documentation:** Comprehensive technical and user documentation
+
+## 🔮 **Roadmap**
+
+### 🚧 **Planned Features**
+- **Multi-language Support:** Internationalization for global use
+- **Advanced Analytics:** Machine learning insights and predictions
+- **Mobile Companion:** Mobile app for attendance tracking
+- **Cloud Sync:** Multi-device synchronization
+- **Advanced Reporting:** Custom report builder
+- **API Integration:** Third-party service integrations
+
+### 🎯 **Upcoming Releases**
+- **v2.1.0:** Enhanced reporting and analytics
+- **v2.2.0:** Advanced employee management features
+- **v3.0.0:** Major UI overhaul and new features
+
+## 🤝 **Contributing**
+
+This is a proprietary business application licensed to M/s Designo. For feature requests or issues:
+
+1. **Report Issues:** Create detailed bug reports
+2. **Feature Requests:** Suggest improvements via appropriate channels
+3. **Documentation:** Help improve user and technical documentation
+
+## 💬 **Support & Contact**
+
+### 📧 **Business Support**
+- **Licensed Entity:** M/s Designo
+- **Owner:** Anupam Das
+- **Use Case:** Internal business operations
+
+### 🔧 **Technical Support**
+- **Developers:** Antrocraft and Arolive Build
+- **Owners:** Ankit Banerjee and Aritra Banerjee
+- **Repository:** [GitHub - Business Dashboard](https://github.com/AnkitB018/Business-Dashboard)
+
+### 🆘 **Getting Help**
+1. **Check Documentation:** Review the comprehensive documentation in `_docs/`
+2. **User Manual:** Complete guide available in `_docs/User_Manual.md`
+3. **Technical Docs:** Developer documentation in `_docs/Technical_Documentation.md`
+4. **Auto-Update Issues:** Ensure internet connection and GitHub access
+
+## 📄 **License**
 
 **© 2025 Antrocraft and Arolive Build. All Rights Reserved.**
 
-This software is proprietary and licensed exclusively to M/s Designo (Owner: Anupam Das) for internal business operations. 
+This software is proprietary and licensed exclusively to M/s Designo (Owner: Anupam Das) for internal business operations.
 
-**⚠️ IMPORTANT**: Unauthorized use, copying, distribution, or sharing is strictly prohibited.
+**⚠️ IMPORTANT:** Unauthorized use, copying, distribution, or sharing is strictly prohibited.
 
 For complete license terms, see [LICENSE.md](LICENSE.md)
 
-## 📧 **Support**
+---
 
-**Licensed Business Entity**: M/s Designo  
-**Owner**: Anupam Das  
+## 🌟 **Quick Links**
 
-**Software Created by**: Antrocraft and Arolive Build  
-**Owned by**: Ankit Banerjee and Aritra Banerjee  
-
-For technical support or licensing inquiries, please contact the appropriate representatives.
+- 📥 **[Download Latest Release](https://github.com/AnkitB018/Business-Dashboard/releases)**
+- 📖 **[User Manual](_docs/User_Manual.md)**
+- 🔧 **[Technical Documentation](_docs/Technical_Documentation.md)**
+- 🚀 **[Installation Guide](_docs/Installation_Setup_Guide.md)**
+- 🌐 **[API Documentation](_docs/API_Documentation.md)**
 
 ---
 
-**Built with ❤️ by Antrocraft and Arolive Build**  
+**🚀 Built with ❤️ by Antrocraft and Arolive Build**  
+**🎯 Featuring Professional Auto-Update System**  
+**📦 Enterprise-Grade Business Management Solution**  
 **© 2025 - All Rights Reserved**
