@@ -305,6 +305,11 @@ build_tools/installer/
 build_tools/temp_build/
 build_tools/dist/
 build_tools/build/
+build_tools/*.spec
+
+# PyInstaller generated spec files
+*.spec
+!setup.spec  # Keep any intentional spec files if they exist
 
 # Documentation builds
 docs/build/
