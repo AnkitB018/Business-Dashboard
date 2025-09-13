@@ -617,8 +617,12 @@ class SettingsPageGUI:
                      command=lambda: self.export_data_to_excel("employees")).pack(side="left", padx=5)
         ctk.CTkButton(backup_button_frame, text="Export Attendance", 
                      command=lambda: self.export_data_to_excel("attendance")).pack(side="left", padx=5)
-        ctk.CTkButton(backup_button_frame, text="Export Sales", 
-                     command=lambda: self.export_data_to_excel("sales")).pack(side="left", padx=5)
+        ctk.CTkButton(backup_button_frame, text="Export Orders", 
+                     command=lambda: self.export_data_to_excel("orders")).pack(side="left", padx=5)
+        ctk.CTkButton(backup_button_frame, text="Export Transactions", 
+                     command=lambda: self.export_data_to_excel("transactions")).pack(side="left", padx=5)
+        ctk.CTkButton(backup_button_frame, text="Export Customers", 
+                     command=lambda: self.export_data_to_excel("customers")).pack(side="left", padx=5)
         ctk.CTkButton(backup_button_frame, text="Export Purchases", 
                      command=lambda: self.export_data_to_excel("purchases")).pack(side="left", padx=5)
         
@@ -644,8 +648,12 @@ class SettingsPageGUI:
                      command=lambda: self.import_data_from_excel("employees")).pack(side="left", padx=5)
         ctk.CTkButton(import_button_frame, text="Import Attendance", 
                      command=lambda: self.import_data_from_excel("attendance")).pack(side="left", padx=5)
-        ctk.CTkButton(import_button_frame, text="Import Sales", 
-                     command=lambda: self.import_data_from_excel("sales")).pack(side="left", padx=5)
+        ctk.CTkButton(import_button_frame, text="Import Orders", 
+                     command=lambda: self.import_data_from_excel("orders")).pack(side="left", padx=5)
+        ctk.CTkButton(import_button_frame, text="Import Transactions", 
+                     command=lambda: self.import_data_from_excel("transactions")).pack(side="left", padx=5)
+        ctk.CTkButton(import_button_frame, text="Import Customers", 
+                     command=lambda: self.import_data_from_excel("customers")).pack(side="left", padx=5)
         ctk.CTkButton(import_button_frame, text="Import Purchases", 
                      command=lambda: self.import_data_from_excel("purchases")).pack(side="left", padx=5)
         
@@ -662,11 +670,32 @@ class SettingsPageGUI:
         reset_button_frame = ctk.CTkFrame(reset_frame, fg_color="transparent")
         reset_button_frame.pack(fill="x", padx=20, pady=15)
         
-        ctk.CTkButton(reset_button_frame, text="Clear Employees", 
+        # First row of clear buttons
+        first_row = ctk.CTkFrame(reset_button_frame, fg_color="transparent")
+        first_row.pack(fill="x", pady=(0, 10))
+        
+        ctk.CTkButton(first_row, text="Clear Employees", 
                      command=lambda: self.clear_collection("employees"),
                      fg_color="red", hover_color="dark red").pack(side="left", padx=5)
-        ctk.CTkButton(reset_button_frame, text="Clear Attendance", 
+        ctk.CTkButton(first_row, text="Clear Attendance", 
                      command=lambda: self.clear_collection("attendance"),
+                     fg_color="red", hover_color="dark red").pack(side="left", padx=5)
+        ctk.CTkButton(first_row, text="Clear Orders", 
+                     command=lambda: self.clear_collection("orders"),
+                     fg_color="red", hover_color="dark red").pack(side="left", padx=5)
+        
+        # Second row of clear buttons
+        second_row = ctk.CTkFrame(reset_button_frame, fg_color="transparent")
+        second_row.pack(fill="x")
+        
+        ctk.CTkButton(second_row, text="Clear Transactions", 
+                     command=lambda: self.clear_collection("transactions"),
+                     fg_color="red", hover_color="dark red").pack(side="left", padx=5)
+        ctk.CTkButton(second_row, text="Clear Customers", 
+                     command=lambda: self.clear_collection("customers"),
+                     fg_color="red", hover_color="dark red").pack(side="left", padx=5)
+        ctk.CTkButton(second_row, text="Clear Purchases", 
+                     command=lambda: self.clear_collection("purchases"),
                      fg_color="red", hover_color="dark red").pack(side="left", padx=5)
         
         # Complete reset button
@@ -1386,11 +1415,20 @@ DEBUG_MODE=True
             elif collection_name == "attendance":
                 data_df = self.data_service.get_attendance()
                 data = data_df.to_dict('records') if not data_df.empty else []
-            elif collection_name == "sales":
-                data_df = self.data_service.get_sales()
+            elif collection_name == "orders":
+                data_df = self.data_service.get_orders()
+                data = data_df.to_dict('records') if not data_df.empty else []
+            elif collection_name == "transactions":
+                data_df = self.data_service.get_transactions()
+                data = data_df.to_dict('records') if not data_df.empty else []
+            elif collection_name == "customers":
+                data_df = self.data_service.get_customers()
                 data = data_df.to_dict('records') if not data_df.empty else []
             elif collection_name == "purchases":
                 data_df = self.data_service.get_purchases()
+                data = data_df.to_dict('records') if not data_df.empty else []
+            elif collection_name == "sales":  # Keep for backward compatibility
+                data_df = self.data_service.get_sales()
                 data = data_df.to_dict('records') if not data_df.empty else []
             
             if not data:
@@ -1430,7 +1468,7 @@ DEBUG_MODE=True
                 backup_folder = os.path.join(directory, f"hr_backup_{timestamp}")
                 os.makedirs(backup_folder, exist_ok=True)
                 
-                collections = ["employees", "attendance", "sales", "purchases"]
+                collections = ["employees", "attendance", "orders", "transactions", "customers", "purchases"]
                 
                 for collection in collections:
                     try:
@@ -1442,8 +1480,14 @@ DEBUG_MODE=True
                         elif collection == "attendance":
                             data_df = self.data_service.get_attendance()
                             data = data_df.to_dict('records') if not data_df.empty else []
-                        elif collection == "sales":
-                            data_df = self.data_service.get_sales()
+                        elif collection == "orders":
+                            data_df = self.data_service.get_orders()
+                            data = data_df.to_dict('records') if not data_df.empty else []
+                        elif collection == "transactions":
+                            data_df = self.data_service.get_transactions()
+                            data = data_df.to_dict('records') if not data_df.empty else []
+                        elif collection == "customers":
+                            data_df = self.data_service.get_customers()
                             data = data_df.to_dict('records') if not data_df.empty else []
                         elif collection == "purchases":
                             data_df = self.data_service.get_purchases()
@@ -1497,11 +1541,20 @@ DEBUG_MODE=True
                         elif collection_name == "attendance":
                             if self.data_service.add_attendance(record):
                                 success_count += 1
-                        elif collection_name == "sales":
-                            if self.data_service.add_sale(record):
+                        elif collection_name == "orders":
+                            if self.data_service.add_order(record):
+                                success_count += 1
+                        elif collection_name == "transactions":
+                            if self.data_service.add_transaction(record):
+                                success_count += 1
+                        elif collection_name == "customers":
+                            if self.data_service.add_customer(record):
                                 success_count += 1
                         elif collection_name == "purchases":
                             if self.data_service.add_purchase(record):
+                                success_count += 1
+                        elif collection_name == "sales":  # Keep for backward compatibility
+                            if self.data_service.add_sale(record):
                                 success_count += 1
                     except Exception as e:
                         logger.error(f"Error importing record: {e}")
@@ -1529,10 +1582,16 @@ DEBUG_MODE=True
                     result = self.data_service.db_manager.clear_collection("employees")
                 elif collection_name == "attendance":
                     result = self.data_service.db_manager.clear_collection("attendance")
-                elif collection_name == "sales":
-                    result = self.data_service.db_manager.clear_collection("sales")
+                elif collection_name == "orders":
+                    result = self.data_service.db_manager.clear_collection("orders")
+                elif collection_name == "transactions":
+                    result = self.data_service.db_manager.clear_collection("transactions")
+                elif collection_name == "customers":
+                    result = self.data_service.db_manager.clear_collection("customers")
                 elif collection_name == "purchases":
                     result = self.data_service.db_manager.clear_collection("purchases")
+                elif collection_name == "sales":  # Keep for backward compatibility
+                    result = self.data_service.db_manager.clear_collection("sales")
                 
                 if result:
                     messagebox.showinfo("Success", f"{collection_name} collection cleared successfully")
@@ -1556,9 +1615,9 @@ DEBUG_MODE=True
                                   "⚠️ WARNING: This will delete ALL data in the database!\n\nAre you absolutely sure?"):
                 
                 if messagebox.askyesno("Final Confirmation", 
-                                      "This is your final warning!\n\nAll employees, attendance, sales, and purchase data will be permanently deleted.\n\nContinue?"):
+                                      "This is your final warning!\n\nAll employees, attendance, orders, transactions, customers, and purchase data will be permanently deleted.\n\nContinue?"):
                     
-                    collections = ["employees", "attendance", "sales", "purchases"]
+                    collections = ["employees", "attendance", "orders", "transactions", "customers", "purchases"]
                     
                     for collection in collections:
                         try:
@@ -1585,15 +1644,21 @@ DEBUG_MODE=True
             employees_count = len(employees_df) if not employees_df.empty else 0
             attendance_df = self.data_service.get_attendance()
             attendance_count = len(attendance_df) if not attendance_df.empty else 0
-            sales_df = self.data_service.get_sales()
-            sales_count = len(sales_df) if not sales_df.empty else 0
+            orders_df = self.data_service.get_orders()
+            orders_count = len(orders_df) if not orders_df.empty else 0
+            transactions_df = self.data_service.get_transactions()
+            transactions_count = len(transactions_df) if not transactions_df.empty else 0
+            customers_df = self.data_service.get_customers()
+            customers_count = len(customers_df) if not customers_df.empty else 0
             purchases_df = self.data_service.get_purchases()
             purchases_count = len(purchases_df) if not purchases_df.empty else 0
             
             stats_text = f"""Database Statistics:
 • Employees: {employees_count} records
 • Attendance: {attendance_count} records  
-• Sales Records: {sales_count} transactions
+• Orders: {orders_count} records
+• Transactions: {transactions_count} records
+• Customers: {customers_count} records
 • Purchase Records: {purchases_count} transactions
 
 Last Updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}"""
@@ -1656,11 +1721,23 @@ Last Updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}"""
             messagebox.showerror("Error", f"Failed to clear cache: {str(e)}")
     
     def check_for_updates(self):
-        """Check for application updates"""
+        """Check for application updates from GitHub Releases"""
         try:
-            # Simulate update check
-            messagebox.showinfo("Updates", "You are running the latest version of HR Management System")
+            from update_manager import check_for_updates_async
+            from config import APP_VERSION
+            
+            # Check for updates in background thread
+            check_for_updates_async(
+                parent_window=self.parent,
+                current_version=APP_VERSION,
+                show_no_update=True
+            )
+            
+        except ImportError as e:
+            logger.error(f"Update manager not available: {e}")
+            messagebox.showerror("Update Error", "Update functionality is not available.")
         except Exception as e:
+            logger.error(f"Failed to check for updates: {e}")
             messagebox.showerror("Error", f"Failed to check for updates: {str(e)}")
     
     def apply_system_settings(self):

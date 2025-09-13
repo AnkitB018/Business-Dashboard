@@ -26,6 +26,9 @@ import logging
 import time
 from datetime import datetime
 
+# Import database configuration
+from database_config import check_database_configuration, DatabaseConfigWindow, get_database_config
+
 # Import GUI pages
 from data_page_gui import ModernDataPageGUI
 from reports_page_gui import ModernReportsPageGUI
@@ -39,6 +42,17 @@ class HRManagementApp:
     @log_function_call
     def __init__(self):
         try:
+            # Check database configuration first
+            if not check_database_configuration():
+                log_info("Database not configured, showing setup wizard", "DB_CONFIG")
+                config_window = DatabaseConfigWindow()
+                config_window.show_setup_wizard()
+                
+                # Check again after wizard
+                if not check_database_configuration():
+                    log_error("Database configuration cancelled by user", "DB_CONFIG")
+                    sys.exit(0)
+            
             # Log application startup
             dashboard_logger.log_app_start()
             log_info("Initializing Business Dashboard Application", "APP_INIT")
@@ -154,7 +168,7 @@ class HRManagementApp:
             # Create modern header with gradient-like effect
             self.header_frame = ctk.CTkFrame(
                 self.root, 
-                height=80, 
+                height=50,  # Reduced from 80 to 50
                 corner_radius=0,
                 fg_color=self.colors['surface']
             )
@@ -163,35 +177,35 @@ class HRManagementApp:
             
             # App title with modern typography
             title_frame = ctk.CTkFrame(self.header_frame, fg_color="transparent")
-            title_frame.pack(side="left", fill="y", padx=30, pady=10)
+            title_frame.pack(side="left", fill="y", padx=20, pady=6)  # Reduced padding
             
             app_title = ctk.CTkLabel(
                 title_frame,
                 text="🏢 Business Dashboard",
-                font=ctk.CTkFont(size=24, weight="bold"),
+                font=ctk.CTkFont(size=16, weight="bold"),  # Reduced from 24 to 16
                 text_color=self.colors['text_primary']
             )
-            app_title.pack(side="top", pady=(5, 0))
+            app_title.pack(side="top", pady=(2, 0))  # Reduced padding
             
             subtitle = ctk.CTkLabel(
                 title_frame,
                 text="Enterprise Management System",
-                font=ctk.CTkFont(size=12),
+                font=ctk.CTkFont(size=10),  # Reduced from 12 to 10
                 text_color=self.colors['text_secondary']
             )
             subtitle.pack(side="top")
             
             # Container for status and storage indicators
             indicators_container = ctk.CTkFrame(self.header_frame, fg_color="transparent")
-            indicators_container.pack(side="right", padx=30, pady=15)
+            indicators_container.pack(side="right", padx=20, pady=8)  # Reduced padding
             
             # Storage usage indicator
             self.storage_frame = ctk.CTkFrame(
                 indicators_container,
-                corner_radius=20,
+                corner_radius=15,  # Reduced from 20 to 15
                 fg_color=self.colors['secondary']
             )
-            self.storage_frame.pack(side="left", padx=(0, 15))
+            self.storage_frame.pack(side="left", padx=(0, 10))  # Reduced padding
             
             # Make storage frame clickable for manual refresh
             self.storage_frame.bind("<Button-1>", lambda e: self.update_storage_indicator())
@@ -199,22 +213,22 @@ class HRManagementApp:
             # Storage progress bar
             self.storage_progress = ctk.CTkProgressBar(
                 self.storage_frame,
-                width=150,
-                height=10,
-                corner_radius=5,
+                width=120,  # Reduced from 150 to 120
+                height=8,   # Reduced from 10 to 8
+                corner_radius=4,  # Reduced from 5 to 4
                 progress_color=self.colors['success']
             )
-            self.storage_progress.pack(side="left", padx=(15, 5), pady=15)
+            self.storage_progress.pack(side="left", padx=(12, 4), pady=10)  # Reduced padding
             self.storage_progress.set(0)
             
             # Storage label
             self.storage_label = ctk.CTkLabel(
                 self.storage_frame,
                 text="Storage: 0%",
-                font=ctk.CTkFont(size=11),
+                font=ctk.CTkFont(size=9),  # Reduced from 11 to 9
                 text_color=self.colors['text_primary']
             )
-            self.storage_label.pack(side="left", padx=(5, 15), pady=15)
+            self.storage_label.pack(side="left", padx=(4, 12), pady=10)  # Reduced padding
             
             # Add tooltip-like behavior
             self.storage_label.bind("<Button-1>", lambda e: self.update_storage_indicator())
@@ -222,7 +236,7 @@ class HRManagementApp:
             # Modern status indicator
             self.status_frame = ctk.CTkFrame(
                 indicators_container, 
-                corner_radius=20,
+                corner_radius=15,  # Reduced from 20 to 15
                 fg_color=self.colors['secondary']
             )
             self.status_frame.pack(side="left")
@@ -234,25 +248,25 @@ class HRManagementApp:
         
         self.status_indicator = ctk.CTkFrame(
             self.status_frame,
-            width=12,
-            height=12,
-            corner_radius=6,
+            width=10,    # Reduced from 12 to 10
+            height=10,   # Reduced from 12 to 10
+            corner_radius=5,  # Reduced from 6 to 5
             fg_color=self.colors['warning']  # Orange for connecting
         )
-        self.status_indicator.pack(side="left", padx=(15, 10), pady=15)
+        self.status_indicator.pack(side="left", padx=(12, 8), pady=10)  # Reduced padding
         
         self.status_label = ctk.CTkLabel(
             self.status_frame,
             text="Connecting to database...",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=10, weight="bold"),  # Reduced from 12 to 10
             text_color=self.colors['text_primary']
         )
-        self.status_label.pack(side="left", padx=(0, 15), pady=15)
+        self.status_label.pack(side="left", padx=(0, 12), pady=10)  # Reduced padding
         
         # Modern navigation with improved styling
         self.nav_frame = ctk.CTkFrame(
             self.root, 
-            height=70, 
+            height=45,  # Reduced from 70 to 45
             corner_radius=0,
             fg_color=self.colors['primary']
         )
@@ -261,7 +275,7 @@ class HRManagementApp:
         
         # Create navigation container
         nav_container = ctk.CTkFrame(self.nav_frame, fg_color="transparent")
-        nav_container.pack(expand=True, fill="both", padx=30, pady=10)
+        nav_container.pack(expand=True, fill="both", padx=20, pady=6)  # Reduced padding
         
         # Modern navigation buttons with icons
         self.nav_buttons = {}
@@ -276,15 +290,15 @@ class HRManagementApp:
                 nav_container,
                 text=text,
                 command=lambda p=page_id: self.show_page(p),
-                width=250,
-                height=45,
-                corner_radius=15,
-                font=ctk.CTkFont(size=14, weight="bold"),
+                width=200,  # Reduced from 250 to 200
+                height=32,  # Reduced from 45 to 32
+                corner_radius=12,  # Reduced from 15 to 12
+                font=ctk.CTkFont(size=12, weight="bold"),  # Reduced from 14 to 12
                 fg_color=color,
                 hover_color=self.darken_color(color),
                 text_color="white"
             )
-            btn.pack(side="left", padx=15, pady=5)
+            btn.pack(side="left", padx=12, pady=3)  # Reduced padding
             self.nav_buttons[page_id] = btn
         
         # Theme toggle button
@@ -292,14 +306,14 @@ class HRManagementApp:
             nav_container,
             text="🌙 Dark",
             command=self.toggle_theme,
-            width=100,
-            height=45,
-            corner_radius=15,
-            font=ctk.CTkFont(size=12, weight="bold"),
+            width=80,   # Reduced from 100 to 80
+            height=32,  # Reduced from 45 to 32
+            corner_radius=12,  # Reduced from 15 to 12
+            font=ctk.CTkFont(size=11, weight="bold"),  # Reduced from 12 to 11
             fg_color=self.colors['secondary'],
             hover_color=self.darken_color(self.colors['secondary'])
         )
-        theme_btn.pack(side="right", padx=15, pady=5)
+        theme_btn.pack(side="right", padx=12, pady=3)  # Reduced padding
         self.theme_btn = theme_btn
         
         # Create modern content frame with subtle shadow effect
@@ -460,6 +474,9 @@ class HRManagementApp:
             
             logger.info("All GUI pages created successfully")
             
+            # Schedule automatic update check after 3 seconds (non-blocking)
+            self.root.after(3000, self.check_for_updates_on_startup)
+            
         except Exception as e:
             logger.error(f"Error creating pages: {e}")
             import traceback
@@ -477,6 +494,26 @@ class HRManagementApp:
         darkened = tuple(int(c * factor) for c in rgb)
         # Convert back to hex
         return f"#{darkened[0]:02x}{darkened[1]:02x}{darkened[2]:02x}"
+    
+    def check_for_updates_on_startup(self):
+        """Check for updates automatically on startup (silent unless update found)"""
+        try:
+            from update_manager import check_for_updates_async
+            from config import APP_VERSION
+            
+            logger.info("Performing automatic update check on startup")
+            
+            # Check for updates silently (only show dialog if update is available)
+            check_for_updates_async(
+                parent_window=self.root,
+                current_version=APP_VERSION,
+                show_no_update=False  # Don't show "no update" message on startup
+            )
+            
+        except ImportError:
+            logger.debug("Update manager not available for startup check")
+        except Exception as e:
+            logger.error(f"Startup update check failed: {e}")
         
     def toggle_theme(self):
         """Toggle between light and dark themes"""

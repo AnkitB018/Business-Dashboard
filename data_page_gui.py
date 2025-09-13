@@ -16,7 +16,15 @@ logger = logging.getLogger(__name__)
 class ModernDataPageGUI:
     def __init__(self, parent, data_service):
         self.parent = parent
-        self.data_service = data_service
+        self.data_service = data_service  # This is HRDataService for basic operations
+        
+        # Import and create DataService for order management
+        try:
+            from data_service import DataService
+            self.order_service = DataService()  # Create DataService for order operations
+        except Exception as e:
+            self.order_service = None
+            
         self.frame = None
         
         # Navigation system
@@ -97,9 +105,9 @@ class ModernDataPageGUI:
             if not self.validate_name(data.get("name", "")):
                 return False, "Name must be 2-50 characters, letters and spaces only"
             
-            # Email validation
-            if not self.validate_email(data.get("email", "")):
-                return False, "Email must be valid format (e.g., user@company.com, .org, .in, .net allowed)"
+            # Aadhar validation (optional)
+            if not self.validate_aadhar(data.get("aadhar_no", "")):
+                return False, "Aadhar number must be 12 digits (optional)"
             
             # Phone validation
             if not self.validate_phone(data.get("phone", "")):
@@ -184,6 +192,22 @@ class ModernDataPageGUI:
         
         return False
     
+    def validate_aadhar(self, aadhar):
+        """Validate Aadhar number: 12 digits, optional"""
+        # Aadhar is optional, so empty is valid
+        if not aadhar or len(aadhar.strip()) == 0:
+            return True
+        
+        # Remove spaces and check if it's 12 digits
+        aadhar_clean = aadhar.replace(" ", "").strip()
+        
+        # Must be exactly 12 digits
+        if len(aadhar_clean) != 12:
+            return False
+        
+        # Must be all digits
+        return aadhar_clean.isdigit()
+
     def validate_daily_wage(self, daily_wage):
         """Validate daily wage: positive number between 1 and 50,000"""
         if not daily_wage:
@@ -326,12 +350,12 @@ class ModernDataPageGUI:
                 is_valid = False
                 error_fields.append("Name")
             
-            # Email validation
-            email_valid = self.validate_email(data.get("email", ""))
-            if not email_valid:
-                self.show_field_error("email", "Valid email with .com/.org/.net/.in domain required")
+            # Aadhar validation (optional)
+            aadhar_valid = self.validate_aadhar(data.get("aadhar_no", ""))
+            if not aadhar_valid:
+                self.show_field_error("aadhar_no", "12 digits only, spaces allowed (optional)")
                 is_valid = False
-                error_fields.append("Email")
+                error_fields.append("Aadhar No")
             
             # Phone validation
             phone_valid = self.validate_phone(data.get("phone", ""))
@@ -459,7 +483,7 @@ class ModernDataPageGUI:
         """Create navigation header with breadcrumbs and back button"""
         self.nav_frame = ctk.CTkFrame(
             self.frame, 
-            height=60, 
+            height=40,  # Reduced from 60 to 40
             corner_radius=0,
             fg_color="transparent"
         )
@@ -474,22 +498,22 @@ class ModernDataPageGUI:
             self.nav_frame,
             text="← Back",
             command=self.navigate_back,
-            width=100,
-            height=35,
+            width=80,  # Reduced from 100 to 80
+            height=28,  # Reduced from 35 to 28
             fg_color=self.colors['button_uniform'],
             hover_color=self.colors['button_hover'],
-            font=ctk.CTkFont(size=14, weight="bold")
+            font=ctk.CTkFont(size=12, weight="bold")  # Reduced from 14 to 12
         )
-        self.back_button.pack(side="left", padx=20, pady=15)
+        self.back_button.pack(side="left", padx=15, pady=6)  # Reduced padding
         
         # Breadcrumb
         self.breadcrumb_label = ctk.CTkLabel(
             self.nav_frame,
             text="Data Management",
-            font=ctk.CTkFont(size=16, weight="bold"),
+            font=ctk.CTkFont(size=14, weight="bold"),  # Reduced from 16 to 14
             text_color=self.colors['text_primary']
         )
-        self.breadcrumb_label.pack(side="left", padx=(10, 0), pady=15)
+        self.breadcrumb_label.pack(side="left", padx=(8, 0), pady=6)  # Reduced padding
         
     def create_main_dashboard(self):
         """Create the main dashboard view (grid of modules)"""
@@ -502,13 +526,13 @@ class ModernDataPageGUI:
 
     def create_status_bar(self):
         """Create enhanced status bar for showing messages"""
-        self.status_frame = ctk.CTkFrame(self.frame, height=50, corner_radius=10)
-        self.status_frame.pack(fill="x", padx=20, pady=(0, 20))
+        self.status_frame = ctk.CTkFrame(self.frame, height=35, corner_radius=8)  # Reduced from 50 to 35
+        self.status_frame.pack(fill="x", padx=15, pady=(0, 15))  # Reduced padding
         self.status_frame.pack_propagate(False)
         
         # Status icon and text container
         status_container = ctk.CTkFrame(self.status_frame, fg_color="transparent")
-        status_container.pack(expand=True, fill="both", padx=15, pady=8)
+        status_container.pack(expand=True, fill="both", padx=12, pady=6)  # Reduced padding
         
         # Status icon
         self.status_icon = ctk.CTkLabel(
@@ -707,24 +731,24 @@ class ModernDataPageGUI:
         """Create modern header section with enhanced styling"""
         header_frame = ctk.CTkFrame(
             self.frame, 
-            height=100, 
-            corner_radius=20,
+            height=60,  # Reduced from 100 to 60
+            corner_radius=15,  # Reduced corner radius
             fg_color=("white", "gray20"),
             border_width=1,
             border_color=self.colors['border']
         )
-        header_frame.pack(fill="x", padx=25, pady=(25, 15))
+        header_frame.pack(fill="x", padx=20, pady=(15, 10))  # Reduced padding
         header_frame.pack_propagate(False)
         
         # Left side - Title and subtitle with modern typography
         title_container = ctk.CTkFrame(header_frame, fg_color="transparent")
-        title_container.pack(side="left", fill="y", padx=30, pady=20)
+        title_container.pack(side="left", fill="y", padx=20, pady=10)  # Reduced padding
         
         # Main title with gradient-like effect
         title_label = ctk.CTkLabel(
             title_container,
             text="📊 Data Management Center",
-            font=ctk.CTkFont(size=32, weight="bold"),
+            font=ctk.CTkFont(size=20, weight="bold"),  # Reduced from 32 to 20
             text_color=self.colors['primary']
         )
         title_label.pack(anchor="w")
@@ -733,14 +757,14 @@ class ModernDataPageGUI:
         subtitle_label = ctk.CTkLabel(
             title_container,
             text="Comprehensive business data management and analytics platform",
-            font=ctk.CTkFont(size=14),
+            font=ctk.CTkFont(size=11),  # Reduced from 14 to 11
             text_color=self.colors['text_secondary']
         )
-        subtitle_label.pack(anchor="w", pady=(5, 0))
+        subtitle_label.pack(anchor="w", pady=(2, 0))  # Reduced padding
         
         # Right side - Modern quick stats with better layout
         stats_container = ctk.CTkFrame(header_frame, fg_color="transparent")
-        stats_container.pack(side="right", fill="y", padx=30, pady=15)
+        stats_container.pack(side="right", fill="y", padx=20, pady=10)  # Reduced padding
         
         self.create_quick_stats(stats_container)
         
@@ -1010,18 +1034,18 @@ class ModernDataPageGUI:
     def create_module_content(self, parent, title, module_type):
         """Create module content within a frame (adapted from window version)"""
         # Module header
-        header_frame = ctk.CTkFrame(parent, height=80, corner_radius=15)
-        header_frame.pack(fill="x", padx=20, pady=(20, 10))
+        header_frame = ctk.CTkFrame(parent, height=50, corner_radius=10)  # Reduced from 80 to 50, corner radius from 15 to 10
+        header_frame.pack(fill="x", padx=15, pady=(10, 8))  # Reduced padding
         header_frame.pack_propagate(False)
         
         # Title
         title_label = ctk.CTkLabel(
             header_frame,
             text=f"📋 {title}",
-            font=ctk.CTkFont(size=24, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),  # Reduced from 24 to 16
             text_color=self.colors['primary']
         )
-        title_label.pack(side="left", padx=20, pady=20)
+        title_label.pack(side="left", padx=15, pady=12)  # Reduced padding
         
         # Main content area
         content_frame = ctk.CTkFrame(parent, corner_radius=0, fg_color="transparent")
@@ -1262,15 +1286,15 @@ class ModernDataPageGUI:
     def create_employee_form(self, form_panel, data_panel):
         """Create enhanced employee form with department and position dropdowns"""
         # Form header
-        form_header = ctk.CTkFrame(form_panel, height=60, corner_radius=8)
-        form_header.pack(fill="x", padx=15, pady=(15, 10))
+        form_header = ctk.CTkFrame(form_panel, height=40, corner_radius=6)  # Reduced from 60 to 40, corner radius from 8 to 6
+        form_header.pack(fill="x", padx=12, pady=(10, 8))  # Reduced padding
         form_header.pack_propagate(False)
         
         ctk.CTkLabel(
             form_header,
             text="👤 Employee Details",
-            font=ctk.CTkFont(size=18, weight="bold")
-        ).pack(pady=15)
+            font=ctk.CTkFont(size=14, weight="bold")  # Reduced from 18 to 14
+        ).pack(pady=10)  # Reduced from 15 to 10
         
         # Scrollable form area with improved scroll speed
         form_scroll = ctk.CTkScrollableFrame(form_panel)
@@ -1287,8 +1311,8 @@ class ModernDataPageGUI:
                               placeholder="e.g., EMP001, HR001, IT001 (3-4 letters + 3-4 digits)")
         self.create_form_field(form_scroll, "Full Name", "name", "text", self.emp_vars,
                               placeholder="Enter full name (2-50 characters, letters only)")
-        self.create_form_field(form_scroll, "Email Address", "email", "text", self.emp_vars,
-                              placeholder="employee@company.com (.com/.org/.net/.in allowed)")
+        self.create_form_field(form_scroll, "Aadhar No.", "aadhar_no", "text", self.emp_vars,
+                              placeholder="1234 5678 9012 (12 digits, optional)")
         self.create_form_field(form_scroll, "Phone Number", "phone", "text", self.emp_vars,
                               placeholder="9876543210 or +91 9876543210 (10 digits)")
         
@@ -1316,15 +1340,15 @@ class ModernDataPageGUI:
     def create_attendance_form(self, form_panel, data_panel):
         """Create simplified and accessible attendance form"""
         # Form header
-        form_header = ctk.CTkFrame(form_panel, height=60, corner_radius=8)
-        form_header.pack(fill="x", padx=15, pady=(15, 10))
+        form_header = ctk.CTkFrame(form_panel, height=40, corner_radius=6)  # Reduced from 60 to 40
+        form_header.pack(fill="x", padx=12, pady=(10, 8))  # Reduced padding
         form_header.pack_propagate(False)
         
         ctk.CTkLabel(
             form_header,
             text="📅 Attendance Record",
-            font=ctk.CTkFont(size=18, weight="bold")
-        ).pack(pady=15)
+            font=ctk.CTkFont(size=14, weight="bold")  # Reduced from 18 to 14
+        ).pack(pady=10)  # Reduced from 15 to 10
         
         # Scrollable form area with better spacing
         form_scroll = ctk.CTkScrollableFrame(form_panel)
@@ -1340,7 +1364,7 @@ class ModernDataPageGUI:
         self.create_employee_dropdown(form_scroll, "Employee", "employee_id", self.att_vars)
         
         # Date picker
-        self.create_date_picker(form_scroll, "Date", "date", self.att_vars)
+        self.create_attendance_date_picker(form_scroll, "Date", "date", self.att_vars)
         
         # Time pickers with improved layout (store references for dynamic control)
         self.time_in_widgets = self.create_time_picker(form_scroll, "Time In", "time_in", self.att_vars)
@@ -1366,15 +1390,15 @@ class ModernDataPageGUI:
     def create_sales_form(self, form_panel, data_panel):
         """Create modern sales form"""
         # Form header
-        form_header = ctk.CTkFrame(form_panel, height=60, corner_radius=8)
-        form_header.pack(fill="x", padx=15, pady=(15, 10))
+        form_header = ctk.CTkFrame(form_panel, height=40, corner_radius=6)  # Reduced from 60 to 40
+        form_header.pack(fill="x", padx=12, pady=(10, 8))  # Reduced padding
         form_header.pack_propagate(False)
         
         ctk.CTkLabel(
             form_header,
             text="💰 Sales Record",
-            font=ctk.CTkFont(size=18, weight="bold")
-        ).pack(pady=15)
+            font=ctk.CTkFont(size=14, weight="bold")  # Reduced from 18 to 14
+        ).pack(pady=10)  # Reduced from 15 to 10
         
         # Scrollable form area
         form_scroll = ctk.CTkScrollableFrame(form_panel)
@@ -1523,6 +1547,107 @@ class ModernDataPageGUI:
         )
         helper_text.pack(anchor="w", pady=(5, 0))
     
+    def create_attendance_date_picker(self, parent, label, key, vars_dict):
+        """Create date picker for attendance with dd/mm/yy format and calendar"""
+        field_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        field_frame.pack(fill="x", pady=8)
+        
+        # Label
+        label_widget = ctk.CTkLabel(
+            field_frame,
+            text=f"{label}*",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#374151"
+        )
+        label_widget.pack(anchor="w", pady=(0, 5))
+        
+        # Date input frame
+        date_frame = ctk.CTkFrame(field_frame, fg_color="transparent")
+        date_frame.pack(fill="x")
+        
+        # Date entry in dd/mm/yy format (but store as YYYY-MM-DD internally)
+        vars_dict[key] = tk.StringVar(value=date.today().strftime("%Y-%m-%d"))  # Internal storage
+        display_var = tk.StringVar(value=date.today().strftime("%d/%m/%y"))  # Display format
+        
+        date_entry = ctk.CTkEntry(
+            date_frame,
+            textvariable=display_var,
+            width=120,
+            height=35,
+            corner_radius=6,
+            border_width=1,
+            font=ctk.CTkFont(size=12),
+            placeholder_text="dd/mm/yy"
+        )
+        date_entry.pack(side="left", padx=(0, 10))
+        
+        # Calendar button
+        cal_btn = ctk.CTkButton(
+            date_frame,
+            text="📅",
+            command=lambda: self.open_attendance_calendar(vars_dict[key], display_var),
+            width=40,
+            height=35,
+            corner_radius=6,
+            font=ctk.CTkFont(size=14)
+        )
+        cal_btn.pack(side="left", padx=(0, 10))
+        
+        # Today button
+        today_btn = ctk.CTkButton(
+            date_frame,
+            text="Today",
+            command=lambda: self.set_attendance_date_today(vars_dict[key], display_var),
+            width=80,
+            height=35,
+            corner_radius=6,
+            font=ctk.CTkFont(size=11)
+        )
+        today_btn.pack(side="left")
+        
+        # Sync display format with internal format when user types
+        def sync_date_formats(*args):
+            try:
+                user_input = display_var.get().strip()
+                if user_input:
+                    # Try to parse user input in dd/mm/yy format
+                    if '/' in user_input:
+                        parts = user_input.split('/')
+                        if len(parts) == 3:
+                            day, month, year = parts
+                            # Handle 2-digit year
+                            if len(year) == 2:
+                                year = f"20{year}" if int(year) < 50 else f"19{year}"
+                            # Create date object to validate
+                            date_obj = datetime(int(year), int(month), int(day))
+                            # Store in internal format
+                            vars_dict[key].set(date_obj.strftime("%Y-%m-%d"))
+                        else:
+                            # Invalid format, reset to today
+                            self.set_attendance_date_today(vars_dict[key], display_var)
+                    else:
+                        # Try other formats or reset to today
+                        self.set_attendance_date_today(vars_dict[key], display_var)
+            except (ValueError, TypeError):
+                # Invalid date, reset to today
+                self.set_attendance_date_today(vars_dict[key], display_var)
+        
+        display_var.trace("w", sync_date_formats)
+        
+        # Helper text
+        helper_text = ctk.CTkLabel(
+            field_frame,
+            text="Format: dd/mm/yy (e.g., 13/09/25) - Click 📅 for calendar or type date",
+            font=ctk.CTkFont(size=10),
+            text_color="gray"
+        )
+        helper_text.pack(anchor="w", pady=(5, 0))
+        
+        # Store display variable for later access
+        if not hasattr(self, 'attendance_display_vars'):
+            self.attendance_display_vars = {}
+        self.attendance_display_vars[key] = display_var
+    
     def create_time_picker(self, parent, label, key, vars_dict):
         """Create simplified and more accessible time picker"""
         field_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -1544,13 +1669,13 @@ class ModernDataPageGUI:
         time_input_frame = ctk.CTkFrame(time_container, fg_color="transparent")
         time_input_frame.pack(anchor="w")
         
-        # Hour dropdown
+        # Hour dropdown (12-hour format)
         ctk.CTkLabel(time_input_frame, text="Hour:", font=ctk.CTkFont(size=11)).pack(side="left")
         hour_var = tk.StringVar(value="09")
         hour_combo = ctk.CTkComboBox(
             time_input_frame,
             variable=hour_var,
-            values=[f"{i:02d}" for i in range(24)],
+            values=[f"{i:02d}" for i in range(1, 13)],  # 1-12 for 12-hour format
             width=70,
             height=35,
             corner_radius=6
@@ -1568,7 +1693,20 @@ class ModernDataPageGUI:
             height=35,
             corner_radius=6
         )
-        minute_combo.pack(side="left", padx=(5, 20))
+        minute_combo.pack(side="left", padx=(5, 10))
+        
+        # AM/PM dropdown
+        ctk.CTkLabel(time_input_frame, text="AM/PM:", font=ctk.CTkFont(size=11)).pack(side="left")
+        ampm_var = tk.StringVar(value="AM")
+        ampm_combo = ctk.CTkComboBox(
+            time_input_frame,
+            variable=ampm_var,
+            values=["AM", "PM"],
+            width=70,
+            height=35,
+            corner_radius=6
+        )
+        ampm_combo.pack(side="left", padx=(5, 20))
         
         # Quick time buttons - arranged in a more accessible way
         quick_times_frame = ctk.CTkFrame(time_container, fg_color="transparent")
@@ -1581,17 +1719,17 @@ class ModernDataPageGUI:
         buttons_frame.pack(anchor="w", pady=(5, 0))
         
         quick_times = [
-            ("9:00 AM", "09:00"),
-            ("12:00 PM", "12:00"), 
-            ("5:00 PM", "17:00"),
-            ("Now", datetime.now().strftime("%H:%M"))
+            ("9:00 AM", "09", "00", "AM"),
+            ("12:00 PM", "12", "00", "PM"), 
+            ("5:00 PM", "05", "00", "PM"),
+            ("Now", *self.get_current_12hour_time())
         ]
         
-        for btn_text, time_val in quick_times:
+        for btn_text, hour_val, min_val, ampm_val in quick_times:
             time_btn = ctk.CTkButton(
                 buttons_frame,
                 text=btn_text,
-                command=lambda t=time_val, h_var=hour_var, m_var=minute_var: self.set_time(t, h_var, m_var),
+                command=lambda h=hour_val, m=min_val, ap=ampm_val, h_var=hour_var, m_var=minute_var, ap_var=ampm_var: self.set_12hour_time(h, m, ap, h_var, m_var, ap_var),
                 width=80,
                 height=32,
                 corner_radius=6,
@@ -1599,20 +1737,41 @@ class ModernDataPageGUI:
             )
             time_btn.pack(side="left", padx=(0, 8))
         
-        # Combine hour and minute into time string
+        # Combine hour, minute, and AM/PM into 24-hour time string for database storage
         vars_dict[key] = tk.StringVar()
         
         def update_time(*args):
-            vars_dict[key].set(f"{hour_var.get()}:{minute_var.get()}")
+            try:
+                hour = int(hour_var.get())
+                minute = minute_var.get()
+                ampm = ampm_var.get()
+                
+                # Convert 12-hour to 24-hour format for storage
+                if ampm == "AM":
+                    if hour == 12:
+                        hour_24 = 0
+                    else:
+                        hour_24 = hour
+                else:  # PM
+                    if hour == 12:
+                        hour_24 = 12
+                    else:
+                        hour_24 = hour + 12
+                
+                time_str = f"{hour_24:02d}:{minute}"
+                vars_dict[key].set(time_str)
+            except (ValueError, TypeError):
+                vars_dict[key].set("09:00")  # Default fallback
         
         hour_var.trace("w", update_time)
         minute_var.trace("w", update_time)
+        ampm_var.trace("w", update_time)
         update_time()  # Initial value
         
         # Helper text
         helper_text = ctk.CTkLabel(
             field_frame,
-            text="Select time using dropdowns or quick buttons",
+            text="Select time using dropdowns or quick buttons (12-hour format)",
             font=ctk.CTkFont(size=10)
         )
         helper_text.pack(anchor="w", pady=(8, 0))
@@ -1621,6 +1780,7 @@ class ModernDataPageGUI:
         return {
             'hour_combo': hour_combo,
             'minute_combo': minute_combo,
+            'ampm_combo': ampm_combo,
             'quick_buttons': buttons_frame
         }
 
@@ -1733,15 +1893,140 @@ class ModernDataPageGUI:
         )
         helper_text.pack(anchor="w")
     
-    def set_time(self, time_str, hour_var, minute_var):
-        """Set time from button click"""
+    def set_12hour_time(self, hour, minute, ampm, hour_var, minute_var, ampm_var):
+        """Set time from button click in 12-hour format"""
         try:
-            if ":" in time_str:
-                hour, minute = time_str.split(":")
-                hour_var.set(hour)
-                minute_var.set(minute)
+            hour_var.set(hour)
+            minute_var.set(minute)
+            ampm_var.set(ampm)
         except Exception as e:
-            logger.error(f"Error setting time: {e}")
+            logger.error(f"Error setting 12-hour time: {e}")
+    
+    def get_current_12hour_time(self):
+        """Get current time in 12-hour format components"""
+        try:
+            now = datetime.now()
+            hour = now.hour
+            minute = now.minute
+            
+            # Convert to 12-hour format
+            if hour == 0:
+                hour_12 = 12
+                ampm = "AM"
+            elif hour < 12:
+                hour_12 = hour
+                ampm = "AM"
+            elif hour == 12:
+                hour_12 = 12
+                ampm = "PM"
+            else:
+                hour_12 = hour - 12
+                ampm = "PM"
+            
+            return f"{hour_12:02d}", f"{minute:02d}", ampm
+        except Exception as e:
+            logger.error(f"Error getting current 12-hour time: {e}")
+            return "09", "00", "AM"
+    
+    def set_attendance_date_today(self, internal_var, display_var):
+        """Set attendance date to today in both internal and display formats"""
+        try:
+            today = date.today()
+            internal_var.set(today.strftime("%Y-%m-%d"))  # Internal format
+            display_var.set(today.strftime("%d/%m/%y"))  # Display format
+        except Exception as e:
+            logger.error(f"Error setting today's date: {e}")
+    
+    def open_attendance_calendar(self, internal_var, display_var):
+        """Open calendar picker for attendance date selection"""
+        try:
+            # Create calendar popup window
+            cal_window = ctk.CTkToplevel(self.parent)
+            cal_window.title("Select Date")
+            cal_window.geometry("300x250")
+            cal_window.transient(self.parent)
+            cal_window.grab_set()
+            
+            # Center the window
+            cal_window.update_idletasks()
+            x = (cal_window.winfo_screenwidth() // 2) - (300 // 2)
+            y = (cal_window.winfo_screenheight() // 2) - (250 // 2)
+            cal_window.geometry(f"300x250+{x}+{y}")
+            
+            # Simple date selection frame
+            main_frame = ctk.CTkFrame(cal_window)
+            main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+            
+            # Title
+            title_label = ctk.CTkLabel(main_frame, text="Select Date", 
+                                     font=ctk.CTkFont(size=16, weight="bold"))
+            title_label.pack(pady=(10, 20))
+            
+            # Date selection frame
+            date_select_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+            date_select_frame.pack(pady=10)
+            
+            # Get current date from internal var or today
+            current_date_str = internal_var.get()
+            try:
+                current_date = datetime.strptime(current_date_str, "%Y-%m-%d").date()
+            except:
+                current_date = date.today()
+            
+            # Day dropdown
+            ctk.CTkLabel(date_select_frame, text="Day:").grid(row=0, column=0, padx=5, pady=5)
+            day_var = tk.StringVar(value=str(current_date.day))
+            day_combo = ctk.CTkComboBox(date_select_frame, variable=day_var, 
+                                      values=[str(i) for i in range(1, 32)], width=60)
+            day_combo.grid(row=0, column=1, padx=5, pady=5)
+            
+            # Month dropdown
+            ctk.CTkLabel(date_select_frame, text="Month:").grid(row=0, column=2, padx=5, pady=5)
+            month_var = tk.StringVar(value=str(current_date.month))
+            month_combo = ctk.CTkComboBox(date_select_frame, variable=month_var,
+                                        values=[str(i) for i in range(1, 13)], width=60)
+            month_combo.grid(row=0, column=3, padx=5, pady=5)
+            
+            # Year dropdown  
+            ctk.CTkLabel(date_select_frame, text="Year:").grid(row=1, column=0, padx=5, pady=5)
+            current_year = current_date.year
+            years = [str(year) for year in range(current_year-2, current_year+3)]
+            year_var = tk.StringVar(value=str(current_date.year))
+            year_combo = ctk.CTkComboBox(date_select_frame, variable=year_var, 
+                                       values=years, width=80)
+            year_combo.grid(row=1, column=1, columnspan=2, padx=5, pady=5)
+            
+            # Buttons frame
+            btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
+            btn_frame.pack(pady=20)
+            
+            def apply_date():
+                try:
+                    selected_date = date(int(year_var.get()), int(month_var.get()), int(day_var.get()))
+                    internal_var.set(selected_date.strftime("%Y-%m-%d"))
+                    display_var.set(selected_date.strftime("%d/%m/%y"))
+                    cal_window.destroy()
+                except ValueError:
+                    # Invalid date selected
+                    error_label = ctk.CTkLabel(main_frame, text="Invalid date selected!", 
+                                             text_color="red", font=ctk.CTkFont(size=10))
+                    error_label.pack(pady=5)
+                    cal_window.after(2000, error_label.destroy)
+            
+            # Apply button
+            apply_btn = ctk.CTkButton(btn_frame, text="Select", command=apply_date, width=80)
+            apply_btn.pack(side="left", padx=5)
+            
+            # Cancel button
+            cancel_btn = ctk.CTkButton(btn_frame, text="Cancel", 
+                                     command=cal_window.destroy, width=80,
+                                     fg_color="gray", hover_color="darkgray")
+            cancel_btn.pack(side="left", padx=5)
+            
+        except Exception as e:
+            logger.error(f"Error opening calendar: {e}")
+            # Fallback to today
+            self.set_attendance_date_today(internal_var, display_var)
     
     def darken_color(self, color):
         """Darken a hex color for hover effect"""
@@ -2353,7 +2638,9 @@ class ModernDataPageGUI:
         
         # Get customer names for dropdown
         try:
-            customers_df = self.data_service.get_customers()
+            # Use order_service for customer data if available, otherwise fall back to data_service
+            service = self.order_service if self.order_service else self.data_service
+            customers_df = service.get_customers()
             customer_names = [""] + customers_df['name'].tolist() if not customers_df.empty else [""]
         except:
             customer_names = [""]
@@ -2386,8 +2673,9 @@ class ModernDataPageGUI:
             return
         
         try:
-            # Get customer details
-            customer = self.data_service.get_customer_by_name(selected_name)
+            # Get customer details using order_service if available
+            service = self.order_service if self.order_service else self.data_service
+            customer = service.get_customer_by_name(selected_name)
             if customer:
                 # Auto-fill customer information
                 self.order_vars["customer_phone"].set(customer.get('contact_number', ''))
@@ -2721,29 +3009,28 @@ class ModernDataPageGUI:
         self.clear_sales_content()
         self.current_sales_view = "orders"
         
-        # Create two-section layout: Orders table and order details
+        # Create two-section layout: Orders table and order details - Better spacing
         main_container = ctk.CTkFrame(self.sales_content_frame, fg_color="transparent")
-        main_container.pack(fill="both", expand=True, padx=15, pady=15)
+        main_container.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Orders table section (top)
-        orders_section = ctk.CTkFrame(main_container, corner_radius=12, height=400,
+        # Orders table section - Now expands to fill all space
+        orders_section = ctk.CTkFrame(main_container, corner_radius=12,
                                      fg_color=("#f8f9fa", "gray19"))
-        orders_section.pack(fill="x", pady=(0, 15))
-        orders_section.pack_propagate(False)
+        orders_section.pack(fill="both", expand=True, pady=(0, 10))
         
-        # Orders header
-        orders_header = ctk.CTkFrame(orders_section, height=60, corner_radius=10,
+        # Orders header - More compact
+        orders_header = ctk.CTkFrame(orders_section, height=45, corner_radius=10,
                                    fg_color=("#2196f3", "#1565c0"))
-        orders_header.pack(fill="x", padx=15, pady=(15, 10))
+        orders_header.pack(fill="x", padx=15, pady=(10, 8))
         orders_header.pack_propagate(False)
         
         header_content = ctk.CTkFrame(orders_header, fg_color="transparent")
-        header_content.pack(expand=True, fill="both", padx=20, pady=15)
+        header_content.pack(expand=True, fill="both", padx=20, pady=10)
         
         ctk.CTkLabel(
             header_content,
             text="📋 Active Orders",
-            font=ctk.CTkFont(size=18, weight="bold"),
+            font=ctk.CTkFont(size=16, weight="bold"),
             text_color="white"
         ).pack(side="left")
         
@@ -2761,16 +3048,8 @@ class ModernDataPageGUI:
         )
         refresh_btn.pack(side="right")
         
-        # Orders table
+        # Orders table - Now takes up all available space
         self.create_orders_table(orders_section)
-        
-        # Order details and transactions section (bottom)
-        details_section = ctk.CTkFrame(main_container, corner_radius=12,
-                                      fg_color=("#fff3e0", "gray19"))
-        details_section.pack(fill="both", expand=True)
-        
-        # Create tabbed interface for order details and transactions
-        self.create_order_details_tabs(details_section)
     
     def create_orders_table(self, parent):
         """Create enhanced orders table with full width"""
@@ -2795,7 +3074,7 @@ class ModernDataPageGUI:
         columns = ("Order ID", "Customer", "Phone", "Item", "Quantity", "Total Amount", 
                   "Advance Paid", "Due Amount", "Status", "Due Date")
         
-        self.orders_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=12)
+        self.orders_tree = ttk.Treeview(tree_frame, columns=columns, show="headings", height=15)
         
         # Configure column widths for full width utilization
         column_widths = {"Order ID": 100, "Customer": 150, "Phone": 120, "Item": 200, 
@@ -2816,53 +3095,51 @@ class ModernDataPageGUI:
         v_scrollbar.pack(side="right", fill="y")
         h_scrollbar.pack(side="bottom", fill="x")
         
-        # Bind selection event
-        self.orders_tree.bind("<<TreeviewSelect>>", self.on_order_selection)
-        
         # Load orders data
         self.refresh_orders_table()
     
     def create_order_details_tabs(self, parent):
         """Create tabbed interface for order details and payment tracking"""
-        # Tab header
-        tab_header = ctk.CTkFrame(parent, height=50, corner_radius=10,
+        # Tab header - More compact
+        tab_header = ctk.CTkFrame(parent, height=40, corner_radius=10,
                                  fg_color=("#e1f5fe", "gray25"))
-        tab_header.pack(fill="x", padx=15, pady=(15, 5))
+        tab_header.pack(fill="x", padx=15, pady=(10, 5))
         tab_header.pack_propagate(False)
         
         tab_buttons_frame = ctk.CTkFrame(tab_header, fg_color="transparent")
-        tab_buttons_frame.pack(expand=True, pady=10)
+        tab_buttons_frame.pack(expand=True, pady=6)
         
-        # Order Details Tab
+        # Order Details Tab - Smaller buttons
         self.details_tab_btn = ctk.CTkButton(
             tab_buttons_frame,
             text="📄 Order Details",
             command=lambda: self.switch_details_tab("details"),
-            width=150,
-            height=35,
+            width=130,
+            height=28,
             corner_radius=8,
             fg_color=("#2196f3", "#1565c0"),
             hover_color=("#1976d2", "#0d47a1")
         )
         self.details_tab_btn.pack(side="left", padx=(0, 10))
         
-        # Payments Tab
+        # Payments Tab - Smaller buttons
         self.payments_tab_btn = ctk.CTkButton(
             tab_buttons_frame,
             text="💳 Payments",
             command=lambda: self.switch_details_tab("payments"),
-            width=150,
-            height=35,
+            width=130,
+            height=28,
             corner_radius=8,
             fg_color=("#ff9800", "#e65100"),
             hover_color=("#f57c00", "#bf360c")
         )
         self.payments_tab_btn.pack(side="left")
         
-        # Tab content area
-        self.details_content_frame = ctk.CTkFrame(parent, corner_radius=10,
+        # Tab content area - Ensure proper minimum height
+        self.details_content_frame = ctk.CTkFrame(parent, corner_radius=10, height=250,
                                                  fg_color=("white", "gray20"))
-        self.details_content_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        self.details_content_frame.pack(fill="both", expand=True, padx=15, pady=(0, 10))
+        self.details_content_frame.pack_propagate(False)
         
         # Initialize with details tab
         self.current_details_tab = "details"
@@ -2890,16 +3167,28 @@ class ModernDataPageGUI:
     def show_order_details_tab(self):
         """Show selected order details"""
         if not hasattr(self, 'selected_order_id') or not self.selected_order_id:
-            # No order selected message
+            # No order selected message - Enhanced instructions
             message_frame = ctk.CTkFrame(self.details_content_frame, fg_color="transparent")
             message_frame.pack(expand=True, fill="both")
             
+            instruction_container = ctk.CTkFrame(message_frame, corner_radius=15,
+                                               fg_color=("#e3f2fd", "gray25"))
+            instruction_container.pack(expand=True, fill="both", padx=30, pady=30)
+            
             ctk.CTkLabel(
-                message_frame,
-                text="📋 Select an order from the table above to view details",
-                font=ctk.CTkFont(size=16),
-                text_color=("gray50", "gray60")
-            ).pack(expand=True)
+                instruction_container,
+                text="📋 Order Details",
+                font=ctk.CTkFont(size=20, weight="bold"),
+                text_color=("#1976d2", "#64b5f6")
+            ).pack(pady=(30, 10))
+            
+            ctk.CTkLabel(
+                instruction_container,
+                text="� Click on any order in the table above\nto view detailed information here",
+                font=ctk.CTkFont(size=14),
+                text_color=("gray60", "gray50"),
+                justify="center"
+            ).pack(pady=(0, 30))
             return
         
         # Order details content
@@ -3053,16 +3342,28 @@ class ModernDataPageGUI:
     def show_payments_tab(self):
         """Show payments and transactions for selected order"""
         if not hasattr(self, 'selected_order_id') or not self.selected_order_id:
-            # No order selected message
+            # No order selected message - Enhanced instructions for payments
             message_frame = ctk.CTkFrame(self.details_content_frame, fg_color="transparent")
             message_frame.pack(expand=True, fill="both")
             
+            instruction_container = ctk.CTkFrame(message_frame, corner_radius=15,
+                                               fg_color=("#fff3e0", "gray25"))
+            instruction_container.pack(expand=True, fill="both", padx=30, pady=30)
+            
             ctk.CTkLabel(
-                message_frame,
-                text="💳 Select an order to view payment history",
-                font=ctk.CTkFont(size=16),
-                text_color=("gray50", "gray60")
-            ).pack(expand=True)
+                instruction_container,
+                text="💳 Payment Tracking",
+                font=ctk.CTkFont(size=20, weight="bold"),
+                text_color=("#f57c00", "#ffb74d")
+            ).pack(pady=(30, 10))
+            
+            ctk.CTkLabel(
+                instruction_container,
+                text="� Select an order from the table above\nto view payment history and add new payments",
+                font=ctk.CTkFont(size=14),
+                text_color=("gray60", "gray50"),
+                justify="center"
+            ).pack(pady=(0, 30))
             return
         
         # Payments content
@@ -4421,7 +4722,8 @@ class ModernDataPageGUI:
             data_service = DataService()
             
             # Get all orders with due amounts > 0
-            all_orders = data_service.get_all_orders()
+            service = self.order_service if self.order_service else data_service
+            all_orders = service.get_all_orders()
             due_orders = [order for order in all_orders if order.get('due_amount', 0) > 0]
             
             if not due_orders:
@@ -4803,11 +5105,14 @@ class ModernDataPageGUI:
     def load_due_orders_data(self):
         """Load customers and orders with due payments"""
         try:
-            from data_service import DataService
-            data_service = DataService()
+            # Use existing order_service or create new DataService
+            service = self.order_service
+            if not service:
+                from data_service import DataService
+                service = DataService()
             
             # Get all orders with due amounts > 0
-            all_orders = data_service.get_all_orders()
+            all_orders = service.get_all_orders()
             due_orders = [order for order in all_orders if order.get('due_amount', 0) > 0]
             
             # Extract unique customers
@@ -5262,15 +5567,15 @@ class ModernDataPageGUI:
     def create_purchases_form(self, form_panel, data_panel):
         """Create modern purchases form"""
         # Form header
-        form_header = ctk.CTkFrame(form_panel, height=60, corner_radius=8)
-        form_header.pack(fill="x", padx=15, pady=(15, 10))
+        form_header = ctk.CTkFrame(form_panel, height=40, corner_radius=6)  # Reduced from 60 to 40
+        form_header.pack(fill="x", padx=12, pady=(10, 8))  # Reduced padding
         form_header.pack_propagate(False)
         
         ctk.CTkLabel(
             form_header,
             text="🛒 Purchase Record",
-            font=ctk.CTkFont(size=18, weight="bold")
-        ).pack(pady=15)
+            font=ctk.CTkFont(size=14, weight="bold")  # Reduced from 18 to 14
+        ).pack(pady=10)  # Reduced from 15 to 10
         
         # Scrollable form area
         form_scroll = ctk.CTkScrollableFrame(form_panel)
@@ -5594,7 +5899,7 @@ class ModernDataPageGUI:
     def get_table_columns(self, table_type):
         """Get table columns based on type"""
         columns_map = {
-            "employees": ["Employee_ID", "Name", "Email", "Phone", "Department", "Position", "Daily_Wage"],
+            "employees": ["Employee_ID", "Name", "Aadhar_No", "Phone", "Department", "Position", "Daily_Wage", "Join_Date", "Last_Paid"],
             "attendance": ["Employee_ID", "Date", "Time_In", "Time_Out", "Status", "Hours"],
             "stock": ["Item_Name", "Category", "Quantity", "Price", "Supplier", "Total_Value"],
             "sales": ["Item_Name", "Quantity", "Price", "Customer", "Date", "Total"],
@@ -5959,20 +6264,50 @@ class ModernDataPageGUI:
     def create_new_order(self):
         """Create a new order from form data"""
         try:
+            # Check if order_vars exists
+            if not hasattr(self, 'order_vars') or not self.order_vars:
+                self.show_status_message("Form not properly initialized. Please try again.", "error")
+                return
+                
+            # Check if order service is available
+            if not self.order_service:
+                self.show_status_message("Order service not available. Please restart the application.", "error")
+                return
+            
             # Validate required fields
             required_fields = ['customer_name', 'customer_phone', 'item_name', 'quantity', 'unit_price']
+            optional_fields = ['customer_address', 'advance_payment', 'due_date', 'payment_method']
+            
             for field in required_fields:
-                if not self.order_vars[field].get().strip():
+                if field not in self.order_vars:
+                    self.show_status_message(f"Form field {field} not found. Please reload the form.", "error")
+                    return
+                    
+                field_value = self.order_vars[field].get().strip()
+                if not field_value:
                     self.show_status_message(f"Please enter {field.replace('_', ' ').title()}", "warning")
                     return
+            
+            for field in optional_fields:
+                if field not in self.order_vars:
+                    # Add missing optional fields with defaults
+                    if field == 'customer_address':
+                        self.order_vars[field] = tk.StringVar(value="")
+                    elif field == 'advance_payment':
+                        self.order_vars[field] = tk.StringVar(value="0")
+                    elif field == 'due_date':
+                        self.order_vars[field] = tk.StringVar(value=date.today().strftime("%Y-%m-%d"))
+                    elif field == 'payment_method':
+                        self.order_vars[field] = tk.StringVar(value="Cash")
             
             # Check if customer exists, if not create new customer
             customer_name = self.order_vars['customer_name'].get().strip()
             customer_phone = self.order_vars['customer_phone'].get().strip()
             customer_address = self.order_vars['customer_address'].get().strip()
             
-            existing_customer = self.data_service.get_customer_by_name(customer_name)
-            if not existing_customer:
+            existing_customer = self.order_service.get_customer_by_name(customer_name) if self.order_service else None
+            
+            if not existing_customer and self.order_service:
                 # Create new customer automatically
                 try:
                     new_customer_data = {
@@ -5981,7 +6316,7 @@ class ModernDataPageGUI:
                         'gst_number': '',  # Empty for now
                         'address': customer_address
                     }
-                    self.data_service.add_customer(new_customer_data)
+                    self.order_service.add_customer(new_customer_data)
                     logger.info(f"Automatically created new customer: {customer_name}")
                 except Exception as e:
                     logger.warning(f"Failed to auto-create customer: {str(e)}")
@@ -6019,11 +6354,12 @@ class ModernDataPageGUI:
             }
             
             # Save to database
-            result = self.data_service.add_order(order_data)
+            result = self.order_service.add_order(order_data) if self.order_service else None
             
             if result:
                 # Update customer due payments after order creation
-                self.data_service.update_all_customer_due_payments()
+                if self.order_service:
+                    self.order_service.update_all_customer_due_payments()
                 
                 # Create initial transaction if advance payment exists
                 if advance_payment > 0:
@@ -6106,7 +6442,8 @@ class ModernDataPageGUI:
             # Refresh customer dropdown with latest customers
             if hasattr(self, 'customer_name_combo'):
                 try:
-                    customers_df = self.data_service.get_customers()
+                    service = self.order_service if self.order_service else self.data_service
+                    customers_df = service.get_customers()
                     customer_names = [""] + customers_df['name'].tolist() if not customers_df.empty else [""]
                     self.customer_name_combo.configure(values=customer_names)
                 except:
@@ -6122,10 +6459,12 @@ class ModernDataPageGUI:
             for item in self.orders_tree.get_children():
                 self.orders_tree.delete(item)
             
-            # Get orders from database
-            from data_service import DataService
-            data_service = DataService()
-            orders = data_service.get_all_orders()
+            # Get orders from database using order_service
+            service = self.order_service
+            if not service:
+                from data_service import DataService
+                service = DataService()
+            orders = service.get_all_orders()
             
             # Populate table
             for order in orders:
@@ -6174,9 +6513,11 @@ class ModernDataPageGUI:
     def get_order_by_id(self, order_id):
         """Get order data by order ID"""
         try:
-            from data_service import DataService
-            data_service = DataService()
-            return data_service.get_order_by_id(order_id)
+            service = self.order_service
+            if not service:
+                from data_service import DataService
+                service = DataService()
+            return service.get_order_by_id(order_id)
         except Exception as e:
             print(f"Error getting order data: {e}")
             return None
@@ -6787,11 +7128,58 @@ class ModernDataPageGUI:
             except:
                 self.att_vars["employee_id"].set(employee_id)
             
-            self.att_vars["date"].set(values[1])
+            # Convert date from dd/mm/yy display format to YYYY-MM-DD for form
+            date_display = str(values[1])
+            try:
+                if '/' in date_display and len(date_display) <= 8:  # dd/mm/yy format
+                    date_obj = datetime.strptime(date_display, '%d/%m/%y')
+                    date_form_format = date_obj.strftime('%Y-%m-%d')
+                    self.att_vars["date"].set(date_form_format)
+                    # Also set the display variable if it exists
+                    if hasattr(self, 'attendance_display_vars') and "date" in self.attendance_display_vars:
+                        self.attendance_display_vars["date"].set(date_display)
+                else:
+                    self.att_vars["date"].set(date_display)
+                    if hasattr(self, 'attendance_display_vars') and "date" in self.attendance_display_vars:
+                        self.attendance_display_vars["date"].set(date_display)
+            except:
+                self.att_vars["date"].set(date_display)
+                if hasattr(self, 'attendance_display_vars') and "date" in self.attendance_display_vars:
+                    self.attendance_display_vars["date"].set(date_display)
+            
+            # Convert times from 12-hour display format to 24-hour for form
             if len(values) > 2:
-                self.att_vars["time_in"].set(values[2] if values[2] != 'N/A' else '')
+                time_in_display = str(values[2])
+                if time_in_display != 'N/A' and time_in_display:
+                    try:
+                        # Convert from "2:30 PM" to "14:30"
+                        if 'AM' in time_in_display or 'PM' in time_in_display:
+                            time_obj = datetime.strptime(time_in_display, '%I:%M %p')
+                            time_24hr = time_obj.strftime('%H:%M')
+                            self.att_vars["time_in"].set(time_24hr)
+                        else:
+                            self.att_vars["time_in"].set(time_in_display)
+                    except:
+                        self.att_vars["time_in"].set('')
+                else:
+                    self.att_vars["time_in"].set('')
+                    
             if len(values) > 3:
-                self.att_vars["time_out"].set(values[3] if values[3] != 'N/A' else '')
+                time_out_display = str(values[3])
+                if time_out_display != 'N/A' and time_out_display:
+                    try:
+                        # Convert from "5:30 PM" to "17:30"
+                        if 'AM' in time_out_display or 'PM' in time_out_display:
+                            time_obj = datetime.strptime(time_out_display, '%I:%M %p')
+                            time_24hr = time_obj.strftime('%H:%M')
+                            self.att_vars["time_out"].set(time_24hr)
+                        else:
+                            self.att_vars["time_out"].set(time_out_display)
+                    except:
+                        self.att_vars["time_out"].set('')
+                else:
+                    self.att_vars["time_out"].set('')
+                    
             if len(values) > 4:
                 self.att_vars["status"].set(values[4])
             if len(values) > 6 and hasattr(self, 'att_vars') and "notes" in self.att_vars:
@@ -6802,7 +7190,7 @@ class ModernDataPageGUI:
             self.edit_module_type = "attendance"
             
             self.show_edit_buttons("attendance")
-            self.show_status_message(f"Editing attendance: {employee_id} on {values[1]}", "info")
+            self.show_status_message(f"Editing attendance: {employee_id} on {date_display}", "info")
     
     def edit_sales_data(self, values, mongo_id):
         """Edit sales specific data"""
@@ -6977,19 +7365,23 @@ class ModernDataPageGUI:
                 if module_type in ["employee", "employees"]:
                     result = self.data_service.delete_employee(values[0])
                 elif module_type == "attendance":
-                    # Parse date properly for attendance deletion
-                    date_str = str(values[1])
-                    try:
-                        # Convert date string to datetime for filtering
-                        if len(date_str) == 10:  # YYYY-MM-DD format
-                            filter_date = datetime.strptime(date_str, '%Y-%m-%d')
-                        else:
-                            filter_date = date_str
-                        filter_dict = {"employee_id": values[0], "date": filter_date}
-                        result = self.data_service.delete_attendance(filter_dict)
-                    except Exception as e:
-                        logger.error(f"Error parsing date for deletion: {e}")
-                        continue
+                    # Use MongoDB ID for more reliable deletion
+                    if mongo_id:
+                        result = self.data_service.delete_attendance_by_id(mongo_id)
+                    else:
+                        # Fallback: Parse date from dd/mm/yy display format
+                        date_str = str(values[1])
+                        try:
+                            # Convert dd/mm/yy to datetime for filtering
+                            if '/' in date_str and len(date_str) <= 8:  # dd/mm/yy format
+                                filter_date = datetime.strptime(date_str, '%d/%m/%y')
+                            else:
+                                filter_date = date_str
+                            filter_dict = {"employee_id": values[0], "date": filter_date}
+                            result = self.data_service.delete_attendance(filter_dict)
+                        except Exception as e:
+                            logger.error(f"Error parsing date for deletion: {e}")
+                            continue
                 elif module_type in ["sale", "sales"]:
                     # Parse date properly for sales deletion
                     date_str = str(values[4])
@@ -7157,25 +7549,68 @@ class ModernDataPageGUI:
     def extract_table_values(self, record, table_type):
         """Extract values for table display"""
         if table_type == "employees":
+            # Format join_date
+            join_date = record.get("join_date", "")
+            if pd.isna(join_date) or join_date == "":
+                # Fallback to hire_date if join_date is missing
+                hire_date = record.get("hire_date", "")
+                if hasattr(hire_date, 'strftime'):
+                    join_date = hire_date.strftime('%Y-%m-%d')
+                else:
+                    join_date = "Not Set"
+            
+            # Format last_paid
+            last_paid = record.get("last_paid", "")
+            if pd.isna(last_paid) or 'NaT' in str(type(last_paid)):
+                last_paid_str = "Never Paid"
+            elif hasattr(last_paid, 'strftime'):
+                last_paid_str = last_paid.strftime('%Y-%m-%d')
+            else:
+                last_paid_str = str(last_paid)
+            
             return [
                 record.get("employee_id", ""),
                 record.get("name", ""),
-                record.get("email", ""),
+                record.get("aadhar_no", ""),
                 record.get("phone", ""),
                 record.get("department", ""),
                 record.get("position", ""),
-                f"₹{record.get('daily_wage', 0):,.2f}"
+                f"₹{record.get('daily_wage', 0):,.2f}",
+                join_date,
+                last_paid_str
             ]
         elif table_type == "attendance":
-            # Format date properly
+            # Format date to dd/mm/yy
             date_str = record.get("date", "")
             if hasattr(date_str, 'strftime'):
-                date_str = date_str.strftime('%Y-%m-%d')
+                date_str = date_str.strftime('%d/%m/%y')
             elif isinstance(date_str, str) and len(date_str) > 10:
                 # Handle datetime string format
                 try:
                     date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                    date_str = date_obj.strftime('%Y-%m-%d')
+                    date_str = date_obj.strftime('%d/%m/%y')
+                except:
+                    pass
+            
+            # Format time_in and time_out to 12-hour format with AM/PM
+            time_in = record.get("time_in", "")
+            time_out = record.get("time_out", "")
+            
+            # Convert time_in to 12-hour format
+            if time_in:
+                try:
+                    if isinstance(time_in, str) and ':' in time_in:
+                        time_obj = datetime.strptime(time_in, "%H:%M")
+                        time_in = time_obj.strftime('%I:%M %p')
+                except:
+                    pass
+            
+            # Convert time_out to 12-hour format  
+            if time_out:
+                try:
+                    if isinstance(time_out, str) and ':' in time_out:
+                        time_obj = datetime.strptime(time_out, "%H:%M")
+                        time_out = time_obj.strftime('%I:%M %p')
                 except:
                     pass
             
@@ -7183,8 +7618,8 @@ class ModernDataPageGUI:
             return [
                 record.get("employee_id", ""),
                 date_str,
-                record.get("time_in", ""),
-                record.get("time_out", ""),
+                time_in,
+                time_out,
                 record.get("status", ""),
                 f"{hours:.1f}h"
             ]

@@ -422,6 +422,21 @@ class HRDataService:
         """Delete attendance records"""
         return self.db_manager.delete_documents("attendance", filter_dict)
     
+    def delete_attendance_by_id(self, attendance_id: str) -> int:
+        """Delete attendance record by MongoDB ID"""
+        try:
+            log_info(f"Deleting attendance by ID: {attendance_id}", "DATA_SERVICE")
+            filter_dict = {"_id": self.db_manager.string_to_objectid(attendance_id)}
+            result = self.db_manager.delete_documents("attendance", filter_dict)
+            if result > 0:
+                log_info(f"Successfully deleted attendance: {attendance_id}", "DATA_SERVICE")
+            else:
+                log_info(f"No attendance found with ID: {attendance_id}", "DATA_SERVICE")
+            return result
+        except Exception as e:
+            log_error(e, "DATA_SERVICE")
+            return 0
+    
     @log_function_call
     def update_attendance(self, attendance_id: str, attendance_data: Dict) -> int:
         """Update attendance record by attendance ID"""
@@ -623,6 +638,16 @@ class HRDataService:
                 'database_name': 'Unknown',
                 'error': str(e)
             }
+    
+    # ====== DATAFRAME METHODS FOR BACKUP ======
+    
+    def get_orders(self, filter_dict: Dict = None) -> pd.DataFrame:
+        """Get orders as DataFrame for backup purposes"""
+        return self.db_manager.get_collection_as_dataframe("orders", filter_dict)
+    
+    def get_transactions(self, filter_dict: Dict = None) -> pd.DataFrame:
+        """Get transactions as DataFrame for backup purposes"""
+        return self.db_manager.get_collection_as_dataframe("transactions", filter_dict)
     
     # ====== CUSTOMER MANAGEMENT METHODS ======
     
@@ -983,6 +1008,16 @@ class DataService:
         except Exception as e:
             logger.error(f"Failed to delete transactions for order {order_id}: {str(e)}")
             return None
+    
+    # ====== DATAFRAME METHODS FOR BACKUP ======
+    
+    def get_orders(self, filter_dict: Dict = None) -> pd.DataFrame:
+        """Get orders as DataFrame for backup purposes"""
+        return self.db_manager.get_collection_as_dataframe("orders", filter_dict)
+    
+    def get_transactions(self, filter_dict: Dict = None) -> pd.DataFrame:
+        """Get transactions as DataFrame for backup purposes"""
+        return self.db_manager.get_collection_as_dataframe("transactions", filter_dict)
     
     # ====== CUSTOMER MANAGEMENT METHODS ======
     

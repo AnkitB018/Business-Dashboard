@@ -90,7 +90,7 @@ def add_employee(self, employee_data: dict) -> dict
     "salary": float,       # Required: Salary amount
     "hire_date": str,      # Required: Hire date (YYYY-MM-DD format)
     "phone": str,          # Optional: Phone number
-    "email": str,          # Optional: Email address
+    "aadhar_no": str,      # Optional: Aadhar number (12 digits)
     "address": str         # Optional: Physical address
 }
 ```

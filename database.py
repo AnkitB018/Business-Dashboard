@@ -18,6 +18,12 @@ except ImportError:
     MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/')
     MONGODB_DATABASE = os.getenv('MONGODB_DATABASE', 'hr_management_db')
 
+# Import database configuration
+try:
+    from database_config import get_database_config
+except ImportError:
+    get_database_config = None
+
 # Initialize enhanced logging
 dashboard_logger = get_logger()
 logger = dashboard_logger.db_logger
@@ -35,8 +41,19 @@ class MongoDBManager:
             connection_string: MongoDB connection string (defaults to config or local)
             database_name: Name of the database to use
         """
-        self.connection_string = connection_string or MONGODB_URI
-        self.database_name = database_name or MONGODB_DATABASE
+        # Try to get user configuration first
+        if get_database_config and not connection_string:
+            user_config = get_database_config()
+            if user_config and user_config.get('configured'):
+                self.connection_string = user_config.get('mongodb_uri')
+                self.database_name = user_config.get('database_name')
+            else:
+                self.connection_string = connection_string or MONGODB_URI
+                self.database_name = database_name or MONGODB_DATABASE
+        else:
+            self.connection_string = connection_string or MONGODB_URI
+            self.database_name = database_name or MONGODB_DATABASE
+            
         self.client = None
         self.db = None
         self.connect()

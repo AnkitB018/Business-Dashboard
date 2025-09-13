@@ -4,6 +4,10 @@
 # Example format (replace with your actual values):
 # MONGODB_URI = "mongodb+srv://<username>:<password>@<cluster-name>.mongodb.net/<database-name>?retryWrites=true&w=majority"
 
+# Application version for auto-updates
+APP_VERSION = "2.0.0"
+GITHUB_REPO = "AnkitB018/Business-Dashboard"
+
 # For development, you can also set this as an environment variable
 import os
 import sys

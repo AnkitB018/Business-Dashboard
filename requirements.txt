@@ -12,6 +12,10 @@ python-dotenv==1.0.1
 openpyxl==3.1.2
 Pillow==10.2.0
 
+# Auto-update dependencies
+requests>=2.28.0
+packaging>=21.0
+
 # For executable creation (optional)
 pyinstaller==6.3.0
 auto-py-to-exe==2.40.0

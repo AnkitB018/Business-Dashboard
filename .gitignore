@@ -300,6 +300,12 @@ dist/
 *.exe
 *.msi
 
+# Build tools installer directory (generated files)
+build_tools/installer/
+build_tools/temp_build/
+build_tools/dist/
+build_tools/build/
+
 # Documentation builds
 docs/build/
 docs/_build/

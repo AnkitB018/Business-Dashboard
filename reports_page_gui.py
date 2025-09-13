@@ -1570,7 +1570,7 @@ class ModernReportsPageGUI:
             employees_with_dues = 0
             calculation_details = []
             
-            # Get all employees
+            # Get all employees using data service (which is HRDataService)
             employees_df = self.data_service.get_employees()
             if employees_df.empty:
                 return
@@ -1587,14 +1587,27 @@ class ModernReportsPageGUI:
                     if daily_wage <= 0:
                         continue
                     
-                    # Get last_paid date
-                    if not last_paid:
-                        # Fallback to hire_date if last_paid is missing
-                        hire_date = employee.get('hire_date')
-                        if hire_date:
-                            last_paid = hire_date
-                        else:
-                            continue
+                    # Get last_paid date with better handling - use join_date as primary fallback
+                    if not last_paid or (hasattr(last_paid, '__class__') and 'NaT' in str(type(last_paid))):
+                        # First fallback: try join_date (the employee's actual start date)
+                        join_date = employee.get('join_date')
+                        if join_date and not pd.isna(join_date) and join_date != '':
+                            try:
+                                if isinstance(join_date, str):
+                                    last_paid = datetime.strptime(join_date, '%Y-%m-%d').date() - timedelta(days=1)
+                                else:
+                                    last_paid = pd.to_datetime(join_date).date() - timedelta(days=1)
+                            except:
+                                last_paid = None
+                        
+                        # Second fallback: try hire_date if join_date not available
+                        if not last_paid:
+                            hire_date = employee.get('hire_date')
+                            if hire_date and not (hasattr(hire_date, '__class__') and 'NaT' in str(type(hire_date))):
+                                last_paid = hire_date
+                            else:
+                                # Ultimate fallback: use a date 30 days ago
+                                last_paid = date.today() - timedelta(days=30)
                     
                     # Handle different date formats for last_paid
                     if isinstance(last_paid, str):
@@ -1607,13 +1620,15 @@ class ModernReportsPageGUI:
                             try:
                                 last_paid_date = datetime.fromisoformat(last_paid).date()
                             except:
-                                continue
+                                # Fallback to 30 days ago
+                                last_paid_date = date.today() - timedelta(days=30)
                     elif hasattr(last_paid, 'date'):
                         last_paid_date = last_paid.date()
                     elif isinstance(last_paid, date):
                         last_paid_date = last_paid
                     else:
-                        continue
+                        # Fallback to 30 days ago
+                        last_paid_date = date.today() - timedelta(days=30)
                     
                     # Calculate wage period: from day after last_paid to today
                     start_date = last_paid_date + timedelta(days=1)
@@ -1624,30 +1639,39 @@ class ModernReportsPageGUI:
                         continue
                     
                     # Get attendance data for the period
-                    start_datetime = datetime.combine(start_date, datetime.min.time())
-                    end_datetime = datetime.combine(end_date, datetime.max.time())
+                    # Convert dates to string format for comparison
+                    start_date_str = start_date.strftime('%Y-%m-%d')
+                    end_date_str = end_date.strftime('%Y-%m-%d')
                     
-                    # Get attendance records for this employee in the date range
-                    attendance_filter = {
-                        "employee_id": emp_id,
-                        "date": {
-                            "$gte": start_datetime,
-                            "$lte": end_datetime
-                        }
-                    }
-                    
-                    all_attendance_df = self.data_service.get_attendance(attendance_filter)
-                    
+                    # Use HRDataService to get attendance data
+                    try:
+                        all_attendance_df = self.data_service.get_attendance()
+                        if not all_attendance_df.empty:
+                            # Convert attendance dates to date strings for comparison
+                            all_attendance_df['date_str'] = all_attendance_df['date'].dt.strftime('%Y-%m-%d')
+                            
+                            # Filter by employee and date range
+                            employee_attendance = all_attendance_df[
+                                (all_attendance_df['employee_id'] == emp_id) &
+                                (all_attendance_df['date_str'] >= start_date_str) &
+                                (all_attendance_df['date_str'] <= end_date_str)
+                            ]
+                        else:
+                            employee_attendance = all_attendance_df
+                    except Exception as e:
+                        print(f"Error getting attendance data: {e}")
+                        employee_attendance = pd.DataFrame()
+                        
                     present_days = 0
                     overtime_hours = 0
                     
-                    if not all_attendance_df.empty:
+                    if not employee_attendance.empty:
                         # Count present days (Present + Overtime status)
-                        present_records = all_attendance_df[all_attendance_df['status'].isin(['Present', 'Overtime'])]
+                        present_records = employee_attendance[employee_attendance['status'].isin(['Present', 'Overtime'])]
                         present_days = len(present_records)
                         
                         # Sum overtime hours for Overtime status records
-                        overtime_records = all_attendance_df[all_attendance_df['status'] == 'Overtime']
+                        overtime_records = employee_attendance[employee_attendance['status'] == 'Overtime']
                         if not overtime_records.empty and 'overtime_hour' in overtime_records.columns:
                             overtime_hours = overtime_records['overtime_hour'].fillna(0).sum()
                         else:
@@ -1667,7 +1691,7 @@ class ModernReportsPageGUI:
                             'days': present_days,
                             'overtime': overtime_hours
                         })
-                
+                        
                 except Exception as e:
                     logger.warning(f"Error calculating wage for employee {emp_id}: {e}")
                     continue
