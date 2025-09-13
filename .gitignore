@@ -6,6 +6,27 @@ __pycache__/
 # C extensions
 *.so
 
+# Environment files (SECURITY: Never commit real credentials)
+.env
+.env.local
+.env.*.local
+*.env
+
+# Configuration files with sensitive data
+config.ini
+settings.ini
+credentials.json
+
+# Log files and directories
+*.log
+logs/
+*.log.*
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
 # Distribution / packaging
 .Python
 build/
@@ -360,3 +381,31 @@ cache/
 logs/
 *.log
 log_viewer_exports/
+
+# Documentation with potentially sensitive information
+_docs/Installer_Status_Report.md
+_docs/Order_Creation_Fix_Report.md
+_docs/Employee_Editing_Fix_Report.md
+
+# Test files and temporary scripts
+test_*.py
+debug_*.py
+temp_*.py
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# IDE and editor files
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Security sensitive files
+.env
+.env.*
+credentials.*
+secrets.*
+api_keys.*
