@@ -106,7 +106,7 @@ class UpdateManager:
             
         self.update_window = ctk.CTkToplevel()
         self.update_window.title("Update Available")
-        self.update_window.geometry("600x500")
+        self.update_window.geometry("650x580")
         self.update_window.resizable(False, False)
         
         # Center the window
