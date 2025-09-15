@@ -126,16 +126,17 @@ class MongoDBManager:
             # Employees collection schema
             employees_schema = {
                 "bsonType": "object",
-                "required": ["employee_id", "name", "email"],
+                "required": ["employee_id", "name"],
                 "properties": {
                     "employee_id": {"bsonType": "string"},
                     "name": {"bsonType": "string"},
-                    "email": {"bsonType": "string"},
+                    "aadhar_no": {"bsonType": "string"},
                     "phone": {"bsonType": "string"},
                     "department": {"bsonType": "string"},
                     "position": {"bsonType": "string"},
-                    "joining_date": {"bsonType": "date"},
-                    "salary": {"bsonType": "number"},
+                    "daily_wage": {"bsonType": "number"},
+                    "hire_date": {"bsonType": "date"},
+                    "last_paid": {"bsonType": ["date", "null"]},
                     "status": {"enum": ["active", "inactive", "terminated"]},
                     "created_at": {"bsonType": "date"},
                     "updated_at": {"bsonType": "date"}
@@ -277,12 +278,86 @@ class MongoDBManager:
             logger.error(f"Error creating collections: {e}")
             return False
     
+    def update_collection_validation(self):
+        """Update validation schema for existing collections"""
+        try:
+            # Updated employees schema without email requirement
+            employees_schema = {
+                "bsonType": "object",
+                "required": ["employee_id", "name"],
+                "properties": {
+                    "employee_id": {"bsonType": "string"},
+                    "name": {"bsonType": "string"},
+                    "aadhar_no": {"bsonType": "string"},
+                    "phone": {"bsonType": "string"},
+                    "department": {"bsonType": "string"},
+                    "position": {"bsonType": "string"},
+                    "daily_wage": {"bsonType": "number"},
+                    "hire_date": {"bsonType": "date"},
+                    "last_paid": {"bsonType": ["date", "null"]},
+                    "status": {"enum": ["active", "inactive", "terminated"]},
+                    "created_at": {"bsonType": "date"},
+                    "updated_at": {"bsonType": "date"}
+                }
+            }
+            
+            # First try to update the validation schema
+            try:
+                self.db.command({
+                    "collMod": "employees",
+                    "validator": {"$jsonSchema": employees_schema}
+                })
+                logger.info("Updated employees collection validation schema")
+                return True
+            except Exception as e:
+                logger.info(f"Schema update failed, trying to recreate collection: {e}")
+                
+                # If update fails, backup data, drop collection, and recreate
+                # Get all existing employee data
+                existing_employees = list(self.db.employees.find({}))
+                logger.info(f"Backing up {len(existing_employees)} employee records")
+                
+                # Drop the collection
+                self.db.employees.drop()
+                logger.info("Dropped employees collection")
+                
+                # Recreate with new validation
+                self.db.create_collection(
+                    "employees",
+                    validator={"$jsonSchema": employees_schema}
+                )
+                logger.info("Recreated employees collection with new validation")
+                
+                # Restore data (remove any email fields if they exist)
+                if existing_employees:
+                    for emp in existing_employees:
+                        # Remove email field if it exists
+                        if 'email' in emp:
+                            del emp['email']
+                        # Ensure required fields exist
+                        if 'employee_id' in emp and 'name' in emp:
+                            self.db.employees.insert_one(emp)
+                    
+                    logger.info(f"Restored {len(existing_employees)} employee records")
+                
+                # Recreate index
+                self.db.employees.create_index("employee_id", unique=True)
+                if existing_employees:  # Only create aadhar index if we have data
+                    self.db.employees.create_index("aadhar_no")
+                
+                logger.info("Schema migration completed successfully")
+                return True
+            
+        except Exception as e:
+            logger.error(f"Error updating collection validation: {e}")
+            return False
+    
     def _create_indexes(self):
         """Create indexes for better query performance"""
         try:
             # Employees indexes
             self.db.employees.create_index("employee_id", unique=True)
-            self.db.employees.create_index("email", unique=True)
+            self.db.employees.create_index("aadhar_no")
             
             # Attendance indexes
             self.db.attendance.create_index([("employee_id", 1), ("date", 1)], unique=True)

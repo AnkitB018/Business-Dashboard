@@ -335,6 +335,34 @@ class HRManagementApp:
             self.db_manager = get_db_manager()
             
             if self.db_manager.connect():
+                # Force schema update for employees collection to remove email requirement
+                try:
+                    # First, try direct modification
+                    self.db_manager.update_collection_validation()
+                    log_info("Database schema update attempted", "DB_INIT")
+                    
+                    # Verify the schema was updated by testing a simple insert
+                    test_doc = {
+                        "employee_id": "SCHEMA_TEST",
+                        "name": "Schema Test"
+                    }
+                    try:
+                        # Try to insert without email field
+                        result = self.db_manager.db.employees.insert_one(test_doc)
+                        # If successful, remove the test document
+                        self.db_manager.db.employees.delete_one({"_id": result.inserted_id})
+                        log_info("Schema validation successfully updated - email field no longer required", "DB_INIT")
+                    except Exception as e:
+                        if "email" in str(e):
+                            log_info(f"Schema update incomplete, need to force recreation: {e}", "DB_INIT")
+                            # Force recreation if needed
+                            self.db_manager.update_collection_validation()
+                        else:
+                            log_info(f"Schema test failed for other reason: {e}", "DB_INIT")
+                    
+                except Exception as e:
+                    log_info(f"Schema update error: {e}", "DB_INIT")
+                
                 self.data_service = HRDataService(self.db_manager)
                 self.is_connected = True
                 self.update_connection_status(True, "Connected to MongoDB Atlas")

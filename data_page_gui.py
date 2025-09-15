@@ -10,6 +10,7 @@ import pandas as pd
 from datetime import datetime, date
 import re
 import logging
+from calendar_widget import DateFieldWithCalendar, parse_date_from_display, format_date_for_display
 
 logger = logging.getLogger(__name__)
 
@@ -251,9 +252,11 @@ class ModernDataPageGUI:
                 is_valid = False
                 error_msg = "2-50 characters, letters and spaces only"
         elif field_key == "email":
-            if not self.validate_email(value):
-                is_valid = False
-                error_msg = "Valid email with .com/.org/.net/.in domain required"
+            # Email is optional now, only validate if it exists and is not empty
+            if value and value.strip():
+                if not self.validate_email(value):
+                    is_valid = False
+                    error_msg = "Valid email with .com/.org/.net/.in domain required"
         elif field_key == "phone":
             if not self.validate_phone(value):
                 is_valid = False
@@ -1419,7 +1422,7 @@ class ModernDataPageGUI:
         
         for label, key, field_type in fields:
             if field_type == "date":
-                self.create_form_field(form_scroll, label, key, "text", self.sales_vars, placeholder=date.today().strftime("%Y-%m-%d"))
+                self.create_date_picker(form_scroll, label, key, self.sales_vars)
             else:
                 self.create_form_field(form_scroll, label, key, field_type, self.sales_vars)
         
@@ -1479,7 +1482,8 @@ class ModernDataPageGUI:
         helper_text.pack(anchor="w")
         
     def create_date_picker(self, parent, label, key, vars_dict):
-        """Create date picker with calendar-like interface"""
+        """Create date picker with calendar interface using dd/mm/yy format"""
+        # Field container
         field_frame = ctk.CTkFrame(parent, fg_color="transparent")
         field_frame.pack(fill="x", pady=8)
         
@@ -1496,8 +1500,11 @@ class ModernDataPageGUI:
         date_frame = ctk.CTkFrame(field_frame, fg_color="transparent")
         date_frame.pack(fill="x")
         
+        # Initialize variable with today's date in dd/mm/yy format
+        vars_dict[key] = tk.StringVar()
+        vars_dict[key].set(date.today().strftime("%d/%m/%y"))
+        
         # Date entry
-        vars_dict[key] = tk.StringVar(value=date.today().strftime("%Y-%m-%d"))
         date_entry = ctk.CTkEntry(
             date_frame,
             textvariable=vars_dict[key],
@@ -1506,46 +1513,502 @@ class ModernDataPageGUI:
             corner_radius=6,
             border_width=1,
             font=ctk.CTkFont(size=12),
-            placeholder_text="YYYY-MM-DD"
+            placeholder_text="dd/mm/yy"
         )
         date_entry.pack(side="left", padx=(0, 10))
+        
+        # Calendar button
+        calendar_btn = ctk.CTkButton(
+            date_frame,
+            text="📅",
+            width=35,
+            height=35,
+            corner_radius=6,
+            command=lambda: self.show_sales_calendar(vars_dict[key])
+        )
+        calendar_btn.pack(side="left", padx=(0, 10))
         
         # Today button
         today_btn = ctk.CTkButton(
             date_frame,
             text="Today",
-            command=lambda: vars_dict[key].set(date.today().strftime("%Y-%m-%d")),
+            command=lambda: vars_dict[key].set(date.today().strftime("%d/%m/%y")),
             width=80,
             height=35,
             corner_radius=6
         )
         today_btn.pack(side="left")
         
-        # Store widget references for edit mode control
-        if not hasattr(self, 'field_widgets'):
-            self.field_widgets = {}
-        if not hasattr(self, 'employee_field_widgets'):
-            self.employee_field_widgets = {}
-            
-        widget_info = {
-            'date_entry': date_entry,
-            'today_btn': today_btn,
-            'field_frame': field_frame,
-            'type': 'date'
-        }
-        self.field_widgets[key] = widget_info
-        
-        # If this is an employee field, also store in employee-specific dict
-        if hasattr(self, 'emp_vars') and key in self.emp_vars:
-            self.employee_field_widgets[key] = widget_info
-        
         # Helper text
         helper_text = ctk.CTkLabel(
             field_frame,
-            text="Format: YYYY-MM-DD (e.g., 2024-08-30)",
-            font=ctk.CTkFont(size=10)
+            text="Format: dd/mm/yy (e.g., 15/09/25)",
+            font=ctk.CTkFont(size=10),
+            text_color="#666666"
         )
         helper_text.pack(anchor="w", pady=(5, 0))
+        
+        # Store reference for validation
+        if not hasattr(self, 'field_widgets'):
+            self.field_widgets = {}
+        self.field_widgets[f'employee_{key}'] = {
+            'entry': date_entry,
+            'var': vars_dict[key],
+            'type': 'date'
+        }
+    
+    def show_employee_calendar(self, date_var):
+        """Show a calendar popup specifically for employee date selection"""
+        try:
+            import tkinter as tk
+            from tkinter import ttk
+            import calendar
+            
+            # Create popup window
+            popup = tk.Toplevel(self.parent)
+            popup.title("Select Date")
+            popup.geometry("300x250")
+            popup.resizable(False, False)
+            popup.transient(self.parent)
+            popup.grab_set()
+            
+            # Center the popup
+            popup.update_idletasks()
+            x = (popup.winfo_screenwidth() // 2) - (150)
+            y = (popup.winfo_screenheight() // 2) - (125)
+            popup.geometry(f"300x250+{x}+{y}")
+            
+            # Current date
+            current_date = date.today()
+            current_year = current_date.year
+            current_month = current_date.month
+            
+            # Try to parse existing date from entry
+            try:
+                existing_date = date_var.get().strip()
+                if existing_date and "/" in existing_date:
+                    day, month, year = existing_date.split("/")
+                    # Handle 2-digit year
+                    if len(year) == 2:
+                        year = "20" + year if int(year) < 50 else "19" + year
+                    current_year = int(year)
+                    current_month = int(month)
+            except:
+                pass  # Use current date if parsing fails
+            
+            # Header frame
+            header_frame = tk.Frame(popup, bg="#f0f0f0")
+            header_frame.pack(fill="x", padx=5, pady=5)
+            
+            # Previous month button
+            prev_btn = tk.Button(header_frame, text="<", width=3, 
+                               command=lambda: change_month(-1))
+            prev_btn.pack(side="left")
+            
+            # Month/Year label
+            month_label = tk.Label(header_frame, 
+                                 text=f"{calendar.month_name[current_month]} {current_year}",
+                                 font=("Arial", 12, "bold"), bg="#f0f0f0")
+            month_label.pack(side="left", expand=True)
+            
+            # Next month button
+            next_btn = tk.Button(header_frame, text=">", width=3,
+                               command=lambda: change_month(1))
+            next_btn.pack(side="right")
+            
+            # Calendar frame
+            cal_frame = tk.Frame(popup)
+            cal_frame.pack(fill="both", expand=True, padx=5, pady=5)
+            
+            def change_month(delta):
+                nonlocal current_month, current_year
+                current_month += delta
+                if current_month > 12:
+                    current_month = 1
+                    current_year += 1
+                elif current_month < 1:
+                    current_month = 12
+                    current_year -= 1
+                
+                month_label.config(text=f"{calendar.month_name[current_month]} {current_year}")
+                create_calendar()
+            
+            def create_calendar():
+                # Clear existing calendar
+                for widget in cal_frame.winfo_children():
+                    widget.destroy()
+                
+                # Days of week header
+                days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                for i, day in enumerate(days):
+                    label = tk.Label(cal_frame, text=day, font=("Arial", 9, "bold"))
+                    label.grid(row=0, column=i, padx=1, pady=1)
+                
+                # Calendar days
+                cal = calendar.monthcalendar(current_year, current_month)
+                for week_num, week in enumerate(cal, start=1):
+                    for day_num, day in enumerate(week):
+                        if day == 0:
+                            # Empty cell
+                            label = tk.Label(cal_frame, text="")
+                            label.grid(row=week_num, column=day_num, padx=1, pady=1)
+                        else:
+                            # Day button
+                            btn = tk.Button(cal_frame, text=str(day), width=3, height=1,
+                                          command=lambda d=day: select_date(d))
+                            btn.grid(row=week_num, column=day_num, padx=1, pady=1)
+            
+            def select_date(day):
+                # Format as dd/mm/yy
+                formatted_date = f"{day:02d}/{current_month:02d}/{str(current_year)[2:]}"
+                date_var.set(formatted_date)
+                popup.destroy()
+            
+            # Button frame
+            button_frame = tk.Frame(popup)
+            button_frame.pack(fill="x", padx=5, pady=5)
+            
+            today_btn = tk.Button(button_frame, text="Today",
+                                command=lambda: (
+                                    date_var.set(date.today().strftime("%d/%m/%y")),
+                                    popup.destroy()
+                                ))
+            today_btn.pack(side="left", padx=5)
+            
+            cancel_btn = tk.Button(button_frame, text="Cancel",
+                                 command=popup.destroy)
+            cancel_btn.pack(side="right", padx=5)
+            
+            # Create initial calendar
+            create_calendar()
+            
+        except Exception as e:
+            # Fallback to simple date input
+            self.show_status_message(f"Calendar error: {str(e)}", "warning")
+            date_var.set(date.today().strftime("%d/%m/%y"))
+
+    def show_purchase_calendar(self, date_var):
+        """Show calendar popup specifically for purchase date selection"""
+        try:
+            import tkinter as tk
+            from tkinter import ttk
+            import calendar
+            
+            # Create popup window
+            popup = tk.Toplevel()
+            popup.title("Select Purchase Date")
+            popup.geometry("300x250")
+            popup.resizable(False, False)
+            
+            # Make sure popup appears on top
+            popup.lift()
+            popup.focus_force()
+            popup.grab_set()
+            
+            # Center the popup
+            popup.update_idletasks()
+            x = (popup.winfo_screenwidth() // 2) - (150)
+            y = (popup.winfo_screenheight() // 2) - (125)
+            popup.geometry(f"300x250+{x}+{y}")
+            
+            # Current date
+            current_date = date.today()
+            current_year = current_date.year
+            current_month = current_date.month
+            
+            # Try to parse existing date from entry
+            try:
+                existing_date = date_var.get().strip()
+                if existing_date and "/" in existing_date:
+                    day, month, year = existing_date.split("/")
+                    # Handle 2-digit year
+                    if len(year) == 2:
+                        year = "20" + year if int(year) < 50 else "19" + year
+                    current_year = int(year)
+                    current_month = int(month)
+            except:
+                pass  # Use current date if parsing fails
+            
+            # Header frame with purchase styling
+            header_frame = tk.Frame(popup, bg="#e8f4f8")
+            header_frame.pack(fill="x", padx=5, pady=5)
+            
+            # Previous month button
+            prev_btn = tk.Button(header_frame, text="◄", width=3, 
+                               command=lambda: change_month(-1))
+            prev_btn.pack(side="left")
+            
+            # Month/Year label
+            month_label = tk.Label(header_frame, 
+                                 text=f"{calendar.month_name[current_month]} {current_year}",
+                                 font=("Arial", 12, "bold"), bg="#e8f4f8")
+            month_label.pack(side="left", expand=True)
+            
+            # Next month button
+            next_btn = tk.Button(header_frame, text="►", width=3,
+                               command=lambda: change_month(1))
+            next_btn.pack(side="right")
+            
+            # Calendar frame
+            cal_frame = tk.Frame(popup, bg="white")
+            cal_frame.pack(fill="both", expand=True, padx=5, pady=5)
+            
+            def change_month(delta):
+                nonlocal current_month, current_year
+                current_month += delta
+                if current_month > 12:
+                    current_month = 1
+                    current_year += 1
+                elif current_month < 1:
+                    current_month = 12
+                    current_year -= 1
+                
+                month_label.config(text=f"{calendar.month_name[current_month]} {current_year}")
+                create_calendar()
+            
+            def create_calendar():
+                # Clear existing calendar
+                for widget in cal_frame.winfo_children():
+                    widget.destroy()
+                
+                # Days of week header
+                days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                for i, day in enumerate(days):
+                    label = tk.Label(cal_frame, text=day, font=("Arial", 9, "bold"), 
+                                   bg="lightblue", fg="darkblue")
+                    label.grid(row=0, column=i, padx=1, pady=1, sticky="nsew")
+                
+                # Calendar days
+                cal = calendar.monthcalendar(current_year, current_month)
+                for week_num, week in enumerate(cal, start=1):
+                    for day_num, day in enumerate(week):
+                        if day == 0:
+                            # Empty cell
+                            label = tk.Label(cal_frame, text="", bg="white")
+                            label.grid(row=week_num, column=day_num, padx=1, pady=1)
+                        else:
+                            # Day button
+                            btn = tk.Button(cal_frame, text=str(day), width=3, height=1,
+                                          bg="lightgreen", fg="darkgreen",
+                                          command=lambda d=day: select_date(d))
+                            btn.grid(row=week_num, column=day_num, padx=1, pady=1)
+                
+                # Configure grid weights
+                for i in range(7):
+                    cal_frame.grid_columnconfigure(i, weight=1)
+            
+            def select_date(day):
+                # Format as dd/mm/yy
+                formatted_date = f"{day:02d}/{current_month:02d}/{str(current_year)[2:]}"
+                date_var.set(formatted_date)
+                popup.destroy()
+            
+            # Button frame
+            button_frame = tk.Frame(popup, bg="#f0f0f0")
+            button_frame.pack(fill="x", padx=5, pady=5)
+            
+            today_btn = tk.Button(button_frame, text="📅 Today", bg="orange", fg="white",
+                                command=lambda: (
+                                    date_var.set(date.today().strftime("%d/%m/%y")),
+                                    popup.destroy()
+                                ))
+            today_btn.pack(side="left", padx=5)
+            
+            cancel_btn = tk.Button(button_frame, text="❌ Cancel", bg="red", fg="white",
+                                 command=popup.destroy)
+            cancel_btn.pack(side="right", padx=5)
+            
+            # Create initial calendar
+            create_calendar()
+            
+            # Ensure popup stays on top and focused
+            popup.after(10, lambda: popup.focus_force())
+            
+        except Exception as e:
+            # Fallback to simple date input
+            self.show_status_message(f"Purchase calendar error: {str(e)}", "warning")
+            date_var.set(date.today().strftime("%d/%m/%y"))
+
+    def show_sales_calendar(self, date_var):
+        """Show calendar popup specifically for sales date selection - Improved Layout"""
+        try:
+            import tkinter as tk
+            from tkinter import ttk
+            import calendar
+            
+            # Create popup window with better size
+            popup = tk.Toplevel(self.parent)
+            popup.title("Select Sales Date")
+            popup.geometry("380x420")  # Larger size
+            popup.resizable(False, False)
+            popup.transient(self.parent)
+            popup.grab_set()
+            
+            # Center the popup
+            popup.update_idletasks()
+            x = (popup.winfo_screenwidth() // 2) - (190)
+            y = (popup.winfo_screenheight() // 2) - (210)
+            popup.geometry(f"380x420+{x}+{y}")
+            
+            # Current date
+            current_date = date.today()
+            current_year = current_date.year
+            current_month = current_date.month
+            
+            # Try to parse existing date from entry
+            try:
+                existing_date = date_var.get().strip()
+                if existing_date and "/" in existing_date:
+                    day, month, year = existing_date.split("/")
+                    # Handle 2-digit year
+                    if len(year) == 2:
+                        year = "20" + year if int(year) < 50 else "19" + year
+                    current_year = int(year)
+                    current_month = int(month)
+            except:
+                pass  # Use current date if parsing fails
+            
+            # Header frame
+            header_frame = tk.Frame(popup, bg="#2563EB", height=60)
+            header_frame.pack(fill="x")
+            header_frame.pack_propagate(False)
+            
+            # Month/Year display
+            month_year_var = tk.StringVar()
+            month_year_label = tk.Label(header_frame, textvariable=month_year_var, 
+                                      bg="#2563EB", fg="white", font=("Arial", 16, "bold"))
+            month_year_label.pack(expand=True)
+            
+            # Navigation frame
+            nav_frame = tk.Frame(popup, bg="#f8f9fa", height=50)
+            nav_frame.pack(fill="x")
+            nav_frame.pack_propagate(False)
+            
+            # Calendar frame - larger and properly sized
+            cal_frame = tk.Frame(popup, bg="white")
+            cal_frame.pack(fill="both", expand=True, padx=15, pady=10)
+            
+            def create_calendar():
+                # Clear existing calendar
+                for widget in cal_frame.winfo_children():
+                    widget.destroy()
+                
+                # Update month/year display
+                month_year_var.set(f"{calendar.month_name[current_month]} {current_year}")
+                
+                # Clear navigation frame
+                for widget in nav_frame.winfo_children():
+                    widget.destroy()
+                
+                # Navigation buttons in nav_frame
+                prev_btn = tk.Button(nav_frame, text="◀ Previous", 
+                                   command=prev_month, bg="#3B82F6", fg="white",
+                                   font=("Arial", 11), width=12, height=2)
+                prev_btn.pack(side="left", padx=20, pady=10)
+                
+                next_btn = tk.Button(nav_frame, text="Next ▶", 
+                                   command=next_month, bg="#3B82F6", fg="white",
+                                   font=("Arial", 11), width=12, height=2)
+                next_btn.pack(side="right", padx=20, pady=10)
+                
+                # Day headers with better spacing
+                days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                for i, day in enumerate(days):
+                    day_label = tk.Label(cal_frame, text=day, font=("Arial", 11, "bold"), 
+                                       bg="#e9ecef", fg="#495057", width=5, height=2,
+                                       relief="solid", bd=1)
+                    day_label.grid(row=0, column=i, padx=1, pady=1, sticky="nsew")
+                
+                # Configure grid weights for proper sizing
+                for i in range(7):
+                    cal_frame.grid_columnconfigure(i, weight=1)
+                for i in range(7):  # 6 weeks max + header
+                    cal_frame.grid_rowconfigure(i, weight=1)
+                
+                # Get calendar for the month
+                cal = calendar.monthcalendar(current_year, current_month)
+                
+                # Create day buttons with proper sizing
+                for week_num, week in enumerate(cal):
+                    for day_num, day in enumerate(week):
+                        if day == 0:
+                            # Empty cell for days from other months
+                            empty_label = tk.Label(cal_frame, text="", width=5, height=3,
+                                                 bg="white", relief="flat")
+                            empty_label.grid(row=week_num + 1, column=day_num, padx=1, pady=1, sticky="nsew")
+                        else:
+                            # Create button for each day
+                            btn = tk.Button(cal_frame, text=str(day), width=5, height=3,
+                                          command=lambda d=day: select_date(d),
+                                          bg="white", fg="black", font=("Arial", 10),
+                                          relief="solid", bd=1, cursor="hand2")
+                            btn.grid(row=week_num + 1, column=day_num, padx=1, pady=1, sticky="nsew")
+                            
+                            # Highlight today
+                            if (current_year == date.today().year and 
+                                current_month == date.today().month and 
+                                day == date.today().day):
+                                btn.config(bg="#059669", fg="white", font=("Arial", 10, "bold"))
+                            
+                            # Hover effects
+                            def on_enter(e, button=btn):
+                                if button['bg'] != "#059669":
+                                    button.config(bg="#e3f2fd")
+                            
+                            def on_leave(e, button=btn):
+                                if button['bg'] != "#059669":
+                                    button.config(bg="white")
+                            
+                            btn.bind("<Enter>", on_enter)
+                            btn.bind("<Leave>", on_leave)
+            
+            def prev_month():
+                nonlocal current_month, current_year
+                if current_month == 1:
+                    current_month = 12
+                    current_year -= 1
+                else:
+                    current_month -= 1
+                create_calendar()
+            
+            def next_month():
+                nonlocal current_month, current_year
+                if current_month == 12:
+                    current_month = 1
+                    current_year += 1
+                else:
+                    current_month += 1
+                create_calendar()
+            
+            def select_date(day):
+                # Set the date in dd/mm/yy format
+                selected_date = f"{day:02d}/{current_month:02d}/{str(current_year)[2:]}"
+                date_var.set(selected_date)
+                popup.destroy()
+            
+            # Button frame at bottom
+            button_frame = tk.Frame(popup, bg="#f8f9fa", height=60)
+            button_frame.pack(fill="x")
+            button_frame.pack_propagate(False)
+            
+            today_btn = tk.Button(button_frame, text="🗓️ Today", 
+                                command=lambda: (date_var.set(date.today().strftime("%d/%m/%y")), popup.destroy()),
+                                bg="#059669", fg="white", font=("Arial", 11), 
+                                width=12, height=2, cursor="hand2")
+            today_btn.pack(side="left", padx=20, pady=15)
+            
+            cancel_btn = tk.Button(button_frame, text="❌ Cancel", bg="#DC2626", fg="white",
+                                 command=popup.destroy, font=("Arial", 11),
+                                 width=12, height=2, cursor="hand2")
+            cancel_btn.pack(side="right", padx=20, pady=15)
+            
+            # Create initial calendar
+            create_calendar()
+            
+        except Exception as e:
+            # Fallback to simple date input
+            self.show_status_message(f"Sales calendar error: {str(e)}", "warning")
+            date_var.set(date.today().strftime("%d/%m/%y"))
     
     def create_attendance_date_picker(self, parent, label, key, vars_dict):
         """Create date picker for attendance with dd/mm/yy format and calendar"""
@@ -1671,7 +2134,7 @@ class ModernDataPageGUI:
         
         # Hour dropdown (12-hour format)
         ctk.CTkLabel(time_input_frame, text="Hour:", font=ctk.CTkFont(size=11)).pack(side="left")
-        hour_var = tk.StringVar(value="09")
+        hour_var = tk.StringVar(value="07")
         hour_combo = ctk.CTkComboBox(
             time_input_frame,
             variable=hour_var,
@@ -1719,7 +2182,7 @@ class ModernDataPageGUI:
         buttons_frame.pack(anchor="w", pady=(5, 0))
         
         quick_times = [
-            ("9:00 AM", "09", "00", "AM"),
+            ("7:00 AM", "07", "00", "AM"),
             ("12:00 PM", "12", "00", "PM"), 
             ("5:00 PM", "05", "00", "PM"),
             ("Now", *self.get_current_12hour_time())
@@ -1761,7 +2224,7 @@ class ModernDataPageGUI:
                 time_str = f"{hour_24:02d}:{minute}"
                 vars_dict[key].set(time_str)
             except (ValueError, TypeError):
-                vars_dict[key].set("09:00")  # Default fallback
+                vars_dict[key].set("07:00")  # Default fallback
         
         hour_var.trace("w", update_time)
         minute_var.trace("w", update_time)
@@ -1926,7 +2389,7 @@ class ModernDataPageGUI:
             return f"{hour_12:02d}", f"{minute:02d}", ampm
         except Exception as e:
             logger.error(f"Error getting current 12-hour time: {e}")
-            return "09", "00", "AM"
+            return "07", "00", "AM"
     
     def set_attendance_date_today(self, internal_var, display_var):
         """Set attendance date to today in both internal and display formats"""
@@ -2250,7 +2713,7 @@ class ModernDataPageGUI:
         self.create_large_field(payment_grid, "Advance Payment (₹)", "advance_payment", "number", 
                                self.order_vars, placeholder="Amount paid in advance (optional)", required=False, row=0, col=0)
         self.create_large_field(payment_grid, "Due Date", "due_date", "date", 
-                               self.order_vars, placeholder=date.today().strftime("%Y-%m-%d"), row=0, col=1)
+                               self.order_vars, placeholder=date.today().strftime("%d/%m/%y"), row=0, col=1)
         
         # Payment method selection - Large
         method_grid = ctk.CTkFrame(form_scroll, fg_color="transparent")
@@ -2500,7 +2963,7 @@ class ModernDataPageGUI:
         if placeholder:
             vars_dict[key].set(placeholder)
         else:
-            vars_dict[key].set(date.today().strftime("%Y-%m-%d"))
+            vars_dict[key].set(date.today().strftime("%d/%m/%y"))
         
         # Container for entry and button
         date_container = ctk.CTkFrame(parent, fg_color="transparent")
@@ -2511,7 +2974,7 @@ class ModernDataPageGUI:
         date_entry = ctk.CTkEntry(
             date_container,
             textvariable=vars_dict[key],
-            placeholder_text="YYYY-MM-DD",
+            placeholder_text="dd/mm/yy",
             height=45,
             corner_radius=10,
             border_width=2,
@@ -2527,70 +2990,16 @@ class ModernDataPageGUI:
             height=45,
             corner_radius=10,
             font=ctk.CTkFont(size=16),
-            command=lambda: self.show_calendar_popup(vars_dict[key])
+            command=lambda: self.show_sales_calendar(vars_dict[key])
         )
         calendar_btn.grid(row=0, column=1)
         
         return date_entry
     
     def show_calendar_popup(self, date_var):
-        """Show calendar popup for date selection"""
-        try:
-            from tkcalendar import Calendar
-            import tkinter as tk
-            from datetime import datetime
-            
-            # Create popup window
-            popup = tk.Toplevel()
-            popup.title("Select Date")
-            popup.geometry("300x280")
-            popup.resizable(False, False)
-            popup.grab_set()  # Make window modal
-            
-            # Center the popup
-            popup.update_idletasks()
-            x = (popup.winfo_screenwidth() // 2) - (popup.winfo_width() // 2)
-            y = (popup.winfo_screenheight() // 2) - (popup.winfo_height() // 2)
-            popup.geometry(f"+{x}+{y}")
-            
-            # Get current date from entry or use today
-            try:
-                current_date = datetime.strptime(date_var.get(), "%Y-%m-%d").date()
-            except:
-                current_date = datetime.today().date()
-            
-            # Create calendar widget
-            cal = Calendar(popup, 
-                          selectmode='day',
-                          year=current_date.year, 
-                          month=current_date.month, 
-                          day=current_date.day,
-                          date_pattern="yyyy-mm-dd")
-            cal.pack(padx=10, pady=10)
-            
-            # Button frame
-            btn_frame = tk.Frame(popup)
-            btn_frame.pack(pady=10)
-            
-            def select_date():
-                selected = cal.get_date()
-                date_var.set(selected)
-                popup.destroy()
-            
-            def cancel():
-                popup.destroy()
-            
-            # Buttons
-            tk.Button(btn_frame, text="Select", command=select_date, 
-                     bg="#4caf50", fg="white", font=("Arial", 10, "bold"),
-                     padx=20, pady=5).pack(side="left", padx=5)
-            tk.Button(btn_frame, text="Cancel", command=cancel,
-                     bg="#f44336", fg="white", font=("Arial", 10, "bold"),
-                     padx=20, pady=5).pack(side="left", padx=5)
-            
-        except ImportError:
-            # Fallback if tkcalendar is not available
-            self.show_status_message("Calendar widget not available. Please enter date manually (YYYY-MM-DD)", "warning")
+        """Show calendar popup for date selection - now using modular calendar widget"""
+        # This method is deprecated - using DateFieldWithCalendar instead
+        pass
     
     def create_large_combo(self, parent, label, key, options, vars_dict, required=True, row=0, col=0):
         """Create large combo box for full-tab experience"""
@@ -5596,7 +6005,8 @@ class ModernDataPageGUI:
         
         for label, key, field_type in fields:
             if field_type == "date":
-                self.create_form_field(form_scroll, label, key, "text", self.purchase_vars, placeholder=date.today().strftime("%Y-%m-%d"))
+                # Create special date field with calendar
+                self.create_date_field_with_calendar(form_scroll, label, key, self.purchase_vars)
             else:
                 self.create_form_field(form_scroll, label, key, field_type, self.purchase_vars)
         
@@ -5605,6 +6015,63 @@ class ModernDataPageGUI:
         
         # Data table
         self.create_data_table(data_panel, "purchases")
+    
+    def create_date_field_with_calendar(self, parent, label, key, var_dict):
+        """Create a date field with calendar popup using dd/mm/yy format - PURCHASE VERSION"""
+        # Field container
+        field_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        field_frame.pack(fill="x", pady=8)
+        
+        # Label
+        label_widget = ctk.CTkLabel(
+            field_frame,
+            text=label,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            anchor="w"
+        )
+        label_widget.pack(anchor="w", pady=(0, 5))
+        
+        # Date input container
+        date_container = ctk.CTkFrame(field_frame, fg_color="transparent")
+        date_container.pack(fill="x")
+        
+        # Initialize variable with today's date in dd/mm/yy format
+        var_dict[key] = tk.StringVar()
+        var_dict[key].set(date.today().strftime("%d/%m/%y"))
+        
+        # Entry field for date
+        date_entry = ctk.CTkEntry(
+            date_container,
+            textvariable=var_dict[key],
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12),
+            placeholder_text="dd/mm/yy"
+        )
+        date_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        # Calendar button - use separate method for purchases
+        calendar_btn = ctk.CTkButton(
+            date_container,
+            text="📅",
+            width=35,
+            height=35,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12),
+            fg_color=self.colors['primary'],
+            hover_color=self.darken_color(self.colors['primary']),
+            command=lambda: self.show_purchase_calendar(var_dict[key])
+        )
+        calendar_btn.pack(side="right")
+        
+        # Store references for validation
+        if not hasattr(self, 'field_widgets'):
+            self.field_widgets = {}
+        self.field_widgets[f'purchase_{key}'] = {
+            'entry': date_entry,
+            'var': var_dict[key],
+            'type': 'date'
+        }
     
     def create_form_field(self, parent, label, key, field_type, var_dict, placeholder=""):
         """Create a modern form field with validation error display"""
@@ -5665,7 +6132,7 @@ class ModernDataPageGUI:
             self.employee_field_widgets[key] = widget_info
         
         # Add real-time validation for employees
-        if hasattr(self, 'emp_vars') and key in ['employee_id', 'name', 'email', 'phone', 'salary']:
+        if hasattr(self, 'emp_vars') and key in ['employee_id', 'name', 'aadhar_no', 'phone', 'daily_wage']:
             var_dict[key].trace('w', lambda *args, k=key: self.validate_field_realtime(k))
         
         return entry
@@ -5933,10 +6400,20 @@ class ModernDataPageGUI:
                 # Convert daily_wage to float after validation
                 if data.get("daily_wage"):
                     data["daily_wage"] = float(data["daily_wage"])
-                # Add joining date as datetime
+                # Add joining date as datetime - handle dd/mm/yy format
                 if data.get("join_date"):
-                    data["hire_date"] = datetime.strptime(data["join_date"], "%Y-%m-%d")
-                    del data["join_date"]  # Remove old key
+                    try:
+                        date_str = data["join_date"]
+                        if '/' in date_str and len(date_str) <= 8:
+                            data["hire_date"] = datetime.strptime(date_str, '%d/%m/%y')
+                        elif '-' in date_str and len(date_str) == 10:
+                            data["hire_date"] = datetime.strptime(date_str, '%Y-%m-%d')
+                        else:
+                            data["hire_date"] = datetime.strptime(date_str, '%Y-%m-%d')  # Fallback
+                        del data["join_date"]  # Remove old key
+                    except ValueError as e:
+                        self.show_status_message(f"Invalid date format: {e}", "error")
+                        return
                 
                 # Add last_paid field (initialize as None for new employees)
                 data["last_paid"] = None
@@ -5971,7 +6448,7 @@ class ModernDataPageGUI:
                 else:
                     # For other statuses, ensure times are provided
                     if not data.get("time_in") or data.get("time_in") == "--:--":
-                        data["time_in"] = "09:00"
+                        data["time_in"] = "07:00"
                     if not data.get("time_out") or data.get("time_out") == "--:--":
                         data["time_out"] = "17:00"
                 
@@ -6008,17 +6485,58 @@ class ModernDataPageGUI:
                 
             elif module_type == "purchases":
                 data = {key: var.get().strip() for key, var in self.purchase_vars.items()}
-                if data.get("quantity"):
-                    data["quantity"] = int(data["quantity"])
-                if data.get("price_per_unit"):
-                    # Rename to match database schema
-                    data["unit_price"] = float(data.pop("price_per_unit"))
-                # Convert date string to datetime object
-                if data.get("date"):
-                    data["date"] = datetime.strptime(data["date"], "%Y-%m-%d")
+                
+                # Validate required fields
+                if not data.get("item_name"):
+                    self.show_status_message("Item name is required", "error")
+                    return
+                if not data.get("quantity"):
+                    self.show_status_message("Quantity is required", "error")
+                    return
+                if not data.get("price_per_unit"):
+                    self.show_status_message("Purchase price is required", "error")
+                    return
+                if not data.get("supplier"):
+                    self.show_status_message("Supplier is required", "error")
+                    return
+                if not data.get("date"):
+                    self.show_status_message("Purchase date is required", "error")
+                    return
+                
+                # Convert data types
+                try:
+                    if data.get("quantity"):
+                        data["quantity"] = int(data["quantity"])
+                    if data.get("price_per_unit"):
+                        # Rename to match database schema
+                        data["unit_price"] = float(data.pop("price_per_unit"))
+                except ValueError as e:
+                    self.show_status_message("Please enter valid numbers for quantity and price", "error")
+                    return
+                
+                # Convert date from dd/mm/yy to datetime object
+                try:
+                    if data.get("date"):
+                        date_str = data["date"]
+                        # Handle dd/mm/yy format
+                        if "/" in date_str and len(date_str.split("/")) == 3:
+                            day, month, year = date_str.split("/")
+                            # Handle 2-digit year (convert to 4-digit)
+                            if len(year) == 2:
+                                year = "20" + year if int(year) < 50 else "19" + year
+                            # Create datetime object
+                            data["date"] = datetime(int(year), int(month), int(day))
+                        else:
+                            # Fallback: try to parse as is
+                            data["date"] = datetime.strptime(date_str, "%Y-%m-%d")
+                except ValueError as e:
+                    self.show_status_message("Please enter date in dd/mm/yy format", "error")
+                    return
+                
                 # Calculate total price
                 if data.get("quantity") and data.get("unit_price"):
                     data["total_price"] = data["quantity"] * data["unit_price"]
+                
                 result = self.data_service.add_purchase(data)
             
             if result:
@@ -6064,13 +6582,27 @@ class ModernDataPageGUI:
             if hasattr(self, 'emp_vars'):
                 self.emp_vars["employee_id"].set(values[0])  # Employee ID
                 self.emp_vars["name"].set(values[1])          # Name
-                self.emp_vars["email"].set(values[2])         # Email
+                self.emp_vars["aadhar_no"].set(values[2])     # Aadhar No (not email)
                 self.emp_vars["phone"].set(values[3])         # Phone
                 self.emp_vars["department"].set(values[4])    # Department
                 self.emp_vars["position"].set(values[5])      # Position
                 # Remove currency formatting for daily wage
                 daily_wage_str = str(values[6]).replace("₹", "").replace(",", "")
                 self.emp_vars["daily_wage"].set(daily_wage_str)
+                
+                # Set join_date if available (values[7])
+                if len(values) > 7 and values[7] and values[7] != "Not Set":
+                    join_date_str = str(values[7])
+                    # Convert from display format to form format if needed
+                    if '/' in join_date_str and len(join_date_str) <= 8:
+                        # Convert dd/mm/yy to YYYY-MM-DD for form input
+                        try:
+                            date_obj = datetime.strptime(join_date_str, '%d/%m/%y')
+                            self.emp_vars["join_date"].set(date_obj.strftime('%Y-%m-%d'))
+                        except:
+                            self.emp_vars["join_date"].set(join_date_str)
+                    else:
+                        self.emp_vars["join_date"].set(join_date_str)
                 
                 # Enable editing mode
                 self.edit_mode = True
@@ -6155,6 +6687,17 @@ class ModernDataPageGUI:
                 if update_data.get("daily_wage"):
                     update_data["daily_wage"] = float(update_data["daily_wage"])
                 
+                # Convert join_date from dd/mm/yy to datetime
+                if update_data.get("join_date"):
+                    try:
+                        date_str = update_data["join_date"]
+                        if '/' in date_str and len(date_str) <= 8:
+                            update_data["join_date"] = datetime.strptime(date_str, '%d/%m/%y')
+                        elif '-' in date_str and len(date_str) == 10:
+                            update_data["join_date"] = datetime.strptime(date_str, '%Y-%m-%d')
+                    except ValueError:
+                        pass  # Keep original value if parsing fails
+                
                 result = self.data_service.update_employee_by_id(self.editing_mongo_id, update_data)
             else:
                 # Fallback to employee_id based update
@@ -6162,6 +6705,17 @@ class ModernDataPageGUI:
                 update_data = {k: v for k, v in data.items() if k != "employee_id"}
                 if update_data.get("daily_wage"):
                     update_data["daily_wage"] = float(update_data["daily_wage"])
+                
+                # Convert join_date from dd/mm/yy to datetime
+                if update_data.get("join_date"):
+                    try:
+                        date_str = update_data["join_date"]
+                        if '/' in date_str and len(date_str) <= 8:
+                            update_data["join_date"] = datetime.strptime(date_str, '%d/%m/%y')
+                        elif '-' in date_str and len(date_str) == 10:
+                            update_data["join_date"] = datetime.strptime(date_str, '%Y-%m-%d')
+                    except ValueError:
+                        pass  # Keep original value if parsing fails
                 
                 result = self.data_service.update_employee(employee_id, update_data)
             
@@ -6237,7 +6791,7 @@ class ModernDataPageGUI:
         if hasattr(self, 'emp_vars'):
             self.emp_vars["employee_id"].set(values[0])
             self.emp_vars["name"].set(values[1])
-            self.emp_vars["email"].set(values[2])
+            self.emp_vars["aadhar_no"].set(values[2])     # Aadhar No (not email)
             self.emp_vars["phone"].set(values[3])
             self.emp_vars["department"].set(values[4])
             self.emp_vars["position"].set(values[5])
@@ -6816,32 +7370,24 @@ class ModernDataPageGUI:
             
             # Try to use calendar widget, with enhanced fallback
             try:
-                from tkcalendar import Calendar
-                import datetime as dt
-                
-                # Create calendar with full date selection
-                cal = Calendar(
+                # Use simple date entry instead of external calendar widget
+                date_entry = tk.Entry(
                     date_frame,
-                    selectmode='day',
-                    date_pattern='yyyy-mm-dd',
-                    mindate=dt.date.today(),  # Can't select past dates
-                    font=("Arial", 9),
-                    background="#1976d2",
-                    foreground="white",
-                    bordercolor="#1976d2",
-                    headersbackground="#0d47a1", 
-                    headersforeground="white",
-                    selectbackground="#4caf50",
-                    selectforeground="white",
-                    weekendbackground="#ffeb3b",
-                    weekendforeground="black"
+                    textvariable=date_var,
+                    font=("Arial", 12),
+                    width=15,
+                    justify="center"
                 )
-                cal.pack(pady=10, padx=10)
+                date_entry.pack(pady=10, padx=10)
                 
-                # Instructions for calendar
+                # Set today's date as default
+                from datetime import date as dt_date
+                date_var.set(dt_date.today().strftime('%Y-%m-%d'))
+                
+                # Instructions for date entry
                 tk.Label(
                     date_frame, 
-                    text="📅 Click on a date to select it",
+                    text="📅 Enter date in YYYY-MM-DD format",
                     font=("Arial", 10, "italic"), 
                     bg="#f0f8ff", 
                     fg="#666"
@@ -6898,9 +7444,8 @@ class ModernDataPageGUI:
                     new_date = None
                     
                     if cal:
-                        # Using calendar widget
-                        new_date = cal.get_date()
-                        print(f"Date from calendar: {new_date}")
+                        # Not using calendar widget anymore
+                        new_date = date_var.get().strip()
                     else:
                         # Using manual entry
                         new_date = date_var.get().strip()
@@ -7396,10 +7941,13 @@ class ModernDataPageGUI:
                         logger.error(f"Error parsing date for sales deletion: {e}")
                         continue
                 elif module_type in ["purchase", "purchases"]:
-                    # Parse date properly for purchase deletion  
+                    # Parse date properly for purchase deletion - handle dd/mm/yy format
                     date_str = str(values[4])
                     try:
-                        if len(date_str) == 10:
+                        # Check if it's dd/mm/yy format (8 characters or less)
+                        if '/' in date_str and len(date_str) <= 8:
+                            filter_date = datetime.strptime(date_str, '%d/%m/%y')
+                        elif len(date_str) == 10 and '-' in date_str:
                             filter_date = datetime.strptime(date_str, '%Y-%m-%d')
                         else:
                             filter_date = date_str
@@ -7549,22 +8097,26 @@ class ModernDataPageGUI:
     def extract_table_values(self, record, table_type):
         """Extract values for table display"""
         if table_type == "employees":
-            # Format join_date
+            # Format join_date to dd/mm/yy
             join_date = record.get("join_date", "")
             if pd.isna(join_date) or join_date == "":
                 # Fallback to hire_date if join_date is missing
                 hire_date = record.get("hire_date", "")
                 if hasattr(hire_date, 'strftime'):
-                    join_date = hire_date.strftime('%Y-%m-%d')
+                    join_date = hire_date.strftime('%d/%m/%y')
                 else:
                     join_date = "Not Set"
+            elif hasattr(join_date, 'strftime'):
+                join_date = join_date.strftime('%d/%m/%y')
+            else:
+                join_date = "Not Set"
             
-            # Format last_paid
+            # Format last_paid to dd/mm/yy
             last_paid = record.get("last_paid", "")
             if pd.isna(last_paid) or 'NaT' in str(type(last_paid)):
                 last_paid_str = "Never Paid"
             elif hasattr(last_paid, 'strftime'):
-                last_paid_str = last_paid.strftime('%Y-%m-%d')
+                last_paid_str = last_paid.strftime('%d/%m/%y')
             else:
                 last_paid_str = str(last_paid)
             
@@ -7659,14 +8211,14 @@ class ModernDataPageGUI:
                 f"₹{total:.2f}"
             ]
         elif table_type == "purchases":
-            # Format date properly
+            # Format date to dd/mm/yy format
             date_str = record.get("date", "")
             if hasattr(date_str, 'strftime'):
-                date_str = date_str.strftime('%Y-%m-%d')
+                date_str = date_str.strftime('%d/%m/%y')
             elif isinstance(date_str, str) and len(date_str) > 10:
                 try:
                     date_obj = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                    date_str = date_obj.strftime('%Y-%m-%d')
+                    date_str = date_obj.strftime('%d/%m/%y')
                 except:
                     pass
             
@@ -7721,7 +8273,7 @@ class ModernDataPageGUI:
                 if table_type == "employees" and var_dict:
                     var_dict["employee_id"].set(values[0])
                     var_dict["name"].set(values[1])
-                    var_dict["email"].set(values[2])
+                    var_dict["aadhar_no"].set(values[2])     # Aadhar No (not email)
                     var_dict["phone"].set(values[3])
                     var_dict["department"].set(values[4])
                     var_dict["position"].set(values[5])
@@ -7863,9 +8415,24 @@ class ModernDataPageGUI:
             if update_data.get("quantity") and update_data.get("unit_price"):
                 update_data["total_price"] = update_data["quantity"] * update_data["unit_price"]
             
-            # Convert date
+            # Convert date from dd/mm/yy format
             if update_data.get("date"):
-                update_data["date"] = datetime.strptime(update_data["date"], "%Y-%m-%d")
+                date_str = update_data["date"]
+                try:
+                    # Handle dd/mm/yy format
+                    if "/" in date_str and len(date_str.split("/")) == 3:
+                        day, month, year = date_str.split("/")
+                        # Handle 2-digit year (convert to 4-digit)
+                        if len(year) == 2:
+                            year = "20" + year if int(year) < 50 else "19" + year
+                        # Create datetime object
+                        update_data["date"] = datetime(int(year), int(month), int(day))
+                    else:
+                        # Fallback: try to parse as is
+                        update_data["date"] = datetime.strptime(date_str, "%Y-%m-%d")
+                except ValueError as e:
+                    self.show_status_message("Please enter date in dd/mm/yy format", "error")
+                    return
             
             # Update purchase record using MongoDB ID
             result = self.data_service.update_purchase(self.editing_purchase_id, update_data)
