@@ -10,6 +10,7 @@ import sys
 import subprocess
 import tempfile
 import threading
+import ctypes  # For UAC elevation
 from datetime import datetime
 from packaging import version
 import customtkinter as ctk
@@ -20,7 +21,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class UpdateManager:
-    def __init__(self, current_version="2.0.0", repo="AnkitB018/Business-Dashboard"):
+    def __init__(self, current_version="2.1.0", repo="AnkitB018/Business-Dashboard"):
         self.current_version = current_version
         self.repo = repo
         self.github_api_url = f"https://api.github.com/repos/{repo}/releases/latest"
@@ -395,26 +396,48 @@ class UpdateManager:
             logger.error(f"Failed to open download folder: {e}")
     
     def _run_installer_and_exit(self, installer_path):
-        """Run the installer and exit the current application"""
+        """Run the installer with elevated privileges and exit the current application"""
         try:
             # Close update window
             self.update_window.destroy()
             
-            # Run installer
-            subprocess.Popen([installer_path])
-            
-            # Show exit message
-            if messagebox.askyesno("Install Update", 
-                                 "The installer will start now. Close Business Dashboard to complete the update?"):
-                # Exit the application
-                sys.exit(0)
+            # Run installer with elevated privileges (UAC prompt)
+            # Use 'runas' verb to request administrator privileges
+            import ctypes
+            try:
+                # Try to run with elevated privileges using ShellExecute
+                ctypes.windll.shell32.ShellExecuteW(
+                    None,
+                    "runas",  # Request elevation
+                    installer_path,
+                    None,
+                    None,
+                    1  # SW_SHOWNORMAL
+                )
+                
+                # Show exit message
+                if messagebox.askyesno("Install Update", 
+                                     "The installer will start with administrator privileges. Close Business Dashboard to complete the update?"):
+                    # Exit the application
+                    sys.exit(0)
+                    
+            except Exception as elevated_error:
+                logger.warning(f"Failed to run with elevation, trying normal execution: {elevated_error}")
+                # Fallback to normal execution if elevation fails
+                subprocess.Popen([installer_path])
+                
+                # Show exit message
+                if messagebox.askyesno("Install Update", 
+                                     "The installer will start now. You may need to run it as administrator. Close Business Dashboard to complete the update?"):
+                    # Exit the application
+                    sys.exit(0)
                 
         except Exception as e:
             logger.error(f"Failed to run installer: {e}")
-            messagebox.showerror("Installation Failed", f"Failed to start installer: {str(e)}")
+            messagebox.showerror("Installation Failed", f"Failed to start installer: {str(e)}\n\nPlease try running the installer manually as administrator.")
 
 # Convenience function for easy integration
-def check_for_updates_async(parent_window=None, current_version="2.0.0", show_no_update=True):
+def check_for_updates_async(parent_window=None, current_version="2.1.0", show_no_update=True):
     """Check for updates in a background thread"""
     def worker():
         try:
