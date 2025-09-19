@@ -1373,12 +1373,12 @@ class ModernDataPageGUI:
         self.time_in_widgets = self.create_time_picker(form_scroll, "Time In", "time_in", self.att_vars)
         self.time_out_widgets = self.create_time_picker(form_scroll, "Time Out", "time_out", self.att_vars)
         
-        # Status dropdown with all valid options from reports
+        # Status dropdown with all valid options from reports (removed Overtime)
         self.create_attendance_status_dropdown(form_scroll, "Status", "status", 
-                               ["Present", "Absent", "Leave", "Overtime"], self.att_vars)
+                               ["Present", "Absent", "Leave", "Half Day", "Late", "Remote Work"], self.att_vars)
         
-        # Overtime hour field (enabled only when status is Overtime)
-        self.create_overtime_hour_field(form_scroll, "Overtime Hours", "overtime_hour", self.att_vars)
+        # Exception hour field (always enabled, default 1)
+        self.create_exception_hour_field(form_scroll, "Exception Hours", "exception_hours", self.att_vars)
         
         # Notes field (optional)
         self.create_form_field(form_scroll, "Notes (Optional)", "notes", "text", self.att_vars, 
@@ -2307,15 +2307,47 @@ class ModernDataPageGUI:
                     if 'time_out' in self.att_vars:
                         self.att_vars['time_out'].set("--:--")
             
-            # Handle overtime hour field visibility
-            if hasattr(self, 'overtime_hour_widget'):
-                is_overtime = status.lower() == "overtime"
-                self.overtime_hour_widget.configure(state="normal" if is_overtime else "disabled")
-                if not is_overtime:
-                    self.att_vars['overtime_hour'].set("0")
+            # Exception hours are always enabled and editable
+            # No special handling needed for exception hours field
                     
         except Exception as e:
             logger.error(f"Error handling status change: {e}")
+    
+    def create_exception_hour_field(self, parent, label, key, vars_dict):
+        """Create exception hour field that's always enabled with default value 1"""
+        field_frame = ctk.CTkFrame(parent, fg_color="transparent")
+        field_frame.pack(fill="x", pady=8)
+
+        # Label
+        label_widget = ctk.CTkLabel(
+            field_frame,
+            text=f"{label}",
+            font=ctk.CTkFont(size=12, weight="bold")
+        )
+        label_widget.pack(anchor="w", pady=(0, 5))
+
+        # Entry field with default value 1
+        vars_dict[key] = tk.StringVar(value="1")
+        self.exception_hour_widget = ctk.CTkEntry(
+            field_frame,
+            textvariable=vars_dict[key],
+            width=300,
+            height=35,
+            corner_radius=6,
+            border_width=1,
+            font=ctk.CTkFont(size=12),
+            placeholder_text="Exception hours (default: 1)"
+        )
+        self.exception_hour_widget.pack(fill="x", pady=(0, 5))
+
+        # Helper text
+        helper_text = ctk.CTkLabel(
+            field_frame,
+            text="Hours when employee is not actively working (breaks, meetings, etc.)",
+            font=ctk.CTkFont(size=10),
+            text_color="gray"
+        )
+        helper_text.pack(anchor="w")
     
     def create_overtime_hour_field(self, parent, label, key, vars_dict):
         """Create overtime hour field that's enabled only when status is Overtime"""
@@ -3842,7 +3874,7 @@ class ModernDataPageGUI:
         paid_frame = ctk.CTkFrame(info_grid, corner_radius=8, fg_color=("white", "gray30"))
         paid_frame.grid(row=0, column=1, padx=(5, 5), sticky="ew")
         
-        ctk.CTkLabel(paid_frame, text="Paid Amount", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(8, 2))
+        ctk.CTkLabel(paid_frame, text="Advance Paid Amount", font=ctk.CTkFont(size=11, weight="bold")).pack(pady=(8, 2))
         ctk.CTkLabel(paid_frame, text=f"₹{advance_payment:.2f}", font=ctk.CTkFont(size=14, weight="bold"),
                     text_color=("#4caf50", "#81c784")).pack(pady=(0, 8))
         
@@ -5076,7 +5108,7 @@ class ModernDataPageGUI:
         
         for label, value, color in [
             ("Total Amount:", f"₹{total_amount:.2f}", "#2196f3"),
-            ("Paid Amount:", f"₹{paid_amount:.2f}", "#4caf50"),
+            ("Advance Paid:", f"₹{paid_amount:.2f}", "#4caf50"),
             ("Due Amount:", f"₹{due_amount:.2f}", "#f44336" if due_amount > 0 else "#4caf50")
         ]:
             row = ctk.CTkFrame(financial_details, fg_color="transparent")
@@ -5284,7 +5316,7 @@ class ModernDataPageGUI:
         # Paid
         paid_frame = ctk.CTkFrame(amounts_grid, corner_radius=8, fg_color=("white", "gray30"))
         paid_frame.grid(row=0, column=1, padx=3, sticky="ew")
-        ctk.CTkLabel(paid_frame, text="Paid", font=ctk.CTkFont(size=11)).pack(pady=(8, 2))
+        ctk.CTkLabel(paid_frame, text="Advance Paid", font=ctk.CTkFont(size=11)).pack(pady=(8, 2))
         ctk.CTkLabel(paid_frame, text=f"₹{advance_payment:.2f}", font=ctk.CTkFont(size=15, weight="bold"),
                     text_color=("#4caf50", "#81c784")).pack(pady=(0, 8))
         
@@ -5664,7 +5696,7 @@ class ModernDataPageGUI:
         # Paid amount
         paid_frame = ctk.CTkFrame(payment_grid, corner_radius=6, fg_color=("white", "gray30"))
         paid_frame.grid(row=0, column=1, padx=(2.5, 2.5), sticky="ew")
-        ctk.CTkLabel(paid_frame, text="Paid", font=ctk.CTkFont(size=10)).pack(pady=(5, 0))
+        ctk.CTkLabel(paid_frame, text="Advance Paid", font=ctk.CTkFont(size=10)).pack(pady=(5, 0))
         ctk.CTkLabel(paid_frame, text=f"₹{advance_payment:.2f}", font=ctk.CTkFont(size=12, weight="bold"),
                     text_color=("#4caf50", "#81c784")).pack(pady=(0, 5))
         
@@ -6367,7 +6399,7 @@ class ModernDataPageGUI:
         """Get table columns based on type"""
         columns_map = {
             "employees": ["Employee_ID", "Name", "Aadhar_No", "Phone", "Department", "Position", "Daily_Wage", "Join_Date", "Last_Paid"],
-            "attendance": ["Employee_ID", "Date", "Time_In", "Time_Out", "Status", "Hours"],
+            "attendance": ["Employee_ID", "Date", "Time_In", "Time_Out", "Status", "Hours", "Exception_Hours"],
             "stock": ["Item_Name", "Category", "Quantity", "Price", "Supplier", "Total_Value"],
             "sales": ["Item_Name", "Quantity", "Price", "Customer", "Date", "Total"],
             "purchases": ["Item_Name", "Quantity", "Price", "Supplier", "Date", "Total"]
@@ -6452,16 +6484,15 @@ class ModernDataPageGUI:
                     if not data.get("time_out") or data.get("time_out") == "--:--":
                         data["time_out"] = "17:00"
                 
-                # Handle overtime hours
-                if status == "overtime":
-                    # Convert overtime_hour to integer
-                    overtime_hour = data.get("overtime_hour", "0")
-                    try:
-                        data["overtime_hour"] = int(overtime_hour) if overtime_hour else 0
-                    except (ValueError, TypeError):
-                        data["overtime_hour"] = 0
-                else:
-                    data["overtime_hour"] = 0  # No overtime for other statuses
+                # Handle exception hours (always save, default 1)
+                exception_hours = data.get("exception_hours", "1")
+                try:
+                    data["exception_hours"] = float(exception_hours) if exception_hours else 1.0
+                except (ValueError, TypeError):
+                    data["exception_hours"] = 1.0
+                
+                # For backward compatibility, also save as overtime_hour (will be removed later)
+                data["overtime_hour"] = 0  # No overtime in new system
                 
                 result = self.data_service.add_attendance(data)
                 
@@ -8047,6 +8078,32 @@ class ModernDataPageGUI:
             elif table_type == "attendance":
                 data_df = self.data_service.get_attendance()
                 raw_records = self.data_service.db_manager.find_documents("attendance")
+                
+                # Sort attendance by date (newest first) and by insertion order for same dates
+                if data_df is not None and not data_df.empty:
+                    # Convert date column to datetime for proper sorting
+                    data_df['date_for_sorting'] = pd.to_datetime(data_df['date'])
+                    
+                    # Sort by date descending (newest first), then by index ascending (last added first for same date)
+                    data_df = data_df.sort_values(['date_for_sorting'], ascending=[False])
+                    data_df = data_df.drop('date_for_sorting', axis=1)  # Remove helper column
+                    data_df = data_df.reset_index(drop=True)  # Reset index after sorting
+                    
+                    # Sort raw_records to match the sorted dataframe order
+                    if raw_records and len(raw_records) == len(data_df):
+                        # Create a mapping using employee_id and date to match records
+                        raw_records_dict = {}
+                        for i, record in enumerate(raw_records):
+                            key = f"{record.get('employee_id', '')}_{record.get('date', '')}"
+                            raw_records_dict[key] = record
+                        
+                        # Reorder raw_records to match sorted dataframe
+                        new_raw_records = []
+                        for _, row in data_df.iterrows():
+                            key = f"{row.get('employee_id', '')}_{row.get('date', '')}"
+                            if key in raw_records_dict:
+                                new_raw_records.append(raw_records_dict[key])
+                        raw_records = new_raw_records
             elif table_type == "stock":
                 data_df = self.data_service.get_stock()
                 raw_records = self.data_service.db_manager.find_documents("stock")
@@ -8056,6 +8113,32 @@ class ModernDataPageGUI:
             elif table_type == "purchases":
                 data_df = self.data_service.get_purchases()
                 raw_records = self.data_service.db_manager.find_documents("purchases")
+                
+                # Sort purchases by date (newest first)
+                if data_df is not None and not data_df.empty:
+                    # Convert date column to datetime for proper sorting
+                    data_df['date_for_sorting'] = pd.to_datetime(data_df['date'])
+                    
+                    # Sort by date descending (newest first)
+                    data_df = data_df.sort_values(['date_for_sorting'], ascending=[False])
+                    data_df = data_df.drop('date_for_sorting', axis=1)  # Remove helper column
+                    data_df = data_df.reset_index(drop=True)  # Reset index after sorting
+                    
+                    # Sort raw_records to match the sorted dataframe order
+                    if raw_records and len(raw_records) == len(data_df):
+                        # Create a mapping using item_name and date to match records
+                        raw_records_dict = {}
+                        for i, record in enumerate(raw_records):
+                            key = f"{record.get('item_name', '')}_{record.get('date', '')}"
+                            raw_records_dict[key] = record
+                        
+                        # Reorder raw_records to match sorted dataframe
+                        new_raw_records = []
+                        for _, row in data_df.iterrows():
+                            key = f"{row.get('item_name', '')}_{row.get('date', '')}"
+                            if key in raw_records_dict:
+                                new_raw_records.append(raw_records_dict[key])
+                        raw_records = new_raw_records
             
             # Convert DataFrame to list of dictionaries and add MongoDB IDs
             if data_df is not None and not data_df.empty:
@@ -8167,13 +8250,15 @@ class ModernDataPageGUI:
                     pass
             
             hours = self.calculate_hours(record.get("time_in"), record.get("time_out"))
+            exception_hours = record.get("exception_hours", 1)  # Default to 1 if not set
             return [
                 record.get("employee_id", ""),
                 date_str,
                 time_in,
                 time_out,
                 record.get("status", ""),
-                f"{hours:.1f}h"
+                f"{hours:.1f}h",
+                f"{exception_hours:.1f}h"
             ]
         elif table_type == "stock":
             quantity = record.get("current_quantity", 0)
