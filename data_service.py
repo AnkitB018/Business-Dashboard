@@ -240,6 +240,30 @@ class HRDataService:
                     update_needed = True
                     migration_needed = True
                 
+                # Add bonus-related fields for the new bonus system
+                # Set joining_date based on hire_date or join_date
+                if "joining_date" not in employee:
+                    hire_date = employee.get("hire_date") or employee.get("join_date")
+                    if hire_date:
+                        # Handle different date formats
+                        if isinstance(hire_date, str):
+                            try:
+                                updates["joining_date"] = datetime.strptime(hire_date, "%Y-%m-%d")
+                            except ValueError:
+                                updates["joining_date"] = datetime.fromisoformat(hire_date.replace('Z', ''))
+                        else:
+                            updates["joining_date"] = hire_date
+                        update_needed = True
+                        migration_needed = True
+                
+                # Add last_bonus_paid field (initially set to joining_date)
+                if "last_bonus_paid" not in employee:
+                    joining_date = updates.get("joining_date") or employee.get("hire_date") or employee.get("join_date")
+                    if joining_date:
+                        updates["last_bonus_paid"] = joining_date
+                        update_needed = True
+                        migration_needed = True
+                
                 # Apply updates if needed
                 if update_needed:
                     self.db_manager.update_document("employees", {"_id": employee["_id"]}, updates)
@@ -1295,3 +1319,86 @@ class DataService:
         except Exception as e:
             logger.error(f"Failed to get sales: {str(e)}")
             return []
+    
+    # ====== BONUS CALCULATION METHODS ======
+    
+    def calculate_employee_bonus(self, employee_id: str, bonus_rate: float = 8.33) -> Dict:
+        """
+        Calculate bonus for an employee using the BonusCalculator
+        
+        Args:
+            employee_id: Employee ID
+            bonus_rate: Bonus rate percentage (default: 8.33%)
+            
+        Returns:
+            Dict: Bonus calculation results
+        """
+        try:
+            from bonus_calculator import BonusCalculator
+            
+            # Get employee data
+            employees_df = self.get_employees({"employee_id": employee_id})
+            if employees_df.empty:
+                return {
+                    'error': 'Employee not found',
+                    'employee_id': employee_id
+                }
+            
+            employee = employees_df.iloc[0].to_dict()
+            
+            # Calculate bonus using BonusCalculator
+            calculator = BonusCalculator(self)
+            result = calculator.calculate_employee_bonus(employee, bonus_rate)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error calculating bonus for employee {employee_id}: {e}")
+            return {
+                'error': f'Failed to calculate bonus: {str(e)}',
+                'employee_id': employee_id
+            }
+    
+    def reset_employee_bonus(self, employee_id: str) -> bool:
+        """
+        Mark bonus as paid for an employee
+        
+        Args:
+            employee_id: Employee ID
+            
+        Returns:
+            bool: True if successful
+        """
+        try:
+            from bonus_calculator import BonusCalculator
+            
+            calculator = BonusCalculator(self)
+            return calculator.reset_employee_bonus(employee_id)
+            
+        except Exception as e:
+            logger.error(f"Error resetting bonus for employee {employee_id}: {e}")
+            return False
+    
+    def get_employees_for_bonus(self) -> pd.DataFrame:
+        """
+        Get all employees with their bonus-related information
+        
+        Returns:
+            pd.DataFrame: Employees with bonus info
+        """
+        try:
+            employees_df = self.get_employees()
+            
+            if not employees_df.empty:
+                # Ensure bonus-related fields exist
+                if 'last_bonus_paid' not in employees_df.columns:
+                    employees_df['last_bonus_paid'] = None
+                    
+                # Add calculated fields for bonus eligibility
+                employees_df['bonus_eligible'] = True  # All employees are eligible
+                
+            return employees_df
+            
+        except Exception as e:
+            logger.error(f"Error getting employees for bonus: {e}")
+            return pd.DataFrame()

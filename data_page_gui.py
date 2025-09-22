@@ -1373,9 +1373,9 @@ class ModernDataPageGUI:
         self.time_in_widgets = self.create_time_picker(form_scroll, "Time In", "time_in", self.att_vars)
         self.time_out_widgets = self.create_time_picker(form_scroll, "Time Out", "time_out", self.att_vars)
         
-        # Status dropdown with all valid options from reports (removed Overtime)
+        # Status dropdown with simplified options
         self.create_attendance_status_dropdown(form_scroll, "Status", "status", 
-                               ["Present", "Absent", "Leave", "Half Day", "Late", "Remote Work"], self.att_vars)
+                               ["Present", "Absent", "Leave"], self.att_vars)
         
         # Exception hour field (always enabled, default 1)
         self.create_exception_hour_field(form_scroll, "Exception Hours", "exception_hours", self.att_vars)
@@ -2132,39 +2132,39 @@ class ModernDataPageGUI:
         time_input_frame = ctk.CTkFrame(time_container, fg_color="transparent")
         time_input_frame.pack(anchor="w")
         
-        # Hour dropdown (12-hour format)
+        # Hour dropdown (12-hour format) - Start with placeholder
         ctk.CTkLabel(time_input_frame, text="Hour:", font=ctk.CTkFont(size=11)).pack(side="left")
-        hour_var = tk.StringVar(value="07")
+        hour_var = tk.StringVar(value="--")
         hour_combo = ctk.CTkComboBox(
             time_input_frame,
             variable=hour_var,
-            values=[f"{i:02d}" for i in range(1, 13)],  # 1-12 for 12-hour format
+            values=["--"] + [f"{i:02d}" for i in range(1, 13)],  # Add placeholder option
             width=70,
             height=35,
             corner_radius=6
         )
         hour_combo.pack(side="left", padx=(5, 10))
         
-        # Minute dropdown
+        # Minute dropdown - Start with placeholder
         ctk.CTkLabel(time_input_frame, text="Min:", font=ctk.CTkFont(size=11)).pack(side="left")
-        minute_var = tk.StringVar(value="00")
+        minute_var = tk.StringVar(value="--")
         minute_combo = ctk.CTkComboBox(
             time_input_frame,
             variable=minute_var,
-            values=[f"{i:02d}" for i in range(0, 60, 15)],  # 15-minute intervals
+            values=["--"] + [f"{i:02d}" for i in range(0, 60, 15)],  # Add placeholder option
             width=70,
             height=35,
             corner_radius=6
         )
         minute_combo.pack(side="left", padx=(5, 10))
         
-        # AM/PM dropdown
+        # AM/PM dropdown - Start with placeholder
         ctk.CTkLabel(time_input_frame, text="AM/PM:", font=ctk.CTkFont(size=11)).pack(side="left")
-        ampm_var = tk.StringVar(value="AM")
+        ampm_var = tk.StringVar(value="--")
         ampm_combo = ctk.CTkComboBox(
             time_input_frame,
             variable=ampm_var,
-            values=["AM", "PM"],
+            values=["--", "AM", "PM"],  # Add placeholder option
             width=70,
             height=35,
             corner_radius=6
@@ -2205,9 +2205,17 @@ class ModernDataPageGUI:
         
         def update_time(*args):
             try:
-                hour = int(hour_var.get())
-                minute = minute_var.get()
+                hour_str = hour_var.get()
+                minute_str = minute_var.get()
                 ampm = ampm_var.get()
+                
+                # If any field is placeholder, set to empty
+                if hour_str == "--" or minute_str == "--" or ampm == "--":
+                    vars_dict[key].set("")
+                    return
+                
+                hour = int(hour_str)
+                minute = minute_str
                 
                 # Convert 12-hour to 24-hour format for storage
                 if ampm == "AM":
@@ -2224,7 +2232,7 @@ class ModernDataPageGUI:
                 time_str = f"{hour_24:02d}:{minute}"
                 vars_dict[key].set(time_str)
             except (ValueError, TypeError):
-                vars_dict[key].set("07:00")  # Default fallback
+                vars_dict[key].set("")  # Set empty instead of default
         
         hour_var.trace("w", update_time)
         minute_var.trace("w", update_time)
@@ -2326,7 +2334,7 @@ class ModernDataPageGUI:
         )
         label_widget.pack(anchor="w", pady=(0, 5))
 
-        # Entry field with default value 1
+        # Entry field with default value 1 (always)
         vars_dict[key] = tk.StringVar(value="1")
         self.exception_hour_widget = ctk.CTkEntry(
             field_frame,
@@ -2339,11 +2347,20 @@ class ModernDataPageGUI:
             placeholder_text="Exception hours (default: 1)"
         )
         self.exception_hour_widget.pack(fill="x", pady=(0, 5))
+        
+        # Ensure the field always shows 1 if empty
+        def on_focus_out(event=None):
+            current_value = vars_dict[key].get().strip()
+            if not current_value or current_value == "":
+                vars_dict[key].set("1")
+        
+        self.exception_hour_widget.bind("<FocusOut>", on_focus_out)
+        self.exception_hour_widget.bind("<KeyRelease>", lambda e: on_focus_out() if vars_dict[key].get().strip() == "" else None)
 
         # Helper text
         helper_text = ctk.CTkLabel(
             field_frame,
-            text="Hours when employee is not actively working (breaks, meetings, etc.)",
+            text="Hours when employee is not actively working (breaks, meetings, etc.) - Default: 1",
             font=ctk.CTkFont(size=10),
             text_color="gray"
         )
@@ -5788,16 +5805,51 @@ class ModernDataPageGUI:
     def calculate_days_until_due(self, due_date_str):
         """Calculate days until due date"""
         try:
-            due_date_obj = datetime.strptime(due_date_str, "%Y-%m-%d").date()
+            # Debug: Print the due_date_str to understand what we're getting
+            print(f"DEBUG: Calculating due date for: '{due_date_str}'")
+            
+            if not due_date_str or due_date_str.strip() == '':
+                print("DEBUG: Due date is empty, returning None")
+                return None  # Return None instead of 0 for empty dates
+            
+            # Handle different date formats
+            due_date_str = due_date_str.strip()
+            
+            # Try different date formats
+            formats_to_try = [
+                "%Y-%m-%d",      # 2025-01-15
+                "%d/%m/%Y",      # 15/01/2025
+                "%d/%m/%y",      # 15/01/25
+                "%Y-%m-%d %H:%M:%S",  # 2025-01-15 00:00:00
+            ]
+            
+            due_date_obj = None
+            for fmt in formats_to_try:
+                try:
+                    due_date_obj = datetime.strptime(due_date_str, fmt).date()
+                    print(f"DEBUG: Successfully parsed date '{due_date_str}' with format '{fmt}' -> {due_date_obj}")
+                    break
+                except ValueError:
+                    continue
+            
+            if due_date_obj is None:
+                print(f"DEBUG: Could not parse due date '{due_date_str}' with any format")
+                return None  # Return None if we can't parse the date
+                
             today = date.today()
             delta = (due_date_obj - today).days
+            print(f"DEBUG: Due date: {due_date_obj}, Today: {today}, Days difference: {delta}")
             return delta
-        except:
-            return 0
+            
+        except Exception as e:
+            print(f"DEBUG: Error calculating due date: {e}")
+            return None  # Return None instead of 0 for errors
     
     def get_due_status_color(self, days_left):
         """Get status text and color based on days left"""
-        if days_left < 0:
+        if days_left is None:
+            return ("📅 No due date set", ("#757575", "#f5f5f5"))
+        elif days_left < 0:
             return (f"⚠️ OVERDUE by {abs(days_left)} days", ("#d32f2f", "#ffebee"))
         elif days_left == 0:
             return ("🔥 DUE TODAY", ("#f57c00", "#fff3e0"))
@@ -6473,16 +6525,29 @@ class ModernDataPageGUI:
                 # Handle time fields based on status
                 status = data.get("status", "").lower()
                 if status in ["absent", "leave"]:
-                    # For absent/leave, set meaningful default times or empty
+                    # For absent/leave, clear time fields
                     data["time_in"] = ""
                     data["time_out"] = ""
                     data["overtime_hour"] = 0  # No overtime for absent/leave
                 else:
-                    # For other statuses, ensure times are provided
-                    if not data.get("time_in") or data.get("time_in") == "--:--":
-                        data["time_in"] = "07:00"
-                    if not data.get("time_out") or data.get("time_out") == "--:--":
-                        data["time_out"] = "17:00"
+                    # For other statuses, validate user provided times
+                    time_in = data.get("time_in", "").strip()
+                    time_out = data.get("time_out", "").strip()
+                    
+                    # Check if user provided valid times
+                    if not time_in or time_in in ["--:--", "", "00:00"]:
+                        # No time provided, ask user or use sensible default
+                        self.show_status_message("Please set Time In using the time picker dropdowns", "warning")
+                        return
+                        
+                    if not time_out or time_out in ["--:--", "", "00:00"]:
+                        # No time provided, ask user or use sensible default  
+                        self.show_status_message("Please set Time Out using the time picker dropdowns", "warning")
+                        return
+                        
+                    # User provided valid times, use them as-is
+                    data["time_in"] = time_in
+                    data["time_out"] = time_out
                 
                 # Handle exception hours (always save, default 1)
                 exception_hours = data.get("exception_hours", "1")
@@ -6984,10 +7049,20 @@ class ModernDataPageGUI:
     def create_initial_transaction(self, order_id, amount, payment_method):
         """Create initial transaction for advance payment"""
         try:
+            print(f"DEBUG: Creating initial transaction - Order ID: {order_id}, Amount: {amount}, Type: {type(amount)}")
+            
+            # Ensure amount is a float
+            try:
+                amount_float = float(amount) if amount is not None else 0.0
+            except (ValueError, TypeError):
+                amount_float = 0.0
+                
+            print(f"DEBUG: Converted amount to float: {amount_float}")
+            
             transaction_data = {
                 'transaction_id': self.generate_transaction_id(),
                 'order_id': order_id,
-                'payment_amount': amount,
+                'amount': amount_float,  # Use 'amount' to match other transactions
                 'payment_date': date.today().strftime("%Y-%m-%d"),
                 'payment_method': payment_method,
                 'transaction_type': 'advance_payment',
@@ -6995,12 +7070,18 @@ class ModernDataPageGUI:
                 'created_date': datetime.now().isoformat()
             }
             
+            print(f"DEBUG: Transaction data: {transaction_data}")
+            
             from data_service import DataService
             data_service = DataService()
-            data_service.add_transaction(transaction_data)
+            result = data_service.add_transaction(transaction_data)
+            
+            print(f"DEBUG: Transaction creation result: {result}")
             
         except Exception as e:
             print(f"Error creating initial transaction: {e}")
+            import traceback
+            traceback.print_exc()
     
     def generate_transaction_id(self):
         """Generate unique transaction ID"""
@@ -7201,12 +7282,22 @@ class ModernDataPageGUI:
             for transaction in transactions:
                 trans_id = transaction.get('transaction_id', 'N/A')
                 trans_date = transaction.get('payment_date', 'N/A')
-                amount = transaction.get('payment_amount', 0)
+                # Check for both 'amount' and 'payment_amount' for backward compatibility
+                amount = transaction.get('amount', transaction.get('payment_amount', 0))
                 method = transaction.get('payment_method', 'N/A')
                 notes = transaction.get('notes', 'N/A')
                 
+                print(f"DEBUG: Displaying transaction - ID: {trans_id}, Amount: {amount}, Type: {type(amount)}")
+                
+                # Ensure amount is properly formatted
+                try:
+                    amount_float = float(amount) if amount is not None else 0.0
+                except (ValueError, TypeError):
+                    amount_float = 0.0
+                    print(f"DEBUG: Could not convert amount '{amount}' to float, using 0.0")
+                
                 self.transactions_tree.insert("", "end", values=(
-                    trans_id, trans_date, f"₹{amount:.2f}", method, notes
+                    trans_id, trans_date, f"₹{amount_float:.2f}", method, notes
                 ))
                 
         except Exception as e:
@@ -7233,14 +7324,20 @@ class ModernDataPageGUI:
                 order_id = transaction.get('order_id', 'N/A')
                 customer = transaction.get('customer_name', 'N/A')
                 trans_date = transaction.get('transaction_date', transaction.get('payment_date', 'N/A'))
-                # Fix amount field - use 'amount' not 'payment_amount'
-                amount = transaction.get('amount', 0)
+                # Check for both 'amount' and 'payment_amount' for backward compatibility
+                amount = transaction.get('amount', transaction.get('payment_amount', 0))
                 method = transaction.get('payment_method', 'N/A')
                 order_status = transaction.get('order_status', 'N/A')
                 notes = transaction.get('notes', 'N/A')
                 
+                # Ensure amount is properly formatted
+                try:
+                    amount_float = float(amount) if amount is not None else 0.0
+                except (ValueError, TypeError):
+                    amount_float = 0.0
+                
                 self.all_transactions_tree.insert("", "end", values=(
-                    trans_id, order_id, customer, trans_date, f"₹{amount:.2f}",
+                    trans_id, order_id, customer, trans_date, f"₹{amount_float:.2f}",
                     method, order_status, notes
                 ))
                 
@@ -7692,6 +7789,19 @@ class ModernDataPageGUI:
     def edit_attendance_data(self, values, mongo_id):
         """Edit attendance specific data"""
         if hasattr(self, 'att_vars'):
+            # Get the full record from database to get accurate exception_hours value
+            try:
+                from bson import ObjectId
+                attendance_df = self.data_service.get_attendance({"_id": ObjectId(mongo_id)})
+                if not attendance_df.empty:
+                    record = attendance_df.iloc[0].to_dict()
+                    actual_exception_hours = record.get("exception_hours", 1)
+                else:
+                    actual_exception_hours = 1
+            except Exception as e:
+                print(f"Error fetching attendance record: {e}")
+                actual_exception_hours = 1
+            
             # Find the employee in dropdown format
             employee_id = str(values[0])
             try:
@@ -7758,8 +7868,15 @@ class ModernDataPageGUI:
                     
             if len(values) > 4:
                 self.att_vars["status"].set(values[4])
-            if len(values) > 6 and hasattr(self, 'att_vars') and "notes" in self.att_vars:
-                self.att_vars["notes"].set(values[6] if len(values) > 6 else "")
+            
+            # Set exception hours from actual database record (not table display)
+            if hasattr(self, 'att_vars') and "exception_hours" in self.att_vars:
+                self.att_vars["exception_hours"].set(str(actual_exception_hours))
+            
+            # Handle notes field separately (this should come from actual notes field in database)
+            # For now, we'll leave notes empty since it's not in the current table display
+            if hasattr(self, 'att_vars') and "notes" in self.att_vars:
+                self.att_vars["notes"].set("")
             
             self.edit_mode = True
             self.editing_attendance_id = mongo_id  # Use MongoDB ID
@@ -8164,6 +8281,7 @@ class ModernDataPageGUI:
                     item_id = tree.insert("", "end", values=values, tags=(mongo_id,) if mongo_id else ('',))
                 
         except Exception as e:
+            print(f"Error refreshing attendance table: {e}")
             logger.error(f"Error refreshing {table_type} table: {e}")
     
     def get_key_field_for_table(self, table_type):
@@ -8251,14 +8369,27 @@ class ModernDataPageGUI:
             
             hours = self.calculate_hours(record.get("time_in"), record.get("time_out"))
             exception_hours = record.get("exception_hours", 1)  # Default to 1 if not set
+            
+            # Ensure hours is a float
+            try:
+                hours_float = float(hours) if hours is not None else 0.0
+            except (ValueError, TypeError):
+                hours_float = 0.0
+            
+            # Ensure exception_hours is a float
+            try:
+                exception_hours_float = float(exception_hours) if exception_hours is not None else 1.0
+            except (ValueError, TypeError):
+                exception_hours_float = 1.0
+            
             return [
                 record.get("employee_id", ""),
                 date_str,
                 time_in,
                 time_out,
                 record.get("status", ""),
-                f"{hours:.1f}h",
-                f"{exception_hours:.1f}h"
+                f"{hours_float:.1f}h",
+                f"{exception_hours_float:.1f}h"
             ]
         elif table_type == "stock":
             quantity = record.get("current_quantity", 0)

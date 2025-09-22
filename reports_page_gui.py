@@ -148,12 +148,14 @@ class ModernReportsPageGUI:
         # Add tabs
         self.tabview.add("📅 Attendance Calendar")
         self.tabview.add("� Wage Reports")
+        self.tabview.add("🎁 Bonus Analysis")
         self.tabview.add("�👥 Employee Analytics") 
         self.tabview.add("💰 Financial Reports")
         
         # Create tab content
         self.create_attendance_tab()
         self.create_wage_reports_tab()
+        self.create_bonus_analysis_tab()
         self.create_employee_tab()
         self.create_financial_tab()
         
@@ -1025,6 +1027,611 @@ This will update the last paid date to today."""
     def export_wage_report(self, employee, present_days, overtime_hours, total_wage):
         """Export wage report (placeholder for future implementation)"""
         messagebox.showinfo("Coming Soon", "Export functionality will be available in a future update.")
+    
+    def create_bonus_analysis_tab(self):
+        """Create bonus analysis tab for employee bonus calculations"""
+        tab_frame = self.tabview.tab("🎁 Bonus Analysis")
+        
+        # Create scrollable container
+        container = ctk.CTkScrollableFrame(tab_frame, corner_radius=8)
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Configure improved scroll speed
+        self.configure_scroll_speed(container)
+        
+        # Header section
+        header_frame = ctk.CTkFrame(container, height=80, corner_radius=8)
+        header_frame.pack(fill="x", padx=10, pady=(10, 20))
+        header_frame.pack_propagate(False)
+        
+        # Title
+        title_label = ctk.CTkLabel(
+            header_frame,
+            text="🎁 Employee Bonus Calculator",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color=self.colors['purple']
+        )
+        title_label.pack(side="left", padx=20, pady=25)
+        
+        # Refresh button
+        refresh_btn = ctk.CTkButton(
+            header_frame,
+            text="🔄 Refresh Data",
+            command=self.refresh_bonus_data,
+            height=40,
+            width=150,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=self.colors['primary'],
+            hover_color=self.darken_color(self.colors['primary'])
+        )
+        refresh_btn.pack(side="right", padx=20, pady=20)
+        
+        # Bonus rate configuration section
+        rate_frame = ctk.CTkFrame(container, corner_radius=8)
+        rate_frame.pack(fill="x", padx=10, pady=(0, 20))
+        
+        rate_content = ctk.CTkFrame(rate_frame, fg_color="transparent")
+        rate_content.pack(fill="x", padx=20, pady=15)
+        
+        ctk.CTkLabel(
+            rate_content,
+            text="Bonus Rate Configuration:",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=self.colors['dark']
+        ).pack(side="left", padx=(0, 20))
+        
+        self.bonus_rate_var = ctk.StringVar(value="8.33")
+        bonus_rate_entry = ctk.CTkEntry(
+            rate_content,
+            textvariable=self.bonus_rate_var,
+            width=100,
+            height=35,
+            font=ctk.CTkFont(size=14),
+            placeholder_text="8.33"
+        )
+        bonus_rate_entry.pack(side="left", padx=(0, 10))
+        
+        ctk.CTkLabel(
+            rate_content,
+            text="% (Default: 8.33%)",
+            font=ctk.CTkFont(size=14),
+            text_color=self.colors['dark']
+        ).pack(side="left")
+        
+        # Date setting section for last bonus paid
+        date_frame = ctk.CTkFrame(container, corner_radius=8)
+        date_frame.pack(fill="x", padx=10, pady=(0, 20))
+        
+        date_content = ctk.CTkFrame(date_frame, fg_color="transparent")
+        date_content.pack(fill="x", padx=20, pady=15)
+        
+        ctk.CTkLabel(
+            date_content,
+            text="Set Last Bonus Paid Date:",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=self.colors['dark']
+        ).pack(side="left", padx=(0, 20))
+        
+        self.last_bonus_date_var = ctk.StringVar(value="")
+        self.last_bonus_date_entry = ctk.CTkEntry(
+            date_content,
+            textvariable=self.last_bonus_date_var,
+            width=150,
+            height=35,
+            font=ctk.CTkFont(size=14),
+            placeholder_text="YYYY-MM-DD"
+        )
+        self.last_bonus_date_entry.pack(side="left", padx=(0, 10))
+        
+        update_date_btn = ctk.CTkButton(
+            date_content,
+            text="Update Date",
+            command=self.update_last_bonus_date,
+            height=35,
+            width=120,
+            font=ctk.CTkFont(size=14),
+            fg_color=self.colors['primary'],
+            hover_color=self.darken_color(self.colors['primary'])
+        )
+        update_date_btn.pack(side="left", padx=(0, 10))
+        
+        ctk.CTkLabel(
+            date_content,
+            text="(Optional: Override calculation start date)",
+            font=ctk.CTkFont(size=12),
+            text_color="#9CA3AF"
+        ).pack(side="left")
+        
+        # Employee selection section
+        selection_frame = ctk.CTkFrame(container, corner_radius=8)
+        selection_frame.pack(fill="x", padx=10, pady=(0, 20))
+        
+        # Employee dropdown
+        dropdown_frame = ctk.CTkFrame(selection_frame, fg_color="transparent")
+        dropdown_frame.pack(fill="x", padx=20, pady=20)
+        
+        ctk.CTkLabel(
+            dropdown_frame,
+            text="Select Employee:",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=self.colors['dark']
+        ).pack(side="left", padx=(0, 20))
+        
+        self.bonus_employee_var = ctk.StringVar()
+        self.bonus_employee_dropdown = ctk.CTkComboBox(
+            dropdown_frame,
+            variable=self.bonus_employee_var,
+            values=self.get_employee_list_for_bonus(),
+            width=300,
+            height=40,
+            font=ctk.CTkFont(size=14),
+            command=self.on_bonus_employee_select
+        )
+        self.bonus_employee_dropdown.pack(side="left", padx=(0, 20))
+        
+        # Calculate button
+        calculate_btn = ctk.CTkButton(
+            dropdown_frame,
+            text="🎁 Calculate Bonus",
+            command=self.calculate_employee_bonus,
+            height=40,
+            width=180,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=self.colors['purple'],
+            hover_color=self.darken_color(self.colors['purple'])
+        )
+        calculate_btn.pack(side="left")
+        
+        # Results display section
+        self.bonus_results_frame = ctk.CTkFrame(container, corner_radius=8)
+        self.bonus_results_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        
+        # Initial empty state
+        self.create_bonus_empty_state()
+    
+    def get_employee_list_for_bonus(self):
+        """Get list of employees for bonus dropdown"""
+        try:
+            # Use regular get_employees method as fallback
+            employees_df = self.data_service.get_employees()
+            if employees_df.empty:
+                return ["No employees found"]
+            
+            employee_list = []
+            for _, emp in employees_df.iterrows():
+                emp_id = emp.get('employee_id', 'Unknown')
+                name = emp.get('name', 'Unknown')
+                employee_list.append(f"{emp_id} - {name}")
+            
+            return employee_list
+        except Exception as e:
+            logger.error(f"Error getting employee list for bonus: {e}")
+            return ["Error loading employees"]
+    
+    def on_bonus_employee_select(self, selection):
+        """Handle employee selection in bonus dropdown"""
+        if selection and selection != "No employees found" and selection != "Error loading employees":
+            # Load current last_bonus_paid date for selected employee
+            self.load_employee_last_bonus_date()
+            # Automatically calculate bonus when employee is selected
+            self.calculate_employee_bonus()
+    
+    def load_employee_last_bonus_date(self):
+        """Load the current last_bonus_paid date for the selected employee"""
+        try:
+            selected = self.bonus_employee_var.get()
+            if not selected or selected in ["No employees found", "Error loading employees"]:
+                self.last_bonus_date_var.set("")
+                return
+            
+            # Extract employee ID from selection
+            emp_id = selected.split(" - ")[0]
+            
+            # Get employee data
+            employees_df = self.data_service.get_employees({"employee_id": emp_id})
+            if not employees_df.empty:
+                employee = employees_df.iloc[0]
+                last_bonus_paid = employee.get('last_bonus_paid', '')
+                
+                # Format the date for display
+                if last_bonus_paid:
+                    if hasattr(last_bonus_paid, 'strftime'):
+                        formatted_date = last_bonus_paid.strftime('%Y-%m-%d')
+                    else:
+                        formatted_date = str(last_bonus_paid).split(' ')[0]  # Take date part if datetime string
+                    self.last_bonus_date_var.set(formatted_date)
+                else:
+                    self.last_bonus_date_var.set("")
+                    
+        except Exception as e:
+            logger.error(f"Error loading last bonus date: {e}")
+            self.last_bonus_date_var.set("")
+    
+    def update_last_bonus_date(self):
+        """Update the last_bonus_paid date for the selected employee"""
+        try:
+            selected = self.bonus_employee_var.get()
+            if not selected or selected in ["No employees found", "Error loading employees"]:
+                messagebox.showwarning("No Selection", "Please select an employee first.")
+                return
+            
+            new_date = self.last_bonus_date_var.get().strip()
+            if not new_date:
+                messagebox.showwarning("Invalid Date", "Please enter a date in YYYY-MM-DD format.")
+                return
+            
+            # Validate date format
+            try:
+                from datetime import datetime
+                parsed_date = datetime.strptime(new_date, '%Y-%m-%d')
+            except ValueError:
+                messagebox.showerror("Invalid Date", "Please enter a valid date in YYYY-MM-DD format.")
+                return
+            
+            # Extract employee ID from selection
+            emp_id = selected.split(" - ")[0]
+            
+            # Update the employee's last_bonus_paid date
+            result = self.data_service.update_employee(emp_id, {
+                'last_bonus_paid': new_date
+            })
+            
+            if result > 0:
+                messagebox.showinfo("Success", f"Last bonus paid date updated to {new_date} for employee {emp_id}")
+                # Refresh the bonus calculation with new date
+                self.calculate_employee_bonus()
+            else:
+                messagebox.showerror("Error", "Failed to update the last bonus paid date.")
+                
+        except Exception as e:
+            logger.error(f"Error updating last bonus date: {e}")
+            messagebox.showerror("Error", f"Failed to update date: {str(e)}")
+    
+    def refresh_bonus_data(self):
+        """Refresh employee dropdown and clear results"""
+        try:
+            # Update dropdown values
+            new_values = self.get_employee_list_for_bonus()
+            self.bonus_employee_dropdown.configure(values=new_values)
+            
+            # Clear selection
+            self.bonus_employee_var.set("")
+            
+            # Show empty state
+            self.create_bonus_empty_state()
+            
+        except Exception as e:
+            logger.error(f"Error refreshing bonus data: {e}")
+    
+    def create_bonus_empty_state(self):
+        """Create empty state for bonus results"""
+        # Clear existing widgets
+        for widget in self.bonus_results_frame.winfo_children():
+            widget.destroy()
+        
+        # Empty state message
+        empty_frame = ctk.CTkFrame(self.bonus_results_frame, fg_color="transparent")
+        empty_frame.pack(expand=True, fill="both")
+        
+        ctk.CTkLabel(
+            empty_frame,
+            text="🎁 Select an employee to calculate bonus",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.colors['gray_light'] if hasattr(self, 'colors') and 'gray_light' in self.colors else "#9CA3AF"
+        ).pack(expand=True, pady=50)
+    
+    def calculate_employee_bonus(self):
+        """Calculate and display bonus for selected employee"""
+        try:
+            # Get selected employee
+            selection = self.bonus_employee_var.get()
+            if not selection or selection in ["No employees found", "Error loading employees", ""]:
+                messagebox.showwarning("Selection Required", "Please select an employee first.")
+                return
+            
+            # Extract employee ID
+            emp_id = selection.split(" - ")[0].strip()
+            
+            # Get bonus rate
+            try:
+                bonus_rate = float(self.bonus_rate_var.get())
+                if bonus_rate <= 0 or bonus_rate > 100:
+                    messagebox.showerror("Invalid Rate", "Bonus rate must be between 0.01% and 100%.")
+                    return
+            except ValueError:
+                messagebox.showerror("Invalid Rate", "Please enter a valid bonus rate (e.g., 8.33).")
+                return
+            
+            # Calculate bonus using BonusCalculator directly
+            try:
+                from bonus_calculator import BonusCalculator
+                
+                # Get employee data
+                employees_df = self.data_service.get_employees({"employee_id": emp_id})
+                if employees_df.empty:
+                    messagebox.showerror("Error", "Employee not found.")
+                    return
+                
+                employee = employees_df.iloc[0].to_dict()
+                
+                # Calculate bonus using BonusCalculator directly
+                calculator = BonusCalculator(self.data_service)
+                result = calculator.calculate_employee_bonus(employee, bonus_rate)
+                
+                if 'error' in result:
+                    messagebox.showerror("Calculation Error", result['error'])
+                    return
+                
+                # Display results
+                self.display_bonus_results(result)
+                
+            except ImportError:
+                messagebox.showerror("Error", "Bonus calculator module not found.")
+                return
+            
+        except Exception as e:
+            logger.error(f"Error calculating bonus: {e}")
+            messagebox.showerror("Error", f"Failed to calculate bonus: {str(e)}")
+    
+    def display_bonus_results(self, result):
+        """Display calculated bonus results"""
+        # Clear existing widgets
+        for widget in self.bonus_results_frame.winfo_children():
+            widget.destroy()
+        
+        # Main results container
+        results_container = ctk.CTkFrame(self.bonus_results_frame, fg_color="transparent")
+        results_container.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        # Employee info header
+        info_frame = ctk.CTkFrame(results_container, corner_radius=8, fg_color=self.colors['light'])
+        info_frame.pack(fill="x", pady=(0, 20))
+        
+        info_content = ctk.CTkFrame(info_frame, fg_color="transparent")
+        info_content.pack(fill="x", padx=20, pady=15)
+        
+        # Employee name and ID
+        emp_label = ctk.CTkLabel(
+            info_content,
+            text=f"👤 {result.get('employee_name', 'Unknown')} (ID: {result.get('employee_id', 'Unknown')})",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.colors['dark']
+        )
+        emp_label.pack(side="left")
+        
+        # Daily wage info
+        wage_label = ctk.CTkLabel(
+            info_content,
+            text=f"💰 Daily Wage: ₹{result.get('daily_wage', 0):,.2f}",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=self.colors['success']
+        )
+        wage_label.pack(side="right")
+        
+        # Period info
+        period_frame = ctk.CTkFrame(results_container, corner_radius=8, fg_color=self.colors['info'])
+        period_frame.pack(fill="x", pady=(0, 20))
+        
+        start_date = result.get('period_start')
+        end_date = result.get('period_end')
+        period_label = ctk.CTkLabel(
+            period_frame,
+            text=f"📅 Bonus Calculation Period: {start_date} to {end_date}",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="white"
+        )
+        period_label.pack(pady=15)
+        
+        # Time remaining info
+        time_frame = ctk.CTkFrame(results_container, corner_radius=8, 
+                                 fg_color=self.colors['warning'] if not result.get('is_bonus_due', False) else self.colors['success'])
+        time_frame.pack(fill="x", pady=(0, 20))
+        
+        months = result.get('months_remaining', 0)
+        days = result.get('days_remaining', 0)
+        
+        if result.get('is_bonus_due', False):
+            time_text = "🎉 Bonus is Due! (1 year completed)"
+        else:
+            time_text = f"⏳ Time Remaining: {months} months {days} days until next bonus"
+        
+        time_label = ctk.CTkLabel(
+            time_frame,
+            text=time_text,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="white"
+        )
+        time_label.pack(pady=15)
+        
+        # Results grid
+        results_grid = ctk.CTkFrame(results_container, corner_radius=8)
+        results_grid.pack(fill="x", pady=(0, 20))
+        
+        # Configure grid
+        results_grid.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        
+        # Headers
+        headers = ["Work Days", "Total Hours", "Exception Hours", "Effective Hours"]
+        values = [
+            str(result.get('work_days', 0)),
+            f"{result.get('total_hours_worked', 0):.1f}h",
+            f"{result.get('total_exception_hours', 0):.1f}h", 
+            f"{result.get('effective_hours', 0):.1f}h"
+        ]
+        
+        for i, (header, value) in enumerate(zip(headers, values)):
+            # Header
+            header_label = ctk.CTkLabel(
+                results_grid,
+                text=header,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color=self.colors['dark']
+            )
+            header_label.grid(row=0, column=i, padx=10, pady=(15, 5), sticky="ew")
+            
+            # Value
+            value_label = ctk.CTkLabel(
+                results_grid,
+                text=value,
+                font=ctk.CTkFont(size=16, weight="bold"),
+                text_color=self.colors['dark']
+            )
+            value_label.grid(row=1, column=i, padx=10, pady=(0, 15), sticky="ew")
+        
+        # Earnings and bonus display
+        earnings_frame = ctk.CTkFrame(results_container, corner_radius=8)
+        earnings_frame.pack(fill="x", pady=(0, 20))
+        
+        # Configure grid for earnings
+        earnings_frame.grid_columnconfigure((0, 1), weight=1)
+        
+        # Total earned
+        earned_label = ctk.CTkLabel(
+            earnings_frame,
+            text="Total Earned",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=self.colors['dark']
+        )
+        earned_label.grid(row=0, column=0, padx=20, pady=(15, 5))
+        
+        earned_value = ctk.CTkLabel(
+            earnings_frame,
+            text=f"₹{result.get('total_earned', 0):,.2f}",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.colors['success']
+        )
+        earned_value.grid(row=1, column=0, padx=20, pady=(0, 15))
+        
+        # Bonus rate
+        rate_label = ctk.CTkLabel(
+            earnings_frame,
+            text="Bonus Rate",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color=self.colors['dark']
+        )
+        rate_label.grid(row=0, column=1, padx=20, pady=(15, 5))
+        
+        rate_value = ctk.CTkLabel(
+            earnings_frame,
+            text=f"{result.get('bonus_rate', 0):.2f}%",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=self.colors['info']
+        )
+        rate_value.grid(row=1, column=1, padx=20, pady=(0, 15))
+        
+        # Total bonus display
+        bonus_frame = ctk.CTkFrame(results_container, corner_radius=8, fg_color=self.colors['purple'])
+        bonus_frame.pack(fill="x", pady=(0, 20))
+        
+        bonus_label = ctk.CTkLabel(
+            bonus_frame,
+            text=f"🎁 Total Bonus Amount: ₹{result.get('bonus_amount', 0):,.2f}",
+            font=ctk.CTkFont(size=20, weight="bold"),
+            text_color="white"
+        )
+        bonus_label.pack(pady=20)
+        
+        # Calculation breakdown
+        breakdown_frame = ctk.CTkFrame(results_container, corner_radius=8)
+        breakdown_frame.pack(fill="x", pady=(0, 20))
+        
+        breakdown_title = ctk.CTkLabel(
+            breakdown_frame,
+            text="📊 Bonus Calculation Breakdown",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=self.colors['dark']
+        )
+        breakdown_title.pack(pady=(15, 10))
+        
+        # Calculation details
+        total_earned = result.get('total_earned', 0)
+        bonus_rate = result.get('bonus_rate', 0)
+        bonus_amount = result.get('bonus_amount', 0)
+        
+        breakdown_text = ctk.CTkLabel(
+            breakdown_frame,
+            text=f"""🔹 Total Earned: ₹{total_earned:,.2f}
+🔹 Bonus Rate: {bonus_rate:.2f}%
+🔹 Formula: ₹{total_earned:,.2f} × {bonus_rate:.2f}% = ₹{bonus_amount:,.2f}""",
+            font=ctk.CTkFont(size=14),
+            text_color=self.colors['dark'],
+            justify="left"
+        )
+        breakdown_text.pack(pady=(0, 15))
+        
+        # Action buttons
+        actions_frame = ctk.CTkFrame(results_container, corner_radius=8)
+        actions_frame.pack(fill="x", pady=(0, 10))
+        
+        actions_content = ctk.CTkFrame(actions_frame, fg_color="transparent")
+        actions_content.pack(fill="x", padx=20, pady=15)
+        
+        # Bonus paid button
+        bonus_paid_btn = ctk.CTkButton(
+            actions_content,
+            text="✅ Mark Bonus as Paid",
+            command=lambda: self.mark_bonus_as_paid(result.get('employee_id')),
+            height=40,
+            width=200,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=self.colors['success'],
+            hover_color=self.darken_color(self.colors['success'])
+        )
+        bonus_paid_btn.pack(side="left", padx=(0, 20))
+        
+        # Export button (placeholder)
+        export_btn = ctk.CTkButton(
+            actions_content,
+            text="📄 Export Report",
+            command=lambda: self.export_bonus_report(result),
+            height=40,
+            width=150,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=self.colors['info'],
+            hover_color=self.darken_color(self.colors['info'])
+        )
+        export_btn.pack(side="left")
+    
+    def mark_bonus_as_paid(self, employee_id):
+        """Mark bonus as paid for an employee with confirmation"""
+        try:
+            # Show confirmation dialog
+            result = messagebox.askyesno(
+                "Confirm Bonus Payment",
+                f"Are you sure you want to mark bonus as paid for employee {employee_id}?\n\n"
+                "This will reset the bonus calculation and start counting from today.",
+                icon="warning"
+            )
+            
+            if result:
+                # Mark bonus as paid using direct database update
+                try:
+                    from datetime import date
+                    today = date.today()
+                    
+                    # Update employee record with last_bonus_paid
+                    update_result = self.data_service.update_employee(employee_id, {
+                        'last_bonus_paid': today.strftime('%Y-%m-%d')
+                    })
+                    
+                    if update_result > 0:
+                        messagebox.showinfo("Success", "Bonus payment has been recorded successfully!")
+                        # Refresh the calculation to show updated data
+                        self.calculate_employee_bonus()
+                    else:
+                        messagebox.showerror("Error", "Failed to record bonus payment.")
+                        
+                except Exception as e:
+                    logger.error(f"Error updating bonus payment: {e}")
+                    messagebox.showerror("Error", f"Failed to record bonus payment: {str(e)}")
+            
+        except Exception as e:
+            logger.error(f"Error marking bonus as paid: {e}")
+            messagebox.showerror("Error", f"Failed to mark bonus as paid: {str(e)}")
+    
+    def export_bonus_report(self, result):
+        """Export bonus report (placeholder for future implementation)"""
+        messagebox.showinfo("Coming Soon", "Export functionality will be available in a future update.")
         
     def create_employee_tab(self):
         """Create employee analytics tab"""
@@ -1657,7 +2264,7 @@ This will update the last paid date to today."""
             status_label.pack(side="left", padx=5)
     
     def create_attendance_stats(self):
-        """Create attendance statistics"""
+        """Create attendance statistics with date range option"""
         # Clear existing stats (but keep legend)
         for widget in self.stats_frame.winfo_children():
             if hasattr(widget, 'cget'):
@@ -1674,18 +2281,181 @@ This will update the last paid date to today."""
             return
             
         try:
-            # Get attendance data for selected employee
-            attendance_df = self.data_service.get_attendance({
-                "employee_id": self.selected_employee
-            })
-            
             # Statistics header
             stats_header = ctk.CTkLabel(
                 self.stats_frame,
                 text="📊 Attendance Statistics",
                 font=ctk.CTkFont(size=16, weight="bold")
             )
-            stats_header.pack(pady=(30, 10))
+            stats_header.pack(pady=(15, 5))
+            
+            # Stat Type Selection Frame
+            stat_type_frame = ctk.CTkFrame(self.stats_frame, corner_radius=8)
+            stat_type_frame.pack(fill="x", padx=10, pady=(0, 5))
+            
+            ctk.CTkLabel(
+                stat_type_frame,
+                text="Stat Type:",
+                font=ctk.CTkFont(size=12, weight="bold")
+            ).pack(side="left", padx=10, pady=10)
+            
+            # Initialize stat type variable if not exists
+            if not hasattr(self, 'stat_type_var'):
+                self.stat_type_var = ctk.StringVar(value="Overall")
+            
+            stat_type_dropdown = ctk.CTkComboBox(
+                stat_type_frame,
+                variable=self.stat_type_var,
+                values=["Overall", "Range"],
+                width=120,
+                height=35,
+                command=self.on_stat_type_change
+            )
+            stat_type_dropdown.pack(side="left", padx=(0, 10))
+            
+            # Date Range Frame (separate frame below stat type)
+            self.date_range_frame = ctk.CTkFrame(self.stats_frame, corner_radius=8)
+            
+            # Initialize date variables if not exist
+            if not hasattr(self, 'start_date_var'):
+                from datetime import date, timedelta
+                today = date.today()
+                month_ago = today - timedelta(days=30)
+                self.start_date_var = ctk.StringVar(value=month_ago.strftime('%Y-%m-%d'))
+                self.end_date_var = ctk.StringVar(value=today.strftime('%Y-%m-%d'))
+            
+            # Date range content frame
+            date_content_frame = ctk.CTkFrame(self.date_range_frame, fg_color="transparent")
+            date_content_frame.pack(fill="x", padx=10, pady=5)
+            
+            # First row: From date
+            from_row = ctk.CTkFrame(date_content_frame, fg_color="transparent")
+            from_row.pack(fill="x", pady=(0, 3))
+            
+            ctk.CTkLabel(
+                from_row,
+                text="From:",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                width=60
+            ).pack(side="left", padx=(0, 5))
+            
+            self.start_date_entry = ctk.CTkEntry(
+                from_row,
+                textvariable=self.start_date_var,
+                width=120,
+                height=35,
+                placeholder_text="YYYY-MM-DD"
+            )
+            self.start_date_entry.pack(side="left", padx=(0, 5))
+            
+            # Calendar button for start date
+            def open_start_date_picker():
+                self.open_date_picker(self.start_date_var)
+            
+            start_cal_btn = ctk.CTkButton(
+                from_row,
+                text="📅",
+                width=40,
+                height=35,
+                font=ctk.CTkFont(size=12),
+                command=open_start_date_picker
+            )
+            start_cal_btn.pack(side="left", padx=(0, 10))
+            
+            # Second row: To date  
+            to_row = ctk.CTkFrame(date_content_frame, fg_color="transparent")
+            to_row.pack(fill="x", pady=(0, 3))
+            
+            ctk.CTkLabel(
+                to_row,
+                text="To:",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                width=60
+            ).pack(side="left", padx=(0, 5))
+            
+            self.end_date_entry = ctk.CTkEntry(
+                to_row,
+                textvariable=self.end_date_var,
+                width=120,
+                height=35,
+                placeholder_text="YYYY-MM-DD"
+            )
+            self.end_date_entry.pack(side="left", padx=(0, 5))
+            
+            # Calendar button for end date
+            def open_end_date_picker():
+                self.open_date_picker(self.end_date_var)
+            
+            end_cal_btn = ctk.CTkButton(
+                to_row,
+                text="📅",
+                width=40,
+                height=35,
+                font=ctk.CTkFont(size=12),
+                command=open_end_date_picker
+            )
+            end_cal_btn.pack(side="left", padx=(0, 10))
+            
+            # Third row: Update button
+            button_row = ctk.CTkFrame(date_content_frame, fg_color="transparent")
+            button_row.pack(fill="x", pady=(3, 0))
+            
+            update_stats_btn = ctk.CTkButton(
+                button_row,
+                text="Update Statistics",
+                command=self.update_attendance_stats,
+                height=35,
+                width=150,
+                font=ctk.CTkFont(size=12, weight="bold"),
+                fg_color=self.colors['primary'],
+                hover_color=self.darken_color(self.colors['primary'])
+            )
+            update_stats_btn.pack(side="left")
+            
+            # Show/hide date range based on current selection
+            self.on_stat_type_change(self.stat_type_var.get())
+            
+            # Generate the actual statistics
+            self.update_attendance_stats()
+            
+        except Exception as e:
+            error_label = ctk.CTkLabel(
+                self.stats_frame,
+                text=f"Error loading statistics: {str(e)}",
+                font=ctk.CTkFont(size=12),
+                text_color="red"
+            )
+            error_label.pack(pady=20)
+    
+    def on_stat_type_change(self, selection):
+        """Handle stat type dropdown change"""
+        try:
+            if selection == "Range":
+                self.date_range_frame.pack(fill="x", padx=10, pady=(0, 5))
+            else:
+                self.date_range_frame.pack_forget()
+            
+            # Update stats when type changes
+            self.update_attendance_stats()
+        except Exception as e:
+            pass  # Ignore errors during initialization
+    
+    def update_attendance_stats(self):
+        """Update attendance statistics based on selected type and date range"""
+        try:
+            # Clear existing stats display (but keep the controls)
+            # Find and remove only the stats container by checking for our specific attribute
+            for widget in self.stats_frame.winfo_children():
+                if hasattr(widget, 'stats_container_marker'):
+                    widget.destroy()
+            
+            if not self.selected_employee:
+                return
+                
+            # Get attendance data for selected employee
+            attendance_df = self.data_service.get_attendance({
+                "employee_id": self.selected_employee
+            })
             
             if attendance_df.empty:
                 no_data_label = ctk.CTkLabel(
@@ -1695,7 +2465,47 @@ This will update the last paid date to today."""
                     text_color="gray"
                 )
                 no_data_label.pack(pady=20)
+                # Mark as statistics content for clearing
+                no_data_label.stats_container_marker = True
                 return
+            
+            # Filter by date range if "Range" is selected
+            if self.stat_type_var.get() == "Range":
+                try:
+                    from datetime import datetime
+                    start_date = datetime.strptime(self.start_date_var.get(), '%Y-%m-%d').date()
+                    end_date = datetime.strptime(self.end_date_var.get(), '%Y-%m-%d').date()
+                    
+                    # Convert date column to datetime for comparison
+                    attendance_df['date_parsed'] = pd.to_datetime(attendance_df['date']).dt.date
+                    attendance_df = attendance_df[
+                        (attendance_df['date_parsed'] >= start_date) & 
+                        (attendance_df['date_parsed'] <= end_date)
+                    ]
+                    
+                    if attendance_df.empty:
+                        no_data_label = ctk.CTkLabel(
+                            self.stats_frame,
+                            text="No attendance data found for selected date range",
+                            font=ctk.CTkFont(size=12),
+                            text_color="gray"
+                        )
+                        no_data_label.pack(pady=20)
+                        # Mark as statistics content for clearing
+                        no_data_label.stats_container_marker = True
+                        return
+                        
+                except ValueError:
+                    error_label = ctk.CTkLabel(
+                        self.stats_frame,
+                        text="Invalid date format. Please use YYYY-MM-DD",
+                        font=ctk.CTkFont(size=12),
+                        text_color="red"
+                    )
+                    error_label.pack(pady=20)
+                    # Mark as statistics content for clearing
+                    error_label.stats_container_marker = True
+                    return
             
             # Calculate statistics
             stats = attendance_df['status'].value_counts()
@@ -1703,7 +2513,9 @@ This will update the last paid date to today."""
             
             # Statistics container
             stats_container = ctk.CTkFrame(self.stats_frame, corner_radius=8)
-            stats_container.pack(fill="x", padx=10, pady=10)
+            stats_container.pack(fill="x", padx=10, pady=5)
+            # Mark this as a statistics container for easy identification
+            stats_container.stats_container_marker = True
             
             # Display statistics
             for status, count in stats.items():
@@ -1745,9 +2557,11 @@ This will update the last paid date to today."""
             total_frame = ctk.CTkFrame(stats_container, fg_color="transparent")
             total_frame.pack(fill="x", pady=(10, 5))
             
+            period_text = "Overall" if self.stat_type_var.get() == "Overall" else f"Range ({self.start_date_var.get()} to {self.end_date_var.get()})"
+            
             ctk.CTkLabel(
                 total_frame,
-                text="Total Days:",
+                text=f"Total Days ({period_text}):",
                 font=ctk.CTkFont(size=12, weight="bold")
             ).pack(side="left", padx=10, pady=5)
             
@@ -1760,11 +2574,129 @@ This will update the last paid date to today."""
         except Exception as e:
             error_label = ctk.CTkLabel(
                 self.stats_frame,
-                text=f"Error loading statistics: {str(e)}",
+                text=f"Error updating statistics: {str(e)}",
                 font=ctk.CTkFont(size=12),
                 text_color="red"
             )
             error_label.pack(pady=20)
+            # Mark as statistics content for clearing
+            error_label.stats_container_marker = True
+    
+    def open_date_picker(self, date_var):
+        """Open a simple date picker dialog"""
+        try:
+            # Import here to avoid circular imports
+            import tkinter as tk
+            from tkinter import messagebox
+            import calendar
+            from datetime import datetime, date
+            
+            # Create a simple date picker window
+            picker_window = tk.Toplevel()
+            picker_window.title(f"Select Date")
+            picker_window.geometry("350x400")  # Increased size for better visibility
+            picker_window.resizable(False, False)
+            picker_window.grab_set()  # Make modal
+            
+            # Center the window
+            picker_window.transient(self.parent)
+            
+            # Current date or selected date
+            try:
+                current_date = datetime.strptime(date_var.get(), '%Y-%m-%d').date()
+            except:
+                current_date = date.today()
+            
+            # Variables for year and month
+            year_var = tk.IntVar(value=current_date.year)
+            month_var = tk.IntVar(value=current_date.month)
+            selected_day = tk.IntVar(value=current_date.day)
+            
+            # Year and month selection frame
+            control_frame = tk.Frame(picker_window)
+            control_frame.pack(pady=15)
+            
+            tk.Label(control_frame, text="Year:", font=("Arial", 10, "bold")).pack(side="left", padx=5)
+            year_spinbox = tk.Spinbox(control_frame, from_=2020, to=2030, textvariable=year_var, width=6, command=lambda: update_calendar())
+            year_spinbox.pack(side="left", padx=5)
+            
+            tk.Label(control_frame, text="Month:", font=("Arial", 10, "bold")).pack(side="left", padx=10)
+            month_spinbox = tk.Spinbox(control_frame, from_=1, to=12, textvariable=month_var, width=4, command=lambda: update_calendar())
+            month_spinbox.pack(side="left", padx=5)
+            
+            # Calendar frame
+            cal_frame = tk.Frame(picker_window)
+            cal_frame.pack(pady=15)
+            
+            # Days of week header
+            days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+            for i, day in enumerate(days):
+                tk.Label(cal_frame, text=day, font=("Arial", 9, "bold"), width=4).grid(row=0, column=i, padx=1, pady=1)
+            
+            day_buttons = {}
+            
+            def update_calendar():
+                # Clear existing buttons
+                for btn in day_buttons.values():
+                    btn.destroy()
+                day_buttons.clear()
+                
+                # Get calendar for the month
+                cal = calendar.monthcalendar(year_var.get(), month_var.get())
+                
+                for week_num, week in enumerate(cal, 1):
+                    for day_num, day in enumerate(week):
+                        if day == 0:
+                            continue
+                        
+                        btn = tk.Button(
+                            cal_frame,
+                            text=str(day),
+                            width=4,
+                            height=2,
+                            font=("Arial", 9),
+                            command=lambda d=day: select_day(d)
+                        )
+                        btn.grid(row=week_num, column=day_num, padx=2, pady=2)
+                        day_buttons[day] = btn
+                        
+                        # Highlight current selection
+                        if day == selected_day.get() and year_var.get() == current_date.year and month_var.get() == current_date.month:
+                            btn.configure(bg="lightblue")
+            
+            def select_day(day):
+                selected_day.set(day)
+                # Update button colors
+                for d, btn in day_buttons.items():
+                    if d == day:
+                        btn.configure(bg="lightblue")
+                    else:
+                        btn.configure(bg="SystemButtonFace")
+            
+            def confirm_date():
+                try:
+                    selected_date = date(year_var.get(), month_var.get(), selected_day.get())
+                    date_var.set(selected_date.strftime('%Y-%m-%d'))
+                    picker_window.destroy()
+                    # Update stats after date selection
+                    if hasattr(self, 'update_attendance_stats'):
+                        self.update_attendance_stats()
+                except ValueError:
+                    messagebox.showerror("Invalid Date", "Please select a valid date.")
+            
+            # Buttons frame
+            btn_frame = tk.Frame(picker_window)
+            btn_frame.pack(pady=20)
+            
+            tk.Button(btn_frame, text="Today", command=lambda: (year_var.set(date.today().year), month_var.set(date.today().month), selected_day.set(date.today().day), update_calendar()), font=("Arial", 9), width=8).pack(side="left", padx=8)
+            tk.Button(btn_frame, text="OK", command=confirm_date, bg="lightgreen", font=("Arial", 9, "bold"), width=8).pack(side="left", padx=8)
+            tk.Button(btn_frame, text="Cancel", command=picker_window.destroy, font=("Arial", 9), width=8).pack(side="left", padx=8)
+            
+            # Initial calendar display
+            update_calendar()
+            
+        except Exception as e:
+            messagebox.showerror("Date Picker Error", f"Error opening date picker: {str(e)}")
     
     def generate_employee_reports(self):
         """Generate enhanced employee analytics"""
@@ -2687,7 +3619,7 @@ This will update the last paid date to today."""
                     f"Daily Wage: ₹{highest_daily_wage_emp['daily_wage']:,.2f}",
                     f"Department: {highest_daily_wage_emp['department']}",
                     f"Position: {highest_daily_wage_emp['position']}",
-                    f"Email: {highest_daily_wage_emp['email']}"
+                    f"Employee ID: {highest_daily_wage_emp['employee_id']}"
                 ])
             ]
             
