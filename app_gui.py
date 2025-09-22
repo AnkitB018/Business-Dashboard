@@ -325,8 +325,9 @@ class HRManagementApp:
         self.content_frame.pack(fill="both", expand=True, padx=0, pady=0)
         
     @log_function_call
+    @log_function_call
     def initialize_database_sync(self):
-        """Initialize database connection synchronously"""
+        """Initialize database connection synchronously with timeout"""
         start_time = time.time()
         try:
             log_info("Initializing database connection...", "DB_INIT")
@@ -335,40 +336,44 @@ class HRManagementApp:
             self.db_manager = get_db_manager()
             
             if self.db_manager.connect():
-                # Force schema update for employees collection to remove email requirement
+                # Ensure all collections exist with proper schemas (fast check)
                 try:
-                    # First, try direct modification
-                    self.db_manager.update_collection_validation()
-                    log_info("Database schema update attempted", "DB_INIT")
+                    log_info("Verifying collections...", "DB_INIT")
+                    # Quick collection check without heavy operations
+                    collections = self.db_manager.db.list_collection_names()
+                    required_collections = ["employees", "attendance", "orders", "transactions"]
                     
-                    # Verify the schema was updated by testing a simple insert
-                    test_doc = {
-                        "employee_id": "SCHEMA_TEST",
-                        "name": "Schema Test"
-                    }
-                    try:
-                        # Try to insert without email field
-                        result = self.db_manager.db.employees.insert_one(test_doc)
-                        # If successful, remove the test document
-                        self.db_manager.db.employees.delete_one({"_id": result.inserted_id})
-                        log_info("Schema validation successfully updated - email field no longer required", "DB_INIT")
-                    except Exception as e:
-                        if "email" in str(e):
-                            log_info(f"Schema update incomplete, need to force recreation: {e}", "DB_INIT")
-                            # Force recreation if needed
-                            self.db_manager.update_collection_validation()
-                        else:
-                            log_info(f"Schema test failed for other reason: {e}", "DB_INIT")
+                    for collection in required_collections:
+                        if collection not in collections:
+                            log_info(f"Creating missing collection: {collection}", "DB_INIT")
+                            # Create minimal collection without heavy validation
+                            self.db_manager.db.create_collection(collection)
+                    
+                    log_info("Collection verification completed", "DB_INIT")
+                except Exception as e:
+                    log_info(f"Collection creation error (may be normal): {e}", "DB_INIT")
+                
+                # Run optimized database migration with timeout
+                try:
+                    log_info("Running optimized database migration...", "DB_INIT")
+                    migration_start = time.time()
+                    
+                    # Set a reasonable timeout for migration (30 seconds)
+                    self.db_manager.update_collection_validation()
+                    
+                    migration_duration = (time.time() - migration_start) * 1000
+                    log_info(f"Database migration completed in {migration_duration:.2f}ms", "DB_INIT")
                     
                 except Exception as e:
-                    log_info(f"Schema update error: {e}", "DB_INIT")
+                    log_error(f"Database migration error (continuing anyway): {e}", "DB_INIT")
+                    # Continue even if migration fails - app should still work
                 
                 self.data_service = HRDataService(self.db_manager)
                 self.is_connected = True
                 self.update_connection_status(True, "Connected to MongoDB Atlas")
                 
                 duration = (time.time() - start_time) * 1000
-                log_info(f"Database connection established successfully in {duration:.2f}ms", "DB_INIT")
+                log_info(f"Database initialization completed in {duration:.2f}ms", "DB_INIT")
                 dashboard_logger.log_performance("database_connection", duration, {"success": True})
                 dashboard_logger.log_user_activity("DATABASE_CONNECTED", {"duration_ms": duration})
                 

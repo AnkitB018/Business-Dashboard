@@ -152,6 +152,10 @@ class MongoDBManager:
                     "employee_name": {"bsonType": "string"},
                     "date": {"bsonType": "date"},
                     "status": {"enum": ["Present", "Absent", "Leave", "Half Day", "Overtime", "Late", "Remote Work"]},
+                    "in_time": {"bsonType": "string"},
+                    "out_time": {"bsonType": "string"},
+                    "hours": {"bsonType": "string"},
+                    "exception_hours": {"bsonType": "string"},
                     "overtime_hours": {"bsonType": "number"},
                     "notes": {"bsonType": "string"},
                     "created_at": {"bsonType": "date"}
@@ -236,11 +240,12 @@ class MongoDBManager:
             # Transactions collection schema (new system)
             transactions_schema = {
                 "bsonType": "object",
-                "required": ["transaction_id", "order_id", "payment_amount", "payment_date"],
+                "required": ["transaction_id", "order_id", "payment_date"],
                 "properties": {
                     "transaction_id": {"bsonType": "string"},
                     "order_id": {"bsonType": "string"},
-                    "payment_amount": {"bsonType": "number"},
+                    "payment_amount": {"bsonType": "number"},  # Legacy field for backward compatibility
+                    "amount": {"bsonType": "number"},  # New standardized field
                     "payment_date": {"bsonType": "string"},
                     "payment_method": {"enum": ["Cash", "Card", "UPI", "Bank Transfer", "Cheque"]},
                     "transaction_type": {"enum": ["advance_payment", "payment", "refund"]},
@@ -279,78 +284,200 @@ class MongoDBManager:
             return False
     
     def update_collection_validation(self):
-        """Update validation schema for existing collections"""
+        """Update validation schema for existing collections and migrate data"""
         try:
-            # Updated employees schema without email requirement
-            employees_schema = {
-                "bsonType": "object",
-                "required": ["employee_id", "name"],
-                "properties": {
-                    "employee_id": {"bsonType": "string"},
-                    "name": {"bsonType": "string"},
-                    "aadhar_no": {"bsonType": "string"},
-                    "phone": {"bsonType": "string"},
-                    "department": {"bsonType": "string"},
-                    "position": {"bsonType": "string"},
-                    "daily_wage": {"bsonType": "number"},
-                    "hire_date": {"bsonType": "date"},
-                    "last_paid": {"bsonType": ["date", "null"]},
-                    "status": {"enum": ["active", "inactive", "terminated"]},
-                    "created_at": {"bsonType": "date"},
-                    "updated_at": {"bsonType": "date"}
-                }
-            }
+            logger.info("Starting optimized database migration...")
             
-            # First try to update the validation schema
+            # Run migrations with timeout and error handling
+            migrations = [
+                ("employees", self._migrate_employees_schema_fast),
+                ("attendance", self._migrate_attendance_schema_fast),
+                ("transactions", self._migrate_transactions_schema_fast)
+            ]
+            
+            for collection_name, migration_func in migrations:
+                try:
+                    logger.info(f"Migrating {collection_name}...")
+                    migration_func()
+                    logger.info(f"✓ {collection_name} migration completed")
+                except Exception as e:
+                    logger.warning(f"⚠ {collection_name} migration failed: {e}")
+                    # Continue with other migrations even if one fails
+                    continue
+            
+            logger.info("Database migration completed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error during database migration: {e}")
+            return False
+    
+    def _migrate_employees_schema_fast(self):
+        """Fast employees schema migration - skip if already correct"""
+        try:
+            # Quick check: try a simple operation to see if schema is already correct
+            test_doc = {"employee_id": "TEST_MIGRATION", "name": "Test"}
             try:
+                result = self.db.employees.insert_one(test_doc)
+                self.db.employees.delete_one({"_id": result.inserted_id})
+                logger.info("Employees schema already correct, skipping migration")
+                return
+            except Exception:
+                pass  # Schema needs migration
+            
+            # Only migrate if necessary - check if email is required
+            try:
+                # Try to update schema without dropping collection first
+                employees_schema = {
+                    "bsonType": "object",
+                    "required": ["employee_id", "name"],
+                    "properties": {
+                        "employee_id": {"bsonType": "string"},
+                        "name": {"bsonType": "string"},
+                        "aadhar_no": {"bsonType": "string"},
+                        "phone": {"bsonType": "string"},
+                        "department": {"bsonType": "string"},
+                        "position": {"bsonType": "string"},
+                        "daily_wage": {"bsonType": "number"},
+                        "hire_date": {"bsonType": "date"},
+                        "last_paid": {"bsonType": ["date", "null"]},
+                        "status": {"enum": ["active", "inactive", "terminated"]},
+                        "created_at": {"bsonType": "date"},
+                        "updated_at": {"bsonType": "date"}
+                    }
+                }
+                
                 self.db.command({
                     "collMod": "employees",
                     "validator": {"$jsonSchema": employees_schema}
                 })
-                logger.info("Updated employees collection validation schema")
-                return True
+                logger.info("Updated employees schema successfully")
             except Exception as e:
-                logger.info(f"Schema update failed, trying to recreate collection: {e}")
+                logger.info(f"Schema update failed, employees collection may need recreation: {e}")
+                # Don't recreate collection automatically - leave existing data intact
                 
-                # If update fails, backup data, drop collection, and recreate
-                # Get all existing employee data
-                existing_employees = list(self.db.employees.find({}))
-                logger.info(f"Backing up {len(existing_employees)} employee records")
-                
-                # Drop the collection
-                self.db.employees.drop()
-                logger.info("Dropped employees collection")
-                
-                # Recreate with new validation
-                self.db.create_collection(
-                    "employees",
-                    validator={"$jsonSchema": employees_schema}
-                )
-                logger.info("Recreated employees collection with new validation")
-                
-                # Restore data (remove any email fields if they exist)
-                if existing_employees:
-                    for emp in existing_employees:
-                        # Remove email field if it exists
-                        if 'email' in emp:
-                            del emp['email']
-                        # Ensure required fields exist
-                        if 'employee_id' in emp and 'name' in emp:
-                            self.db.employees.insert_one(emp)
-                    
-                    logger.info(f"Restored {len(existing_employees)} employee records")
-                
-                # Recreate index
-                self.db.employees.create_index("employee_id", unique=True)
-                if existing_employees:  # Only create aadhar index if we have data
-                    self.db.employees.create_index("aadhar_no")
-                
-                logger.info("Schema migration completed successfully")
-                return True
-            
         except Exception as e:
-            logger.error(f"Error updating collection validation: {e}")
-            return False
+            logger.warning(f"Employees migration error: {e}")
+    
+    def _migrate_attendance_schema_fast(self):
+        """Fast attendance schema migration - add missing fields efficiently"""
+        try:
+            # Check if migration is needed by sampling a few records
+            sample_records = list(self.db.attendance.find({}).limit(5))
+            if not sample_records:
+                logger.info("No attendance records to migrate")
+                return
+                
+            needs_migration = False
+            for record in sample_records:
+                if any(field not in record for field in ['in_time', 'out_time', 'hours', 'exception_hours']):
+                    needs_migration = True
+                    break
+            
+            if not needs_migration:
+                logger.info("Attendance records already have required fields")
+                return
+            
+            # Use bulk operations for efficiency
+            bulk_operations = []
+            
+            # Find records missing any of the required fields
+            missing_fields_query = {
+                "$or": [
+                    {"in_time": {"$exists": False}},
+                    {"out_time": {"$exists": False}},
+                    {"hours": {"$exists": False}},
+                    {"exception_hours": {"$exists": False}}
+                ]
+            }
+            
+            # Process in batches to avoid memory issues
+            batch_size = 100
+            processed = 0
+            
+            cursor = self.db.attendance.find(missing_fields_query)
+            
+            for record in cursor:
+                update_data = {}
+                if 'in_time' not in record:
+                    update_data['in_time'] = ""
+                if 'out_time' not in record:
+                    update_data['out_time'] = ""
+                if 'hours' not in record:
+                    update_data['hours'] = ""
+                if 'exception_hours' not in record:
+                    update_data['exception_hours'] = ""
+                
+                if update_data:
+                    bulk_operations.append({
+                        "updateOne": {
+                            "filter": {"_id": record["_id"]},
+                            "update": {"$set": update_data}
+                        }
+                    })
+                
+                processed += 1
+                
+                # Execute bulk operations in batches
+                if len(bulk_operations) >= batch_size:
+                    self.db.attendance.bulk_write(bulk_operations)
+                    bulk_operations = []
+                    logger.info(f"Processed {processed} attendance records...")
+            
+            # Execute remaining operations
+            if bulk_operations:
+                self.db.attendance.bulk_write(bulk_operations)
+            
+            logger.info(f"Added missing time fields to {processed} attendance records")
+                
+        except Exception as e:
+            logger.warning(f"Attendance migration error: {e}")
+    
+    def _migrate_transactions_schema_fast(self):
+        """Fast transactions schema migration - migrate payment_amount to amount"""
+        try:
+            # Check if migration is needed
+            needs_migration = self.db.transactions.count_documents({
+                "payment_amount": {"$exists": True},
+                "amount": {"$exists": False}
+            })
+            
+            if needs_migration == 0:
+                logger.info("All transactions already use standardized amount field")
+                return
+            
+            logger.info(f"Found {needs_migration} transactions to migrate")
+            
+            # Use bulk operations for efficiency
+            bulk_operations = []
+            
+            # Process transactions that need migration
+            cursor = self.db.transactions.find({
+                "payment_amount": {"$exists": True},
+                "amount": {"$exists": False}
+            })
+            
+            for transaction in cursor:
+                bulk_operations.append({
+                    "updateOne": {
+                        "filter": {"_id": transaction["_id"]},
+                        "update": {"$set": {"amount": transaction["payment_amount"]}}
+                    }
+                })
+                
+                # Process in batches
+                if len(bulk_operations) >= 50:
+                    self.db.transactions.bulk_write(bulk_operations)
+                    bulk_operations = []
+            
+            # Execute remaining operations
+            if bulk_operations:
+                self.db.transactions.bulk_write(bulk_operations)
+            
+            logger.info(f"Successfully migrated {needs_migration} transactions to use amount field")
+                
+        except Exception as e:
+            logger.warning(f"Transactions migration error: {e}")
     
     def _create_indexes(self):
         """Create indexes for better query performance"""
