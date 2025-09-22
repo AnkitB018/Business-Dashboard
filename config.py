@@ -5,7 +5,7 @@
 # MONGODB_URI = "mongodb+srv://<username>:<password>@<cluster-name>.mongodb.net/<database-name>?retryWrites=true&w=majority"
 
 # Application version for auto-updates
-APP_VERSION = "2.1.1"
+APP_VERSION = "2.2.0"
 GITHUB_REPO = "AnkitB018/Business-Dashboard"
 
 # For development, you can also set this as an environment variable

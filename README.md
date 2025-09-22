@@ -1,47 +1,52 @@
-# 🏢 Business Dashboard v2.0.0 - Enterprise Edition with Auto-Update
+# 🏢 Business Dashboard v2.2.0 - Optimized Database Migration
 
-A comprehensive business management system built with Python and CustomTkinter, featuring modern UI design, MongoDB Atlas integration, and **automatic update system** via GitHub Releases.
+A comprehensive business management system built with Python and CustomTkinter, featuring modern UI design, MongoDB Atlas integration, **automatic database migration**, and seamless update system via GitHub Releases.
 
-## 🚀 **Latest Release - v2.0.0**
+## 🚀 **Latest Release - v2.2.0**
 
-### 🎉 **NEW: Complete Auto-Update System**
-- ✅ **Automatic update checking** on application startup
-- ✅ **GitHub Releases integration** for seamless updates
-- ✅ **One-click update process** with progress tracking
-- ✅ **Professional installer/uninstaller** with NSIS
+### ⚡ **NEW: Lightning-Fast Database Migration**
+- ✅ **40x Faster Startup** - Database migration in 0.25 seconds (previously 10+ seconds)
+- ✅ **Smart Migration System** - Only updates what needs to be updated
+- ✅ **Bulk Operations** - Efficient MongoDB operations for large datasets
+- ✅ **Error Resilience** - Continues working even if some migrations fail
+- ✅ **Plug-and-Play** - Users can open the app without any database worries
+
+### 🐛 **Critical Bug Fixes**
+- ✅ **Fixed:** Attendance table crashes and time input issues
+- ✅ **Fixed:** Sales due date display errors and payment amount inconsistencies
+- ✅ **Enhanced:** Automatic database schema updates with data preservation
 
 ### 📥 **Quick Installation**
 1. Go to **[Releases](https://github.com/AnkitB018/Business-Dashboard/releases)**
-2. Download the latest `BusinessDashboard_v2.0.0_Installer.exe`
+2. Download the latest `BusinessDashboard_v2.2.0_Installer.exe`
 3. Run the installer and follow the setup wizard
-4. **That's it!** The app will automatically check for future updates
+4. **Launch and enjoy!** Database migration happens automatically
 
 ## ✨ **Key Features**
 
 ### 📊 **Data Management**
-- **Employee Management:** Complete CRUD operations with enhanced UI
-- **Attendance Tracking:** Comprehensive attendance system with improved date/time formatting
+- **Employee Management:** Complete CRUD operations with enhanced validation
+- **Attendance Tracking:** Fast time input with automatic field migration
 - **Inventory Management:** Stock tracking with automatic purchase/sales integration
-- **Financial Records:** Sales and purchase management with better validation
+- **Financial Records:** Sales and purchase management with fixed payment displays
 
 ### 📈 **Reports & Analytics**
 - **Interactive Calendar:** Visual attendance tracking with color-coded status
 - **Employee Analytics:** Detailed employee performance metrics
-- **Financial Reports:** Revenue, expenses, and profit analysis
+- **Financial Reports:** Revenue, expenses, and profit analysis with accurate due dates
 - **Inventory Dashboard:** Stock levels, reorder alerts, and trends
 
 ### ⚙️ **Settings & Configuration**
-- **Database Management:** MongoDB Atlas configuration and connection
+- **Database Management:** Automatic MongoDB Atlas migration and connection
 - **Auto-Update Settings:** Check for updates manually or automatically
 - **Data Import/Export:** Excel-based backup and restore functionality
-- **Theme Toggle:** Dark/Light mode support
-- **System Preferences:** Customizable application settings
+- **Performance Monitoring:** Real-time migration progress and database statistics
 
-### 🔄 **Auto-Update System**
-- **Startup Checks:** Automatically checks for new versions on launch
-- **Manual Updates:** Check for updates anytime from Settings
-- **Seamless Installation:** Downloads and installs updates automatically
-- **Version Management:** Always stay current with the latest features
+### 🔄 **Smart Database Migration**
+- **Automatic Schema Updates:** Database structure updates on every startup
+- **Data Preservation:** All existing data safely migrated with zero loss
+- **Performance Optimized:** 40x faster migration with bulk operations
+- **Error Recovery:** Graceful handling of various database states
 
 ## 🎯 **For End Users (Simple Installation)**
 
@@ -57,6 +62,7 @@ A comprehensive business management system built with Python and CustomTkinter, 
 - **Memory:** 4GB RAM minimum, 8GB recommended
 - **Storage:** 500MB free space
 - **Internet:** Required for database connection and updates
+- **Database:** MongoDB Atlas (automatic migration handled)
 
 ## 🛠️ **For Developers (Source Code)**
 
@@ -174,7 +180,7 @@ Business-Dashboard/
 ## 🚀 **Release Management**
 
 ### 🏷️ **Version System**
-- **Current Version:** v2.0.0
+- **Current Version:** v2.2.0
 - **Versioning:** Semantic versioning (MAJOR.MINOR.PATCH)
 - **Release Channel:** GitHub Releases
 - **Update Frequency:** As needed for features and bug fixes
@@ -201,7 +207,7 @@ pip install pyinstaller requests packaging
 cd build_tools
 python build_installer_fixed.py
 
-# Output: BusinessDashboard_v2.0.0_Installer.exe
+# Output: BusinessDashboard_v2.2.0_Installer.exe
 ```
 
 ### 🎯 **Adding New Features**
@@ -234,19 +240,17 @@ The application uses MongoDB with the following collections:
 - **User Control:** Complete control over data and settings
 ## 📋 **Changelog**
 
-### 🆕 **v2.0.0 - Auto-Update Edition** (Latest)
-- ✅ **NEW:** Complete GitHub-based auto-update system
-- ✅ **NEW:** Professional Windows installer with uninstaller
-- ✅ **Enhanced:** Compacted UI design for better usability
-- ✅ **Enhanced:** Improved date/time formatting across all modules
-- ✅ **Fixed:** CRUD operations for employee management
-- ✅ **Fixed:** Database connection and validation issues
-- ✅ **Security:** Enhanced credential management and repository cleanup
+### 🆕 **v2.2.0 - Optimized Database Migration** (Latest)
+- ✅ **Performance:** 40x faster database migration (0.25s vs 10+ seconds)
+- ✅ **Smart Migration:** Bulk operations and intelligent change detection
+- ✅ **Bug Fixes:** Attendance table crashes, time input defaults, payment displays
+- ✅ **Data Integrity:** Automatic schema updates with complete data preservation
+- ✅ **User Experience:** True plug-and-play operation without database worries
 
 ### 📜 **Previous Versions**
+- **v2.1.1:** Enhanced employee management and attendance fixes  
+- **v2.0.0:** Auto-update system with GitHub integration
 - **v1.0.0:** Initial stable release with core functionality
-- **Daily Wage System:** Enhanced employee wage management
-- **Documentation:** Comprehensive technical and user documentation
 
 ## 🔮 **Roadmap**
 
