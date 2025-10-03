@@ -262,6 +262,7 @@ class BonusCalculator:
             total_days = 0
             total_hours_worked = 0.0
             total_exception_hours = 0.0
+            total_overtime_hours = 0.0  # For display only
             total_earned = 0.0
             hourly_rate = daily_wage / 8  # Same formula as wage calculation
             
@@ -274,11 +275,15 @@ class BonusCalculator:
                     time_out = record.get('time_out', '')
                     hours_worked = self.calculate_total_hours_worked(time_in, time_out)
                     
-                    # Get exception hours (default to 1.0 if not set)
-                    exception_hours = float(record.get('exception_hours', 1.0))
+                    # Exception hours = 1 for each present day (as per user requirement)
+                    exception_hours = 1.0
                     
                     # Calculate effective hours (total - exception)
                     effective_hours = max(0, hours_worked - exception_hours)
+                    
+                    # Calculate overtime for display only
+                    daily_overtime = max(0, hours_worked - 8.0)
+                    total_overtime_hours += daily_overtime
                     
                     # Add to totals
                     total_hours_worked += hours_worked
@@ -301,6 +306,7 @@ class BonusCalculator:
                 'work_days': total_days,
                 'total_hours_worked': total_hours_worked,
                 'total_exception_hours': total_exception_hours,
+                'total_overtime_hours': total_overtime_hours,  # For display only
                 'effective_hours': total_hours_worked - total_exception_hours,
                 'total_earned': total_earned,
                 'bonus_rate': bonus_rate,

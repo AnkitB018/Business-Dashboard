@@ -1377,8 +1377,8 @@ class ModernDataPageGUI:
         self.create_attendance_status_dropdown(form_scroll, "Status", "status", 
                                ["Present", "Absent", "Leave"], self.att_vars)
         
-        # Exception hour field (always enabled, default 1)
-        self.create_exception_hour_field(form_scroll, "Exception Hours", "exception_hours", self.att_vars)
+        # Exception hours is handled automatically in the background (always 1)
+        # No user input field needed
         
         # Notes field (optional)
         self.create_form_field(form_scroll, "Notes (Optional)", "notes", "text", self.att_vars, 
@@ -6451,7 +6451,7 @@ class ModernDataPageGUI:
         """Get table columns based on type"""
         columns_map = {
             "employees": ["Employee_ID", "Name", "Aadhar_No", "Phone", "Department", "Position", "Daily_Wage", "Join_Date", "Last_Paid"],
-            "attendance": ["Employee_ID", "Date", "Time_In", "Time_Out", "Status", "Hours", "Exception_Hours"],
+            "attendance": ["Employee_ID", "Date", "Time_In", "Time_Out", "Status", "Hours", "Overtime_Hours"],
             "stock": ["Item_Name", "Category", "Quantity", "Price", "Supplier", "Total_Value"],
             "sales": ["Item_Name", "Quantity", "Price", "Customer", "Date", "Total"],
             "purchases": ["Item_Name", "Quantity", "Price", "Supplier", "Date", "Total"]
@@ -6549,12 +6549,8 @@ class ModernDataPageGUI:
                     data["time_in"] = time_in
                     data["time_out"] = time_out
                 
-                # Handle exception hours (always save, default 1)
-                exception_hours = data.get("exception_hours", "1")
-                try:
-                    data["exception_hours"] = float(exception_hours) if exception_hours else 1.0
-                except (ValueError, TypeError):
-                    data["exception_hours"] = 1.0
+                # Handle exception hours (always set to 1, not from user input)
+                data["exception_hours"] = 1.0  # Always hardcoded to 1
                 
                 # For backward compatibility, also save as overtime_hour (will be removed later)
                 data["overtime_hour"] = 0  # No overtime in new system
@@ -7869,9 +7865,8 @@ class ModernDataPageGUI:
             if len(values) > 4:
                 self.att_vars["status"].set(values[4])
             
-            # Set exception hours from actual database record (not table display)
-            if hasattr(self, 'att_vars') and "exception_hours" in self.att_vars:
-                self.att_vars["exception_hours"].set(str(actual_exception_hours))
+            # Exception hours are always 1 and handled in background
+            # No user input field needed anymore
             
             # Handle notes field separately (this should come from actual notes field in database)
             # For now, we'll leave notes empty since it's not in the current table display
@@ -8368,7 +8363,6 @@ class ModernDataPageGUI:
                     pass
             
             hours = self.calculate_hours(record.get("time_in"), record.get("time_out"))
-            exception_hours = record.get("exception_hours", 1)  # Default to 1 if not set
             
             # Ensure hours is a float
             try:
@@ -8376,11 +8370,8 @@ class ModernDataPageGUI:
             except (ValueError, TypeError):
                 hours_float = 0.0
             
-            # Ensure exception_hours is a float
-            try:
-                exception_hours_float = float(exception_hours) if exception_hours is not None else 1.0
-            except (ValueError, TypeError):
-                exception_hours_float = 1.0
+            # Calculate overtime hours (hours worked - 8)
+            overtime_hours = max(0, hours_float - 8.0)  # Overtime is hours above 8
             
             return [
                 record.get("employee_id", ""),
@@ -8389,7 +8380,7 @@ class ModernDataPageGUI:
                 time_out,
                 record.get("status", ""),
                 f"{hours_float:.1f}h",
-                f"{exception_hours_float:.1f}h"
+                f"{overtime_hours:.1f}h"
             ]
         elif table_type == "stock":
             quantity = record.get("current_quantity", 0)

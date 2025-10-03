@@ -276,69 +276,49 @@ class HRDataService:
             log_error(e, "DATA_SERVICE", "Error during employee migration")
     
     def _migrate_attendance_fields(self):
-        """Migrate attendance records from overtime_hour to exception_hours field"""
+        """Ensure attendance records have overtime_hour field with proper values"""
         try:
-            # Find attendance records that need migration
-            query = {
-                "$and": [
-                    {"overtime_hour": {"$exists": True}},
-                    {"exception_hours": {"$exists": False}}
-                ]
-            }
+            # Find attendance records that don't have overtime_hour field
+            records_without_overtime = list(self.db_manager.find_documents("attendance", {"overtime_hour": {"$exists": False}}))
             
-            records_to_migrate = list(self.db_manager.find_documents("attendance", query))
-            
-            if not records_to_migrate:
-                # Check if we need to add default exception_hours to records without it
-                records_without_exception = list(self.db_manager.find_documents("attendance", {"exception_hours": {"$exists": False}}))
+            if records_without_overtime:
+                log_info(f"Adding overtime_hour field to {len(records_without_overtime)} attendance records", "DATA_SERVICE")
                 
-                if records_without_exception:
-                    log_info(f"Adding default exception_hours to {len(records_without_exception)} attendance records", "DATA_SERVICE")
-                    
-                    for record in records_without_exception:
-                        try:
-                            self.db_manager.update_document(
-                                "attendance",
-                                {"_id": record["_id"]},
-                                {"$set": {"exception_hours": 1.0}}
-                            )
-                        except Exception as e:
-                            log_error(e, "DATA_SERVICE", f"Error adding exception_hours to record {record.get('_id')}")
-                    
-                    log_info("Successfully added default exception_hours to attendance records", "DATA_SERVICE")
-                
-                return
-            
-            log_info(f"Migrating {len(records_to_migrate)} attendance records from overtime_hour to exception_hours", "DATA_SERVICE")
-            
-            migrated_count = 0
-            
-            for record in records_to_migrate:
-                try:
-                    # Get overtime_hour value, default to 1 if not present or invalid
-                    overtime_value = record.get('overtime_hour', 1)
-                    
-                    # Convert to float, default to 1 if conversion fails
+                for record in records_without_overtime:
                     try:
-                        exception_hours = float(overtime_value) if overtime_value is not None else 1.0
-                    except (ValueError, TypeError):
-                        exception_hours = 1.0
-                    
-                    # Update the record
-                    update_result = self.db_manager.update_document(
-                        "attendance",
-                        {"_id": record["_id"]},
-                        {"$set": {"exception_hours": exception_hours}}
-                    )
-                    
-                    if update_result:
-                        migrated_count += 1
+                        # Set default overtime_hour to 0 for records that don't have it
+                        self.db_manager.update_document(
+                            "attendance",
+                            {"_id": record["_id"]},
+                            {"$set": {"overtime_hour": 0}}
+                        )
+                    except Exception as e:
+                        log_error(e, "DATA_SERVICE", f"Error adding overtime_hour to record {record.get('_id')}")
                 
-                except Exception as e:
-                    log_error(e, "DATA_SERVICE", f"Error migrating attendance record {record.get('_id')}")
+                log_info("Successfully added overtime_hour field to attendance records", "DATA_SERVICE")
+            else:
+                log_info("All attendance records already have overtime_hour field", "DATA_SERVICE")
             
-            log_info(f"Successfully migrated {migrated_count} attendance records to exception_hours system", "DATA_SERVICE")
+            # Remove any remaining exception_hours fields (since we hardcode exception to 1)
+            records_with_exception = list(self.db_manager.find_documents("attendance", {"exception_hours": {"$exists": True}}))
             
+            if records_with_exception:
+                log_info(f"Removing exception_hours field from {len(records_with_exception)} attendance records (hardcoded to 1.0)", "DATA_SERVICE")
+                
+                for record in records_with_exception:
+                    try:
+                        # Remove the exception_hours field since we hardcode it to 1.0
+                        self.db_manager.db.attendance.update_one(
+                            {"_id": record["_id"]},
+                            {"$unset": {"exception_hours": ""}}
+                        )
+                    except Exception as e:
+                        log_error(e, "DATA_SERVICE", f"Error removing exception_hours from record {record.get('_id')}")
+                
+                log_info("Successfully removed exception_hours field from attendance records", "DATA_SERVICE")
+            else:
+                log_info("No attendance records have exception_hours field to remove", "DATA_SERVICE")
+                
         except Exception as e:
             log_error(e, "DATA_SERVICE", "Error during attendance field migration")
     

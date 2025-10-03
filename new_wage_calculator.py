@@ -169,6 +169,7 @@ class NewWageCalculator:
             # Calculate totals using new system
             total_hours_worked = 0.0
             total_exception_hours = 0.0
+            total_overtime_hours = 0.0  # For display only, not used in wage calculation
             work_days = 0
             
             for _, record in attendance_df.iterrows():
@@ -186,20 +187,16 @@ class NewWageCalculator:
                 hours_worked = self.calculate_total_hours_worked(time_in, time_out)
                 total_hours_worked += hours_worked
                 
-                # Get exception hours (from new exception_hours field, defaulting to existing overtime_hour for transition)
-                exception_hours = record.get('exception_hours', record.get('overtime_hour', 1))
-                if exception_hours is None or exception_hours == '':
-                    exception_hours = 1  # Default exception hours
+                # Exception hours = 1 for each present day (as requested by user)
+                total_exception_hours += 1.0
                 
-                try:
-                    exception_hours = float(exception_hours)
-                except (ValueError, TypeError):
-                    exception_hours = 1.0
-                
-                total_exception_hours += exception_hours
+                # Calculate overtime hours for display only (hours > 8 = overtime)
+                daily_overtime = max(0, hours_worked - 8.0)
+                total_overtime_hours += daily_overtime
             
-            # Calculate wage using new formula
+            # Calculate wage using original formula
             # Wage = [(total hours worked) - (total exception hours)] * (daily wage/8)
+            # Where exception hours = number of present days (1 per present day)
             effective_hours = max(0, total_hours_worked - total_exception_hours)
             hourly_rate = daily_wage / 8.0
             total_wage = effective_hours * hourly_rate
@@ -214,6 +211,7 @@ class NewWageCalculator:
                 'work_days': work_days,
                 'total_hours_worked': total_hours_worked,
                 'total_exception_hours': total_exception_hours,
+                'total_overtime_hours': total_overtime_hours,  # New: include overtime hours
                 'effective_hours': effective_hours,
                 'total_wage': total_wage,
                 'calculation_method': 'new_system'

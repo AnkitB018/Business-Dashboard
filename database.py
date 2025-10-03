@@ -155,7 +155,6 @@ class MongoDBManager:
                     "in_time": {"bsonType": "string"},
                     "out_time": {"bsonType": "string"},
                     "hours": {"bsonType": "string"},
-                    "exception_hours": {"bsonType": "string"},
                     "overtime_hours": {"bsonType": "number"},
                     "notes": {"bsonType": "string"},
                     "created_at": {"bsonType": "date"}
@@ -360,75 +359,111 @@ class MongoDBManager:
             logger.warning(f"Employees migration error: {e}")
     
     def _migrate_attendance_schema_fast(self):
-        """Fast attendance schema migration - add missing fields efficiently"""
+        """Fast attendance schema migration - remove exception_hours and ensure overtime_hour field"""
         try:
-            # Check if migration is needed by sampling a few records
+            # Step 1: Remove exception_hours field from all records (since we hardcode it to 1)
+            logger.info("Removing exception_hours field from attendance records...")
+            
+            count_with_exception_hours = self.db.attendance.count_documents({
+                "exception_hours": {"$exists": True}
+            })
+            
+            if count_with_exception_hours > 0:
+                logger.info(f"Found {count_with_exception_hours} records with exception_hours field to remove")
+                
+                # Remove the exception_hours field from all documents
+                result = self.db.attendance.update_many(
+                    {"exception_hours": {"$exists": True}},
+                    {"$unset": {"exception_hours": ""}}
+                )
+                
+                logger.info(f"Successfully removed exception_hours field from {result.modified_count} records")
+            else:
+                logger.info("No records found with exception_hours field")
+            
+            # Step 2: Ensure overtime_hour field exists and has default value
+            logger.info("Ensuring overtime_hour field exists in attendance records...")
+            
+            count_without_overtime = self.db.attendance.count_documents({
+                "overtime_hour": {"$exists": False}
+            })
+            
+            if count_without_overtime > 0:
+                logger.info(f"Found {count_without_overtime} records missing overtime_hour field")
+                
+                # Add overtime_hour field with default value 0 to records that don't have it
+                result = self.db.attendance.update_many(
+                    {"overtime_hour": {"$exists": False}},
+                    {"$set": {"overtime_hour": 0}}
+                )
+                
+                logger.info(f"Successfully added overtime_hour field to {result.modified_count} records")
+            else:
+                logger.info("All attendance records already have overtime_hour field")
+            
+            # Step 3: Ensure basic time fields exist for compatibility (but not exception_hours)
             sample_records = list(self.db.attendance.find({}).limit(5))
             if not sample_records:
                 logger.info("No attendance records to migrate")
                 return
                 
-            needs_migration = False
+            needs_basic_migration = False
             for record in sample_records:
-                if any(field not in record for field in ['in_time', 'out_time', 'hours', 'exception_hours']):
-                    needs_migration = True
+                # Check for basic time fields (but NOT exception_hours)
+                if any(field not in record for field in ['time_in', 'time_out']):
+                    needs_basic_migration = True
                     break
             
-            if not needs_migration:
-                logger.info("Attendance records already have required fields")
-                return
-            
-            # Use bulk operations for efficiency
-            bulk_operations = []
-            
-            # Find records missing any of the required fields
-            missing_fields_query = {
-                "$or": [
-                    {"in_time": {"$exists": False}},
-                    {"out_time": {"$exists": False}},
-                    {"hours": {"$exists": False}},
-                    {"exception_hours": {"$exists": False}}
-                ]
-            }
-            
-            # Process in batches to avoid memory issues
-            batch_size = 100
-            processed = 0
-            
-            cursor = self.db.attendance.find(missing_fields_query)
-            
-            for record in cursor:
-                update_data = {}
-                if 'in_time' not in record:
-                    update_data['in_time'] = ""
-                if 'out_time' not in record:
-                    update_data['out_time'] = ""
-                if 'hours' not in record:
-                    update_data['hours'] = ""
-                if 'exception_hours' not in record:
-                    update_data['exception_hours'] = ""
+            if needs_basic_migration:
+                logger.info("Adding missing time fields to attendance records...")
                 
-                if update_data:
-                    bulk_operations.append({
-                        "updateOne": {
-                            "filter": {"_id": record["_id"]},
-                            "update": {"$set": update_data}
-                        }
-                    })
+                # Use bulk operations for efficiency
+                bulk_operations = []
                 
-                processed += 1
+                # Find records missing basic time fields
+                missing_fields_query = {
+                    "$or": [
+                        {"time_in": {"$exists": False}},
+                        {"time_out": {"$exists": False}}
+                    ]
+                }
                 
-                # Execute bulk operations in batches
-                if len(bulk_operations) >= batch_size:
+                # Process in batches to avoid memory issues
+                batch_size = 100
+                processed = 0
+                
+                cursor = self.db.attendance.find(missing_fields_query)
+                
+                for record in cursor:
+                    update_data = {}
+                    if 'time_in' not in record:
+                        update_data['time_in'] = ""
+                    if 'time_out' not in record:
+                        update_data['time_out'] = ""
+                    
+                    if update_data:
+                        bulk_operations.append({
+                            "updateOne": {
+                                "filter": {"_id": record["_id"]},
+                                "update": {"$set": update_data}
+                            }
+                        })
+                    
+                    processed += 1
+                    
+                    # Execute bulk operations in batches
+                    if len(bulk_operations) >= batch_size:
+                        self.db.attendance.bulk_write(bulk_operations)
+                        bulk_operations = []
+                        logger.info(f"Processed {processed} attendance records...")
+                
+                # Execute remaining operations
+                if bulk_operations:
                     self.db.attendance.bulk_write(bulk_operations)
-                    bulk_operations = []
-                    logger.info(f"Processed {processed} attendance records...")
-            
-            # Execute remaining operations
-            if bulk_operations:
-                self.db.attendance.bulk_write(bulk_operations)
-            
-            logger.info(f"Added missing time fields to {processed} attendance records")
+                
+                logger.info(f"Added missing time fields to {processed} attendance records")
+            else:
+                logger.info("All attendance records have required time fields")
                 
         except Exception as e:
             logger.warning(f"Attendance migration error: {e}")
@@ -478,6 +513,33 @@ class MongoDBManager:
                 
         except Exception as e:
             logger.warning(f"Transactions migration error: {e}")
+    
+    def remove_exception_hours_column(self):
+        """Remove exception_hours column from attendance table"""
+        try:
+            logger.info("Starting removal of exception_hours column from attendance...")
+            
+            # Count how many records have the exception_hours field
+            count_with_exception_hours = self.db.attendance.count_documents({
+                "exception_hours": {"$exists": True}
+            })
+            
+            if count_with_exception_hours == 0:
+                logger.info("No records found with exception_hours field")
+                return
+            
+            logger.info(f"Found {count_with_exception_hours} records with exception_hours field")
+            
+            # Remove the exception_hours field from all documents
+            result = self.db.attendance.update_many(
+                {"exception_hours": {"$exists": True}},
+                {"$unset": {"exception_hours": ""}}
+            )
+            
+            logger.info(f"Successfully removed exception_hours field from {result.modified_count} records")
+            
+        except Exception as e:
+            logger.error(f"Error removing exception_hours column: {e}")
     
     def _create_indexes(self):
         """Create indexes for better query performance"""

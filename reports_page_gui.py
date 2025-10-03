@@ -586,13 +586,14 @@ class ModernReportsPageGUI:
         results_grid.pack(fill="x", pady=(0, 20))
         
         # Configure grid
-        results_grid.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        results_grid.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
         
         # Headers
-        headers = ["Work Days", "Total Hours", "Exception Hours", "Effective Hours"]
+        headers = ["Work Days", "Total Hours", "Overtime Hours", "Exception Hours", "Effective Hours"]
         values = [
             str(result.get('work_days', 0)),
             f"{result.get('total_hours_worked', 0):.1f}h",
+            f"{result.get('total_overtime_hours', 0):.1f}h",
             f"{result.get('total_exception_hours', 0):.1f}h", 
             f"{result.get('effective_hours', 0):.1f}h"
         ]
@@ -951,6 +952,7 @@ Calculation Period:
 Work Summary:
 - Total Work Days: {result.get('work_days', 0)}
 - Total Hours Worked: {result.get('total_hours_worked', 0):.1f} hours
+- Total Overtime Hours: {result.get('total_overtime_hours', 0):.1f} hours
 - Total Exception Hours: {result.get('total_exception_hours', 0):.1f} hours
 - Effective Working Hours: {result.get('effective_hours', 0):.1f} hours
 
@@ -1448,13 +1450,14 @@ This will update the last paid date to today."""
         results_grid.pack(fill="x", pady=(0, 20))
         
         # Configure grid
-        results_grid.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        results_grid.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
         
         # Headers
-        headers = ["Work Days", "Total Hours", "Exception Hours", "Effective Hours"]
+        headers = ["Work Days", "Total Hours", "Overtime Hours", "Exception Hours", "Effective Hours"]
         values = [
             str(result.get('work_days', 0)),
             f"{result.get('total_hours_worked', 0):.1f}h",
+            f"{result.get('total_overtime_hours', 0):.1f}h",
             f"{result.get('total_exception_hours', 0):.1f}h", 
             f"{result.get('effective_hours', 0):.1f}h"
         ]
@@ -2571,6 +2574,58 @@ This will update the last paid date to today."""
                 font=ctk.CTkFont(size=12)
             ).pack(side="right", padx=10, pady=5)
             
+            # Calculate and display overtime hours for the selected employee
+            total_overtime_hours = 0.0
+            for _, row in attendance_df.iterrows():
+                try:
+                    hours_worked = 0.0
+                    
+                    # Method 1: Check if 'hours' field exists and has a value
+                    hours_value = row.get('hours', None)
+                    if hours_value is not None and hours_value != '' and hours_value != 0:
+                        # Convert to float
+                        if isinstance(hours_value, str):
+                            hours_value = hours_value.strip()
+                            if hours_value != '':
+                                hours_worked = float(hours_value)
+                        else:
+                            hours_worked = float(hours_value)
+                    
+                    # Method 2: If no 'hours' field, calculate from time_in and time_out
+                    else:
+                        time_in = row.get('time_in', '')
+                        time_out = row.get('time_out', '')
+                        
+                        if time_in and time_out and time_in != '' and time_out != '':
+                            hours_worked = self.calculate_hours(time_in, time_out)
+                    
+                    # Calculate overtime if we have hours worked
+                    if hours_worked > 0:
+                        overtime = max(0, hours_worked - 8.0)
+                        total_overtime_hours += overtime
+                        
+                except (ValueError, TypeError, AttributeError):
+                    # Skip invalid entries
+                    continue
+            
+            # Overtime hours display
+            overtime_frame = ctk.CTkFrame(stats_container, fg_color="transparent")
+            overtime_frame.pack(fill="x", pady=(5, 5))
+            
+            ctk.CTkLabel(
+                overtime_frame,
+                text="Overtime Hours:",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color=self.colors['warning']
+            ).pack(side="left", padx=10, pady=5)
+            
+            ctk.CTkLabel(
+                overtime_frame,
+                text=f"{total_overtime_hours:.1f}h",
+                font=ctk.CTkFont(size=12, weight="bold"),
+                text_color=self.colors['warning']
+            ).pack(side="right", padx=10, pady=5)
+            
         except Exception as e:
             error_label = ctk.CTkLabel(
                 self.stats_frame,
@@ -2763,7 +2818,7 @@ This will update the last paid date to today."""
                         'name': emp_data.get('employee_name', 'Unknown'),
                         'wage': emp_data.get('total_wage', 0),
                         'days': emp_data.get('work_days', 0),
-                        'overtime': 0  # No overtime in new system
+                        'overtime': emp_data.get('total_overtime_hours', 0)  # Get actual overtime hours
                     })
             
             # Update employees_with_dues to only count those with wages > 0
@@ -4309,6 +4364,30 @@ This will update the last paid date to today."""
             
         except Exception as e:
             self.show_status_message(f"Refresh failed: {str(e)}", "error")
+    
+    def calculate_hours(self, time_in, time_out):
+        """Calculate working hours from time_in and time_out"""
+        try:
+            if not time_in or not time_out:
+                return 0.0
+            
+            # Convert to string if not already
+            time_in_str = str(time_in)
+            time_out_str = str(time_out)
+            
+            from datetime import datetime
+            time_in_obj = datetime.strptime(time_in_str, "%H:%M")
+            time_out_obj = datetime.strptime(time_out_str, "%H:%M")
+            
+            if time_out_obj > time_in_obj:
+                diff = time_out_obj - time_in_obj
+                return diff.total_seconds() / 3600
+            else:
+                return 0.0
+                
+        except Exception as e:
+            logger.debug(f"Error calculating hours for {time_in} to {time_out}: {e}")
+            return 0.0
     
     def get_frame(self):
         """Return the main frame for this page"""
