@@ -1,8 +1,8 @@
-# 🏢 Business Dashboard v2.2.0 - Optimized Database Migration
+# 🏢 Business Dashboard v2.2.1 - Enhanced Overtime System
 
 A comprehensive business management system built with Python and CustomTkinter, featuring modern UI design, MongoDB Atlas integration, **automatic database migration**, and seamless update system via GitHub Releases.
 
-## 🚀 **Latest Release - v2.2.0**
+## 🚀 **Latest Release - v2.2.1**
 
 ### ⚡ **NEW: Lightning-Fast Database Migration**
 - ✅ **40x Faster Startup** - Database migration in 0.25 seconds (previously 10+ seconds)
@@ -18,7 +18,7 @@ A comprehensive business management system built with Python and CustomTkinter, 
 
 ### 📥 **Quick Installation**
 1. Go to **[Releases](https://github.com/AnkitB018/Business-Dashboard/releases)**
-2. Download the latest `BusinessDashboard_v2.2.0_Installer.exe`
+2. Download the latest `BusinessDashboard_v2.2.1_Installer.exe`
 3. Run the installer and follow the setup wizard
 4. **Launch and enjoy!** Database migration happens automatically
 
@@ -180,7 +180,7 @@ Business-Dashboard/
 ## 🚀 **Release Management**
 
 ### 🏷️ **Version System**
-- **Current Version:** v2.2.0
+- **Current Version:** v2.2.1
 - **Versioning:** Semantic versioning (MAJOR.MINOR.PATCH)
 - **Release Channel:** GitHub Releases
 - **Update Frequency:** As needed for features and bug fixes
@@ -207,7 +207,7 @@ pip install pyinstaller requests packaging
 cd build_tools
 python build_installer_fixed.py
 
-# Output: BusinessDashboard_v2.2.0_Installer.exe
+# Output: BusinessDashboard_v2.2.1_Installer.exe
 ```
 
 ### 🎯 **Adding New Features**
@@ -240,14 +240,16 @@ The application uses MongoDB with the following collections:
 - **User Control:** Complete control over data and settings
 ## 📋 **Changelog**
 
-### 🆕 **v2.2.0 - Optimized Database Migration** (Latest)
-- ✅ **Performance:** 40x faster database migration (0.25s vs 10+ seconds)
-- ✅ **Smart Migration:** Bulk operations and intelligent change detection
-- ✅ **Bug Fixes:** Attendance table crashes, time input defaults, payment displays
-- ✅ **Data Integrity:** Automatic schema updates with complete data preservation
-- ✅ **User Experience:** True plug-and-play operation without database worries
+### 🆕 **v2.2.1 - Enhanced Overtime System** (Latest)
+- ✅ **Overtime Display:** Fixed overtime hours calculation and display in attendance reports
+- ✅ **Exception Hours:** Removed exception hours input field (hardcoded to 1.0 for consistent calculations) 
+- ✅ **Database Migration:** Automatic removal of exception_hours field and addition of overtime_hour field
+- ✅ **Smart Calculation:** Overtime now calculated as (hours_worked - 8) for selected employee
+- ✅ **Time Compatibility:** Support for both time_in/time_out calculation and direct hours field
+- ✅ **User Experience:** Seamless database migration on app startup with no manual intervention required
 
 ### 📜 **Previous Versions**
+- **v2.2.0:** Optimized database migration with 40x performance improvement
 - **v2.1.1:** Enhanced employee management and attendance fixes  
 - **v2.0.0:** Auto-update system with GitHub integration
 - **v1.0.0:** Initial stable release with core functionality
@@ -264,7 +266,7 @@ The application uses MongoDB with the following collections:
 
 ### 🎯 **Upcoming Releases**
 - **v2.1.0:** Enhanced reporting and analytics
-- **v2.2.0:** Advanced employee management features
+- **v2.2.1:** Enhanced overtime calculation and display system
 - **v3.0.0:** Major UI overhaul and new features
 
 ## 🤝 **Contributing**

@@ -834,7 +834,7 @@ class SettingsPageGUI:
                     font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(15, 10))
         
         about_text = """HR Management System - Desktop Edition
-Version: 2.2.0
+Version: 2.2.1
 Built with: Python, CustomTkinter, MongoDB Atlas
 Developer: HR Management Solutions
 Last Updated: August 2025"""

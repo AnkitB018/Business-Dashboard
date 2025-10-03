@@ -21,7 +21,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class UpdateManager:
-    def __init__(self, current_version="2.2.0", repo="AnkitB018/Business-Dashboard"):
+    def __init__(self, current_version="2.2.1", repo="AnkitB018/Business-Dashboard"):
         self.current_version = current_version
         self.repo = repo
         self.github_api_url = f"https://api.github.com/repos/{repo}/releases/latest"
@@ -437,7 +437,7 @@ class UpdateManager:
             messagebox.showerror("Installation Failed", f"Failed to start installer: {str(e)}\n\nPlease try running the installer manually as administrator.")
 
 # Convenience function for easy integration
-def check_for_updates_async(parent_window=None, current_version="2.2.0", show_no_update=True):
+def check_for_updates_async(parent_window=None, current_version="2.2.1", show_no_update=True):
     """Check for updates in a background thread"""
     def worker():
         try:
