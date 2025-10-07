@@ -1,8 +1,8 @@
-# 🏢 Business Dashboard v2.2.1 - Enhanced Overtime System
+# 🏢 Business Dashboard v2.2.2 - Unified Date Input System
 
 A comprehensive business management system built with Python and CustomTkinter, featuring modern UI design, MongoDB Atlas integration, **automatic database migration**, and seamless update system via GitHub Releases.
 
-## 🚀 **Latest Release - v2.2.1**
+## 🚀 **Latest Release - v2.2.2**
 
 ### ⚡ **NEW: Lightning-Fast Database Migration**
 - ✅ **40x Faster Startup** - Database migration in 0.25 seconds (previously 10+ seconds)
@@ -18,7 +18,7 @@ A comprehensive business management system built with Python and CustomTkinter, 
 
 ### 📥 **Quick Installation**
 1. Go to **[Releases](https://github.com/AnkitB018/Business-Dashboard/releases)**
-2. Download the latest `BusinessDashboard_v2.2.1_Installer.exe`
+2. Download the latest `BusinessDashboard_v2.2.2_Installer.exe`
 3. Run the installer and follow the setup wizard
 4. **Launch and enjoy!** Database migration happens automatically
 
@@ -180,7 +180,7 @@ Business-Dashboard/
 ## 🚀 **Release Management**
 
 ### 🏷️ **Version System**
-- **Current Version:** v2.2.1
+- **Current Version:** v2.2.2
 - **Versioning:** Semantic versioning (MAJOR.MINOR.PATCH)
 - **Release Channel:** GitHub Releases
 - **Update Frequency:** As needed for features and bug fixes
@@ -207,7 +207,7 @@ pip install pyinstaller requests packaging
 cd build_tools
 python build_installer_fixed.py
 
-# Output: BusinessDashboard_v2.2.1_Installer.exe
+# Output: BusinessDashboard_v2.2.2_Installer.exe
 ```
 
 ### 🎯 **Adding New Features**
@@ -240,7 +240,23 @@ The application uses MongoDB with the following collections:
 - **User Control:** Complete control over data and settings
 ## 📋 **Changelog**
 
-### 🆕 **v2.2.1 - Enhanced Overtime System** (Latest)
+### 🆕 **v2.2.2 - Unified Date Input System** (Latest)
+**Release Date:** October 2025  
+**Focus:** User Experience Enhancement
+
+**New Features:**
+- **🗓️ Consistent Date Input**: Unified date picker across Employee and Attendance tabs
+- **📅 Enhanced Calendar UI**: Same calendar interface for all date inputs
+- **🔄 Improved UX**: Consistent dd/mm/yy format throughout the application
+
+**Improvements:**
+- Simplified date input codebase by removing dual-variable complexity
+- Better error handling for date format validation
+- Enhanced backward compatibility for existing data
+
+---
+
+### **v2.2.1 - Enhanced Overtime System**
 - ✅ **Overtime Display:** Fixed overtime hours calculation and display in attendance reports
 - ✅ **Exception Hours:** Removed exception hours input field (hardcoded to 1.0 for consistent calculations) 
 - ✅ **Database Migration:** Automatic removal of exception_hours field and addition of overtime_hour field
@@ -266,6 +282,7 @@ The application uses MongoDB with the following collections:
 
 ### 🎯 **Upcoming Releases**
 - **v2.1.0:** Enhanced reporting and analytics
+- **v2.2.2:** Unified date input system with consistent UI/UX
 - **v2.2.1:** Enhanced overtime calculation and display system
 - **v3.0.0:** Major UI overhaul and new features
 

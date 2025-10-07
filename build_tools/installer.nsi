@@ -2,7 +2,7 @@
 ; NSIS (Nullsoft Scriptable Install System) script for creating a proper installer
 
 !define APP_NAME "Business Dashboard"
-!define APP_VERSION "1.0.0"
+!define APP_VERSION "2.2.2"
 !define APP_PUBLISHER "Antrocraft and Arolive Build"
 !define APP_URL "https://github.com/AnkitB018/Business-Dashboard"
 !define APP_SUPPORT_URL "mailto:support@businessdashboard.com"
@@ -14,20 +14,20 @@
 
 ; General settings
 Name "${APP_NAME}"
-OutFile "BusinessDashboard_Installer.exe"
+OutFile "BusinessDashboard_v2.2.2_Installer.exe"
 InstallDir "$PROGRAMFILES\\${APP_NAME}"
 InstallDirRegKey HKLM "${APP_UNINSTALL_KEY}" "InstallLocation"
 RequestExecutionLevel admin
 SetCompressor lzma
 
 ; Version information
-VIProductVersion "1.0.0.0"
+VIProductVersion "2.2.2.0"
 VIAddVersionKey "ProductName" "${APP_NAME}"
 VIAddVersionKey "CompanyName" "${APP_PUBLISHER}"
 VIAddVersionKey "LegalCopyright" "© 2025 ${APP_PUBLISHER}"
 VIAddVersionKey "FileDescription" "${APP_NAME} Installer"
 VIAddVersionKey "ProductVersion" "${APP_VERSION}"
-VIAddVersionKey "FileVersion" "1.0.0.0"
+VIAddVersionKey "FileVersion" "2.2.2.0"
 
 ; Interface configuration
 !define MUI_ABORTWARNING

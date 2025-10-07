@@ -190,8 +190,8 @@ class NewWageCalculator:
                 # Exception hours = 1 for each present day (as requested by user)
                 total_exception_hours += 1.0
                 
-                # Calculate overtime hours for display only (hours > 8 = overtime)
-                daily_overtime = max(0, hours_worked - 8.0)
+                # Calculate overtime hours for display only (hours > 9 = overtime, subtract additional 1 hour as requested)
+                daily_overtime = max(0, hours_worked - 8.0 - 1.0)
                 total_overtime_hours += daily_overtime
             
             # Calculate wage using original formula

@@ -2599,9 +2599,9 @@ This will update the last paid date to today."""
                         if time_in and time_out and time_in != '' and time_out != '':
                             hours_worked = self.calculate_hours(time_in, time_out)
                     
-                    # Calculate overtime if we have hours worked
+                    # Calculate overtime if we have hours worked (subtract additional 1 hour as requested)
                     if hours_worked > 0:
-                        overtime = max(0, hours_worked - 8.0)
+                        overtime = max(0, hours_worked - 8.0 - 1.0)
                         total_overtime_hours += overtime
                         
                 except (ValueError, TypeError, AttributeError):

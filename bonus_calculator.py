@@ -281,8 +281,8 @@ class BonusCalculator:
                     # Calculate effective hours (total - exception)
                     effective_hours = max(0, hours_worked - exception_hours)
                     
-                    # Calculate overtime for display only
-                    daily_overtime = max(0, hours_worked - 8.0)
+                    # Calculate overtime for display only (subtract additional 1 hour as requested)
+                    daily_overtime = max(0, hours_worked - 8.0 - 1.0)
                     total_overtime_hours += daily_overtime
                     
                     # Add to totals

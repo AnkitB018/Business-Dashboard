@@ -1367,7 +1367,7 @@ class ModernDataPageGUI:
         self.create_employee_dropdown(form_scroll, "Employee", "employee_id", self.att_vars)
         
         # Date picker
-        self.create_attendance_date_picker(form_scroll, "Date", "date", self.att_vars)
+        self.create_date_picker(form_scroll, "Date", "date", self.att_vars)
         
         # Time pickers with improved layout (store references for dynamic control)
         self.time_in_widgets = self.create_time_picker(form_scroll, "Time In", "time_in", self.att_vars)
@@ -2010,107 +2010,6 @@ class ModernDataPageGUI:
             self.show_status_message(f"Sales calendar error: {str(e)}", "warning")
             date_var.set(date.today().strftime("%d/%m/%y"))
     
-    def create_attendance_date_picker(self, parent, label, key, vars_dict):
-        """Create date picker for attendance with dd/mm/yy format and calendar"""
-        field_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        field_frame.pack(fill="x", pady=8)
-        
-        # Label
-        label_widget = ctk.CTkLabel(
-            field_frame,
-            text=f"{label}*",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#374151"
-        )
-        label_widget.pack(anchor="w", pady=(0, 5))
-        
-        # Date input frame
-        date_frame = ctk.CTkFrame(field_frame, fg_color="transparent")
-        date_frame.pack(fill="x")
-        
-        # Date entry in dd/mm/yy format (but store as YYYY-MM-DD internally)
-        vars_dict[key] = tk.StringVar(value=date.today().strftime("%Y-%m-%d"))  # Internal storage
-        display_var = tk.StringVar(value=date.today().strftime("%d/%m/%y"))  # Display format
-        
-        date_entry = ctk.CTkEntry(
-            date_frame,
-            textvariable=display_var,
-            width=120,
-            height=35,
-            corner_radius=6,
-            border_width=1,
-            font=ctk.CTkFont(size=12),
-            placeholder_text="dd/mm/yy"
-        )
-        date_entry.pack(side="left", padx=(0, 10))
-        
-        # Calendar button
-        cal_btn = ctk.CTkButton(
-            date_frame,
-            text="📅",
-            command=lambda: self.open_attendance_calendar(vars_dict[key], display_var),
-            width=40,
-            height=35,
-            corner_radius=6,
-            font=ctk.CTkFont(size=14)
-        )
-        cal_btn.pack(side="left", padx=(0, 10))
-        
-        # Today button
-        today_btn = ctk.CTkButton(
-            date_frame,
-            text="Today",
-            command=lambda: self.set_attendance_date_today(vars_dict[key], display_var),
-            width=80,
-            height=35,
-            corner_radius=6,
-            font=ctk.CTkFont(size=11)
-        )
-        today_btn.pack(side="left")
-        
-        # Sync display format with internal format when user types
-        def sync_date_formats(*args):
-            try:
-                user_input = display_var.get().strip()
-                if user_input:
-                    # Try to parse user input in dd/mm/yy format
-                    if '/' in user_input:
-                        parts = user_input.split('/')
-                        if len(parts) == 3:
-                            day, month, year = parts
-                            # Handle 2-digit year
-                            if len(year) == 2:
-                                year = f"20{year}" if int(year) < 50 else f"19{year}"
-                            # Create date object to validate
-                            date_obj = datetime(int(year), int(month), int(day))
-                            # Store in internal format
-                            vars_dict[key].set(date_obj.strftime("%Y-%m-%d"))
-                        else:
-                            # Invalid format, reset to today
-                            self.set_attendance_date_today(vars_dict[key], display_var)
-                    else:
-                        # Try other formats or reset to today
-                        self.set_attendance_date_today(vars_dict[key], display_var)
-            except (ValueError, TypeError):
-                # Invalid date, reset to today
-                self.set_attendance_date_today(vars_dict[key], display_var)
-        
-        display_var.trace("w", sync_date_formats)
-        
-        # Helper text
-        helper_text = ctk.CTkLabel(
-            field_frame,
-            text="Format: dd/mm/yy (e.g., 13/09/25) - Click 📅 for calendar or type date",
-            font=ctk.CTkFont(size=10),
-            text_color="gray"
-        )
-        helper_text.pack(anchor="w", pady=(5, 0))
-        
-        # Store display variable for later access
-        if not hasattr(self, 'attendance_display_vars'):
-            self.attendance_display_vars = {}
-        self.attendance_display_vars[key] = display_var
-    
     def create_time_picker(self, parent, label, key, vars_dict):
         """Create simplified and more accessible time picker"""
         field_frame = ctk.CTkFrame(parent, fg_color="transparent")
@@ -2439,106 +2338,6 @@ class ModernDataPageGUI:
         except Exception as e:
             logger.error(f"Error getting current 12-hour time: {e}")
             return "07", "00", "AM"
-    
-    def set_attendance_date_today(self, internal_var, display_var):
-        """Set attendance date to today in both internal and display formats"""
-        try:
-            today = date.today()
-            internal_var.set(today.strftime("%Y-%m-%d"))  # Internal format
-            display_var.set(today.strftime("%d/%m/%y"))  # Display format
-        except Exception as e:
-            logger.error(f"Error setting today's date: {e}")
-    
-    def open_attendance_calendar(self, internal_var, display_var):
-        """Open calendar picker for attendance date selection"""
-        try:
-            # Create calendar popup window
-            cal_window = ctk.CTkToplevel(self.parent)
-            cal_window.title("Select Date")
-            cal_window.geometry("300x250")
-            cal_window.transient(self.parent)
-            cal_window.grab_set()
-            
-            # Center the window
-            cal_window.update_idletasks()
-            x = (cal_window.winfo_screenwidth() // 2) - (300 // 2)
-            y = (cal_window.winfo_screenheight() // 2) - (250 // 2)
-            cal_window.geometry(f"300x250+{x}+{y}")
-            
-            # Simple date selection frame
-            main_frame = ctk.CTkFrame(cal_window)
-            main_frame.pack(fill="both", expand=True, padx=10, pady=10)
-            
-            # Title
-            title_label = ctk.CTkLabel(main_frame, text="Select Date", 
-                                     font=ctk.CTkFont(size=16, weight="bold"))
-            title_label.pack(pady=(10, 20))
-            
-            # Date selection frame
-            date_select_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-            date_select_frame.pack(pady=10)
-            
-            # Get current date from internal var or today
-            current_date_str = internal_var.get()
-            try:
-                current_date = datetime.strptime(current_date_str, "%Y-%m-%d").date()
-            except:
-                current_date = date.today()
-            
-            # Day dropdown
-            ctk.CTkLabel(date_select_frame, text="Day:").grid(row=0, column=0, padx=5, pady=5)
-            day_var = tk.StringVar(value=str(current_date.day))
-            day_combo = ctk.CTkComboBox(date_select_frame, variable=day_var, 
-                                      values=[str(i) for i in range(1, 32)], width=60)
-            day_combo.grid(row=0, column=1, padx=5, pady=5)
-            
-            # Month dropdown
-            ctk.CTkLabel(date_select_frame, text="Month:").grid(row=0, column=2, padx=5, pady=5)
-            month_var = tk.StringVar(value=str(current_date.month))
-            month_combo = ctk.CTkComboBox(date_select_frame, variable=month_var,
-                                        values=[str(i) for i in range(1, 13)], width=60)
-            month_combo.grid(row=0, column=3, padx=5, pady=5)
-            
-            # Year dropdown  
-            ctk.CTkLabel(date_select_frame, text="Year:").grid(row=1, column=0, padx=5, pady=5)
-            current_year = current_date.year
-            years = [str(year) for year in range(current_year-2, current_year+3)]
-            year_var = tk.StringVar(value=str(current_date.year))
-            year_combo = ctk.CTkComboBox(date_select_frame, variable=year_var, 
-                                       values=years, width=80)
-            year_combo.grid(row=1, column=1, columnspan=2, padx=5, pady=5)
-            
-            # Buttons frame
-            btn_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-            btn_frame.pack(pady=20)
-            
-            def apply_date():
-                try:
-                    selected_date = date(int(year_var.get()), int(month_var.get()), int(day_var.get()))
-                    internal_var.set(selected_date.strftime("%Y-%m-%d"))
-                    display_var.set(selected_date.strftime("%d/%m/%y"))
-                    cal_window.destroy()
-                except ValueError:
-                    # Invalid date selected
-                    error_label = ctk.CTkLabel(main_frame, text="Invalid date selected!", 
-                                             text_color="red", font=ctk.CTkFont(size=10))
-                    error_label.pack(pady=5)
-                    cal_window.after(2000, error_label.destroy)
-            
-            # Apply button
-            apply_btn = ctk.CTkButton(btn_frame, text="Select", command=apply_date, width=80)
-            apply_btn.pack(side="left", padx=5)
-            
-            # Cancel button
-            cancel_btn = ctk.CTkButton(btn_frame, text="Cancel", 
-                                     command=cal_window.destroy, width=80,
-                                     fg_color="gray", hover_color="darkgray")
-            cancel_btn.pack(side="left", padx=5)
-            
-        except Exception as e:
-            logger.error(f"Error opening calendar: {e}")
-            # Fallback to today
-            self.set_attendance_date_today(internal_var, display_var)
     
     def darken_color(self, color):
         """Darken a hex color for hover effect"""
@@ -6508,7 +6307,15 @@ class ModernDataPageGUI:
                 data = {key: var.get().strip() for key, var in self.att_vars.items()}
                 # Convert date string to datetime object
                 if data.get("date"):
-                    data["date"] = datetime.strptime(data["date"], "%Y-%m-%d")
+                    # Handle dd/mm/yy format from the new date picker
+                    try:
+                        data["date"] = datetime.strptime(data["date"], "%d/%m/%y")
+                    except ValueError:
+                        # Fallback to other formats
+                        try:
+                            data["date"] = datetime.strptime(data["date"], "%Y-%m-%d")
+                        except ValueError:
+                            raise ValueError("Invalid date format. Please use dd/mm/yy format.")
                 
                 # Extract employee_id from dropdown (format: "EMP001 - John Doe")
                 emp_selection = data.get("employee_id", "")
@@ -6549,11 +6356,8 @@ class ModernDataPageGUI:
                     data["time_in"] = time_in
                     data["time_out"] = time_out
                 
-                # Handle exception hours (always set to 1, not from user input)
-                data["exception_hours"] = 1.0  # Always hardcoded to 1
-                
-                # For backward compatibility, also save as overtime_hour (will be removed later)
-                data["overtime_hour"] = 0  # No overtime in new system
+                # Set default overtime_hour to 0 for new records
+                data["overtime_hour"] = 0  # Default overtime, will be calculated when hours are set
                 
                 result = self.data_service.add_attendance(data)
                 
@@ -7814,20 +7618,12 @@ class ModernDataPageGUI:
             date_display = str(values[1])
             try:
                 if '/' in date_display and len(date_display) <= 8:  # dd/mm/yy format
-                    date_obj = datetime.strptime(date_display, '%d/%m/%y')
-                    date_form_format = date_obj.strftime('%Y-%m-%d')
-                    self.att_vars["date"].set(date_form_format)
-                    # Also set the display variable if it exists
-                    if hasattr(self, 'attendance_display_vars') and "date" in self.attendance_display_vars:
-                        self.attendance_display_vars["date"].set(date_display)
+                    # Keep in dd/mm/yy format since that's what our new picker uses
+                    self.att_vars["date"].set(date_display)
                 else:
                     self.att_vars["date"].set(date_display)
-                    if hasattr(self, 'attendance_display_vars') and "date" in self.attendance_display_vars:
-                        self.attendance_display_vars["date"].set(date_display)
             except:
                 self.att_vars["date"].set(date_display)
-                if hasattr(self, 'attendance_display_vars') and "date" in self.attendance_display_vars:
-                    self.attendance_display_vars["date"].set(date_display)
             
             # Convert times from 12-hour display format to 24-hour for form
             if len(values) > 2:
@@ -8370,8 +8166,8 @@ class ModernDataPageGUI:
             except (ValueError, TypeError):
                 hours_float = 0.0
             
-            # Calculate overtime hours (hours worked - 8)
-            overtime_hours = max(0, hours_float - 8.0)  # Overtime is hours above 8
+            # Calculate overtime hours (hours worked - 8 - 1 additional hour as requested)
+            overtime_hours = max(0, hours_float - 8.0 - 1.0)  # Overtime is hours above 9 (8 + 1)
             
             return [
                 record.get("employee_id", ""),
@@ -8525,7 +8321,15 @@ class ModernDataPageGUI:
             
             # Convert date to datetime
             if data.get("date"):
-                data["date"] = datetime.strptime(data["date"], "%Y-%m-%d")
+                # Handle dd/mm/yy format from the new date picker
+                try:
+                    data["date"] = datetime.strptime(data["date"], "%d/%m/%y")
+                except ValueError:
+                    # Fallback to other formats
+                    try:
+                        data["date"] = datetime.strptime(data["date"], "%Y-%m-%d")
+                    except ValueError:
+                        raise ValueError("Invalid date format. Please use dd/mm/yy format.")
             
             # Remove keys that shouldn't be updated or are used for identification
             update_data = {k: v for k, v in data.items() if k not in ["employee_id", "date"]}

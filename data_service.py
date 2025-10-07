@@ -318,6 +318,62 @@ class HRDataService:
                 log_info("Successfully removed exception_hours field from attendance records", "DATA_SERVICE")
             else:
                 log_info("No attendance records have exception_hours field to remove", "DATA_SERVICE")
+            
+            # Migrate overtime hours to new calculation (reduce by 1, minimum 0)
+            # This ensures existing data matches the new formula: overtime = max(0, hours - 8 - 1)
+            # Use migration flag to ensure this only runs once per database
+            
+            # Check if overtime migration has already been applied
+            migration_marker = list(self.db_manager.find_documents("attendance", {"overtime_migration_v2_2_1": {"$exists": True}}))
+            
+            if migration_marker:
+                log_info("Overtime migration v2.2.1 already applied, skipping", "DATA_SERVICE")
+            else:
+                records_with_old_overtime = list(self.db_manager.find_documents("attendance", {"overtime_hour": {"$gt": 0}}))
+                
+                if records_with_old_overtime:
+                    log_info(f"Migrating overtime calculation for {len(records_with_old_overtime)} records (reducing by 1 hour)", "DATA_SERVICE")
+                    
+                    migrated_count = 0
+                    for record in records_with_old_overtime:
+                        try:
+                            current_overtime = record.get('overtime_hour', 0)
+                            # Apply new formula: reduce by 1 but keep minimum of 0
+                            new_overtime = max(0, current_overtime - 1)
+                            
+                            # Update with migration marker
+                            self.db_manager.update_document(
+                                "attendance",
+                                {"_id": record["_id"]},
+                                {"$set": {
+                                    "overtime_hour": new_overtime,
+                                    "overtime_migration_v2_2_1": True
+                                }}
+                            )
+                            migrated_count += 1
+                                
+                        except Exception as e:
+                            log_error(e, "DATA_SERVICE", f"Error migrating overtime for record {record.get('_id')}")
+                    
+                    log_info(f"Successfully migrated overtime calculation for {migrated_count} records", "DATA_SERVICE")
+                else:
+                    log_info("No attendance records with overtime > 0 found for migration", "DATA_SERVICE")
+                
+                # Add migration marker to at least one record to prevent re-running
+                # If no records exist, create a dummy marker record
+                if not records_with_old_overtime:
+                    try:
+                        # Find any attendance record to add marker
+                        any_record = list(self.db_manager.find_documents("attendance", {}, limit=1))
+                        if any_record:
+                            self.db_manager.update_document(
+                                "attendance",
+                                {"_id": any_record[0]["_id"]},
+                                {"$set": {"overtime_migration_v2_2_1": True}}
+                            )
+                            log_info("Added overtime migration marker to prevent re-running", "DATA_SERVICE")
+                    except Exception as e:
+                        log_error(e, "DATA_SERVICE", "Error adding migration marker")
                 
         except Exception as e:
             log_error(e, "DATA_SERVICE", "Error during attendance field migration")
